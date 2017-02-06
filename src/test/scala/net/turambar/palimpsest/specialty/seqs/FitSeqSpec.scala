@@ -1,7 +1,6 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import org.scalacheck.Properties
-import org.scalacheck.Prop._
 
 /**
   * @author Marcin Mościcki

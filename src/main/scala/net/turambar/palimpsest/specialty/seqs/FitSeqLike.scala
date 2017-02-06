@@ -1,23 +1,18 @@
-package net.turambar.palimpsest.specialty
-
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
-
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.Specialized.Fun1Vals
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenIterable, GenSeq, GenTraversableOnce, IndexedSeqLike, IndexedSeqOptimized, SeqLike, mutable}
 
+import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
-
-
-
-
-
+import net.turambar.palimpsest.specialty.Specialized.Fun1Vals
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterableLike, FitIterator, Specialized, ofKnownSize}
 
 /** A specialized version of standard scala `SeqLike`, overriding all methods which can
   * be specialized on the element type of the `Repr` collection.
   * Provides a couple additional methods.
+ *
   * @tparam E specialized element type
   * @tparam Repr a specialized collection, assumed to be a subclass of [[FitSeq]]
   * @see [[FitSeq]]
@@ -30,7 +25,7 @@ trait FitSeqLike[@specialized(Elements) +E, +Repr] extends IndexedSeqLike[E, Rep
 	
 	/** Quick access to the element at the given index for sibling collections. Directly calls [[at]] */
 	@inline
-	final private[specialty] def get(idx :Int) :E = at(idx)
+	final private[seqs] def get(idx :Int) :E = at(idx)
 	
 	/** Create a slice of this instance assuming the indices are already validated. */
 	protected def section(from :Int, until :Int) :Repr
@@ -577,6 +572,3 @@ trait FitSeqLike[@specialized(Elements) +E, +Repr] extends IndexedSeqLike[E, Rep
 
 
 }
-
-
-

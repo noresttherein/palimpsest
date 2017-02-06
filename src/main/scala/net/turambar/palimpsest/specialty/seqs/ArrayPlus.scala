@@ -1,11 +1,11 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
-import scala.collection.{GenTraversableOnce, TraversableLike, breakOut}
 import scala.collection.generic.CanBuildFrom
+import scala.collection.{GenTraversableOnce, breakOut}
 
-import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, Specialized}
 
 /** An immutable, specialized view on a section of an array with O(n) recursive concatenation/extension.
   * This holds only for one selected, but very common scenario, where the final sequence is built by
@@ -33,9 +33,9 @@ import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
   *
   * @author Marcin Mościcki
   */
-class ArrayPlus[@specialized(Elements) E] protected[specialty](
+class ArrayPlus[@specialized(Elements) E] protected[seqs](
 		final protected[this] val array :Array[E],
-		final protected[specialty] val offset :Int,
+		final protected[seqs] val offset :Int,
 		final val length :Int,
 		private[this] var ownsPrefix :Boolean=false,
 		private[this] var ownsSuffix :Boolean=false
@@ -144,7 +144,7 @@ class ArrayPlus[@specialized(Elements) E] protected[specialty](
 	override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[ArrayPlus[E], B, That]): That =
 		bf match {
 			case spec :CanFitFrom[ArrayPlus[E], B, That]
-				if specialty.ofKnownSize(that) && spec.honorsBuilderFrom && storageClass.isAssignableFrom(spec.elementType) =>
+				if ofKnownSize(that) && spec.honorsBuilderFrom && storageClass.isAssignableFrom(spec.elementType) =>
 					append(that).asInstanceOf[That]
 			case _ => super.++(that)
 		}
@@ -153,7 +153,7 @@ class ArrayPlus[@specialized(Elements) E] protected[specialty](
 	override def ++:[B >: E, That](that: TraversableOnce[B])(implicit bf: CanBuildFrom[ArrayPlus[E], B, That]): That =
 		bf match {
 			case spec :CanFitFrom[ArrayPlus[E], B, That]
-						if specialty.ofKnownSize(that) && spec.honorsBuilderFrom && storageClass.isAssignableFrom(spec.elementType) =>
+						if ofKnownSize(that) && spec.honorsBuilderFrom && storageClass.isAssignableFrom(spec.elementType) =>
 				prepend(that).asInstanceOf[That]
 			case _ => super.++:(that)
 		}
@@ -161,7 +161,7 @@ class ArrayPlus[@specialized(Elements) E] protected[specialty](
 	override def ++:[B >: E, That](that: Traversable[B])(implicit bf: CanBuildFrom[ArrayPlus[E], B, That]): That =
 		bf match {
 			case spec :CanFitFrom[ArrayPlus[E], B, That]
-						if specialty.ofKnownSize(that) && spec.honorsBuilderFrom && storageClass.isAssignableFrom(spec.elementType) =>
+						if ofKnownSize(that) && spec.honorsBuilderFrom && storageClass.isAssignableFrom(spec.elementType) =>
 				prepend(that).asInstanceOf[That]
 			case _ =>
 				(that ++ seq)(breakOut)
@@ -236,7 +236,7 @@ object ArrayPlus extends ArrayViewFactory[ArrayPlus] { factory =>
 	
 	
 	
-	protected[specialty] override def apply[E](contents: ArrayBounds[E]): ArrayPlus[E] = shared(contents.copy)
+	protected[seqs] override def apply[E](contents: ArrayBounds[E]): ArrayPlus[E] = shared(contents.copy)
 	
 	protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): ArrayPlus[E] =
 		new ArrayPlus[E](array, offset, length, true, true)

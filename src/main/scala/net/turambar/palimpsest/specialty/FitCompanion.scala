@@ -7,6 +7,8 @@ import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import scala.collection.generic.{CanBuildFrom, GenTraversableFactory, GenericCompanion}
 import scala.collection._
 
+import net.turambar.palimpsest.specialty.seqs.FitSeq
+
 
 
 

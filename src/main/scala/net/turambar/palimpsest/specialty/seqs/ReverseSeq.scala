@@ -1,9 +1,10 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 
-import Specialized.Fun2Vals
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.Specialized.Fun2Vals
+import net.turambar.palimpsest.specialty.{Elements, FitIterator}
 
 /** A backwards view of another [[FitSeq]].
   * Index `i` of this seq refers to element `original.length -1 -i` in the `original` sequence.

@@ -1,9 +1,10 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
-import scala.collection.generic.{CanBuildFrom, GenericCompanion, GenericTraversableTemplate}
+import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, InterfaceIterableFactory, Specialized, SpecializedTraversableTemplate, arrayFill}
 
 
 

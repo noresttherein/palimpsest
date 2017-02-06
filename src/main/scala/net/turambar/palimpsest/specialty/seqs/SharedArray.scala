@@ -1,9 +1,10 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion}
 
 
 /** A view on a section of an array as a mutable, specialized sequence. */
@@ -20,12 +21,14 @@ trait SharedArray[@specialized(Elements) E]
 object SharedArray extends ArrayViewFactory[SharedArray] {
 
 
+	
+	
 	@inline
 	final override protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): SharedArray[E] =
 		new ArraySlice[E](array, offset, length)
 
 
-	private[specialty] class ArraySlice[@specialized(Elements) E](protected[this] final val array :Array[E], protected[specialty] final val offset :Int, final val length :Int)
+	private[seqs] class ArraySlice[@specialized(Elements) E](protected[this] final val array :Array[E], protected[seqs] final val offset :Int, final val length :Int)
 		extends IterableFoundation[E, SharedArray[E]] with SharedArray[E]
 	{
 		override protected def section(from: Int, until: Int): SharedArray[E] =

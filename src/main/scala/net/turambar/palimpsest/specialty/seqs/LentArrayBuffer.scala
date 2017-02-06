@@ -1,6 +1,4 @@
-package net.turambar.palimpsest.specialty
-
-import java.util
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -8,6 +6,7 @@ import scala.reflect.ClassTag
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements}
 
 
 /** A view of an `Array[E]` as a buffer. The buffer is 'lent' in the sense that can neither modify the underlying
@@ -21,8 +20,8 @@ import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
   * @param higherBound maximum index in the array which can't be exceeded by appending elements to this buffer.
   * @tparam E element type before erasure
   */
-class LentArrayBuffer[@specialized(Elements) E] protected[specialty]
-		(protected[this] final var array :Array[E], protected[specialty] final var offset :Int, protected[this] final var len :Int, lowerBound :Int, higherBound :Int)
+class LentArrayBuffer[@specialized(Elements) E] protected[seqs]
+		(protected[this] final var array :Array[E], protected[seqs] final var offset :Int, protected[this] final var len :Int, lowerBound :Int, higherBound :Int)
 	extends IterableFoundation[E, LentArrayBuffer[E]] with SharedArrayBuffer[E]
 	        with SharedArrayLike[E, LentArrayBuffer] with mutable.BufferLike[E, LentArrayBuffer[E]]
 {

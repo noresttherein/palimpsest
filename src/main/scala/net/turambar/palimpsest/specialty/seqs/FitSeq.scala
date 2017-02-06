@@ -1,12 +1,12 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
-
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenTraversableOnce, mutable}
 
+import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, InterfaceIterableFactory, Specialized, SpecializedTraversableTemplate}
 
 
 /** A scala `Seq` (either mutable or immutable underneath) which is specialized on its element type.

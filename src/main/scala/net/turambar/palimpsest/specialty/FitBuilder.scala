@@ -5,6 +5,7 @@ import scala.collection.{GenTraversableOnce, LinearSeq, Traversable, Traversable
 
 import Specialized.{Fun1, Fun1Vals}
 import net.turambar.palimpsest.specialty.FitBuilder.{BuilderAdapter, BuilderWrapper}
+import net.turambar.palimpsest.specialty.seqs.FitSeq
 
 
 
@@ -117,7 +118,7 @@ object FitBuilder {
 		new BuilderFilter(target)
 	
 	final class BuilderFilter[@specialized(Fun1) X, To](private val target :FitBuilder[X, To]) {
-		@inline final def filterInput(p :X=>Boolean) :FitBuilder[X, To] = FitBuilder.filter(p, target)
+		@inline def filterInput(p :X=>Boolean) :FitBuilder[X, To] = FitBuilder.filter(p, target)
 	}
 	
 

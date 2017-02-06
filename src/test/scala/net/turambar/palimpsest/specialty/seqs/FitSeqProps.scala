@@ -1,12 +1,12 @@
-package net.turambar.palimpsest.specialty
-
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.reflect.ClassTag
 
-import org.scalacheck.Properties
-import org.scalacheck.Prop._
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, Specialized, SpecializedTraversableTemplate}
 import net.turambar.palimpsest.testutil._
 import net.turambar.slang.conditional._
+import org.scalacheck.Prop._
+import org.scalacheck.Properties
 
 /**
   * @author Marcin Mościcki

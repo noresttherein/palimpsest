@@ -1,8 +1,9 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.Subtractable
 import scala.collection.{GenTraversableOnce, mutable}
 
+import net.turambar.palimpsest.specialty.{Elements, Specialized}
 
 /**
   * @author Marcin Mościcki
@@ -17,7 +18,7 @@ trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] wi
 	override def seq: MutableSeq[E] = this.asInstanceOf[MutableSeq[E]]
 
 	@inline
-	final protected[specialty] def uncheckedUpdate(idx :Int, elem :E) :Unit = set(idx, elem)
+	final protected[seqs] def uncheckedUpdate(idx :Int, elem :E) :Unit = set(idx, elem)
 	
 	/** Set the value at the given index without checking the range. */
 	protected[this] def set(idx :Int, elem :E) :Unit
@@ -60,7 +61,7 @@ trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] wi
 	@inline
 	final override def --(xs: GenTraversableOnce[E]): Repr = diff(Seq(), xs)
 
-	protected[specialty] def diff(elems1 :Traversable[E], elems2 :GenTraversableOnce[E]) :Repr = {
+	protected[seqs] def diff(elems1 :Traversable[E], elems2 :GenTraversableOnce[E]) :Repr = {
 		val removedIndices = indicesOf(elems1, elems2)
 		val b = newBuilder; b.sizeHint(removedIndices.size)
 		var i=0; val l=length
@@ -71,7 +72,7 @@ trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] wi
 		b.result()
 	}
 
-	protected[specialty] def indicesOf(elems1 :Traversable[E], elems2 :GenTraversableOnce[E]) :mutable.Set[Int] = {
+	protected[seqs] def indicesOf(elems1 :Traversable[E], elems2 :GenTraversableOnce[E]) :mutable.Set[Int] = {
 		var result = mutable.Set[Int]()
 		var searchOffsets = mutable.Map[E, Int]().withDefaultValue(0)
 		def collect(e :E) :Unit = { //todo this is not specialized!

@@ -1,6 +1,7 @@
 package net.turambar.palimpsest.specialty
 
 import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
+import net.turambar.palimpsest.specialty.seqs.{FitSeq, ReverseSeq, SharedArray}
 
 
 
@@ -53,4 +54,35 @@ class ReverseArrayIterator[@specialized(Elements) +E](array :Array[E], from :Int
 	override final def toSeq: FitSeq[E] = new ReverseSeq[E](SharedArray.view[E](array, end, size))
 	
 	override final def toIndexedSeq = toSeq.toIndexedSeq
+}
+
+
+
+object ArrayIterator {
+	def apply[E](array :Array[E]) :FitIterator[E] = Wrap(array)
+	
+	def apply[E](array :Array[E], start :Int, length :Int) :FitIterator[E] =
+		Wrap(array).drop(start).take(length)
+	
+	def apply[E](from :Int, array :Array[E], until :Int) :FitIterator[E] =
+		Wrap(array).take(until).drop(from)
+	
+	def reverse[E](array :Array[E]) :FitIterator[E] = Reversed(array)
+	
+	def reverse[E](array :Array[E], start :Int, length :Int) :FitIterator[E] =
+		Reversed(array).drop(array.length-start).take(length)
+	
+	def reverse[E](from :Int, array :Array[E], downto :Int) :FitIterator[E] =
+		Reversed(array).drop(array.length-from).take(from-downto)
+		
+	
+	private[this] final val Wrap = new Specialize.With[ArrayIterator, Array] {
+		override def specialized[@specialized E : Specialized](param: Array[E]): ArrayIterator[E] =
+			new ArrayIterator[E](param, 0, param.length)
+	}
+	
+	private[this] final val Reversed = new Specialize.With[ReverseArrayIterator, Array] {
+		override def specialized[@specialized E : Specialized](param: Array[E]): ReverseArrayIterator[E] =
+			new ReverseArrayIterator[E](param, param.length-1, 0)
+	}
 }

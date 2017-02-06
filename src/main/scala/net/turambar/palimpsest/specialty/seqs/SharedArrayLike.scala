@@ -1,7 +1,8 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.reflect.ClassTag
 
+import net.turambar.palimpsest.specialty.{Elements, arrayFill, ofKnownSize}
 
 /**
   * @author Marcin Mościcki
@@ -9,7 +10,7 @@ import scala.reflect.ClassTag
 trait SharedArrayLike[@specialized(Elements) E, +Repr[X]<:SharedArrayLike[X, Repr] with SharedArray[X]]
 	extends MutableSeqLike[E, Repr[E]] with ArrayViewLike[E, Repr]
 {
-	override protected[specialty] def arr :Array[E] = array
+	override protected[seqs] def arr :Array[E] = array
 
 	override def overwrite: FitBuffer[E] = LentArrayBuffer.upon(array, offset, length)
 
@@ -34,7 +35,7 @@ trait SharedArrayLike[@specialized(Elements) E, +Repr[X]<:SharedArrayLike[X, Rep
 				throw new IndexOutOfBoundsException((idx+elems.size).toString)
 			elems.copyToArray(array, offset+idx, length-idx)
 		case _ =>
-			val e = elems.toIterator
+			val e = elems.toIterator //todo :specialization
 			var i = offset+idx; val end = offset+length
 			while (e.hasNext && i<end) {
 				set(i, e.next()); i+=1

@@ -1,16 +1,17 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion}
 
 
 /** A view on a section of an array which contents - at least within this section -
   * can be changed by neither this instance or any other source.
   */
-class ConstArray[@specialized(Elements) +E] protected[specialty]
-		(final protected[this] val array :Array[E], final protected[specialty] val offset :Int, final val length :Int)
+class ConstArray[@specialized(Elements) +E] protected[seqs]
+		(final protected[this] val array :Array[E], final protected[seqs] val offset :Int, final val length :Int)
 	extends IterableFoundation[E, ConstArray[E]] with ConstSeq[E] with ArrayView[E] with ArrayViewLike[E, ConstArray] //with ConstSeq[E] //with ConstSeqLike[E, ConstArray[E]]
 	        with FitSeqLike[E, ConstArray[E]] //with SpecializedTraversableTemplate[E, ConstArray]
 {
@@ -41,7 +42,7 @@ class ConstArray[@specialized(Elements) +E] protected[specialty]
   */
 object ConstArray extends ArrayViewFactory[ConstArray] { factory =>
 	
-	protected[specialty] override def apply[E](contents: ArrayBounds[E]): ConstArray[E] = shared(contents.copy)
+	protected[seqs] override def apply[E](contents: ArrayBounds[E]): ConstArray[E] = shared(contents.copy)
 
 	protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): ConstArray[E] =
 		new ConstArray[E](array, offset, length)

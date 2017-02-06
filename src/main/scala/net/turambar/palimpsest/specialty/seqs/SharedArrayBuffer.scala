@@ -1,14 +1,14 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
-
-import scala.collection.{IndexedSeqLike, mutable}
-import scala.reflect.ClassTag
 import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
+import scala.collection.{IndexedSeqLike, mutable}
+import scala.reflect.ClassTag
 
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, FitItems, Specialized}
 
 
 
@@ -34,7 +34,7 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 	
 	
 	protected[this] var array :Array[E]
-	protected[specialty] var offset :Int
+	protected[seqs] var offset :Int
 	protected[this] var len :Int
 	
 	@inline final def length = len
@@ -235,7 +235,7 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 	
 	
 	//	protected[this] var array :Array[E]
-//	protected[specialty] var offset :Int
+//	protected[seqs] var offset :Int
 //	protected[this] var len :Int
 //
 //	@inline final def length = len
@@ -268,10 +268,10 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 		}else {
 			var a = array
 			var o = offset
-			var i = o+len; val it=elems.toIterator
+			var i = o+len; val it=elems.toIterator //todo: specialization
 			var nextcheck = i
 			while(it.hasNext) { //we are using an iterator to avoid boxing of function calls
-				if (i==nextcheck) {
+				if (i==nextcheck) { //call to reserve() requires several static forwarders
 					nextcheck = reserve()
 					a = array
 					i += offset-o //reserve might have shift the contents
@@ -349,7 +349,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 	protected var unmodifiable :Boolean
 	
 	/** Prevents any future modification of this buffer and its underlying data. */
-	protected[specialty] def freeze() :Unit = unmodifiable = true
+	protected[seqs] def freeze() :Unit = unmodifiable = true
 	
 	//can be extracted and made unspecialized
 	override def reserve(required: Int=1): Int = {
@@ -475,7 +475,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
   */
 class GrowingArrayBuffer[@specialized(Elements) E](
 		protected[this] final var array :Array[E],
-		protected[specialty] final var offset :Int,
+		protected[seqs] final var offset :Int,
 		protected[this] final var len :Int,
 		protected final var unmodifiable :Boolean=false)
 	extends IterableFoundation[E, SharedArrayBuffer[E]] with DefaultArrayBuffer[E]

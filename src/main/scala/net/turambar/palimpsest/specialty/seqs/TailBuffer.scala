@@ -1,15 +1,16 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
 
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{Elements, FitItems, Specialized}
 
 
 /** A mutable view of the tail of a buffer which allows to modify its contents only past some specified index.
  *
   * @author Marcin Mościcki
   */
-class TailBuffer[@specialized(Elements) E] private[specialty](buffer :FitBuffer[E], offset :Int)
+class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], offset :Int)
 		extends IterableFoundation[E, FitBuffer[E]] with FitBuffer[E]
 {
 

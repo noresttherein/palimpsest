@@ -1,12 +1,13 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
-import java.util
-
-import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
 
-import Specialized.{Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.Specialized.Fun2Vals
+import net.turambar.palimpsest.specialty.{ArrayIterator, Elements, ReverseArrayIterator, Specialized, SpecializedTraversableTemplate, arrayCopy}
 
+/**
+  * @author Marcin Mościcki
+  */
 trait ArrayViewLike[@specialized(Elements) +E, +Repr[X] <: ArrayViewLike[X, Repr] with ArrayView[X]]
 	extends FitSeqLike[E, ArrayView[E]] with SpecializedTraversableTemplate[E, Repr]
 {
@@ -15,9 +16,9 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr[X] <: ArrayViewLike[X, Repr
 	
 	protected[this] def array :Array[E]
 
-	protected[specialty] def arr :Array[_] = array
+	protected[seqs] def arr :Array[_] = array
 
-	protected[specialty] def offset :Int
+	protected[seqs] def offset :Int
 
 	
 	
@@ -106,42 +107,29 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr[X] <: ArrayViewLike[X, Repr
 	
 	/* Predicate testing and traversing methods */
 	
-	
-//	override final def foreach[@specialized(Unit) U](f: (E) => U): Unit = {
-//		val a = array; var i = offset; val e = i + length
-//		while(i<e) {
-//			val x :E = a(i)
-//			f.apply(x :E); i+=1
-//		}
-//	}
 
-	//temporarily commented out for super class test
-/*
-	override def foreach[@specialized(Unit) O](f: (E) => O): Unit = {
+
+	@inline final override def foreach[@specialized(Unit) O](f: (E) => O): Unit = {
 		val a = array; var i = offset; val e = i + length
-		while(i<e) {
-//			val x :E = a(i)
-			f(a(i)); i+=1
-		}
+		while(i<e) { f(a(i)); i+=1 }
 	}
-*/
 	
 	
-	override def reverseForeach(f: (E) => Unit): Unit = {
+	@inline final override def reverseForeach(f: (E) => Unit): Unit = {
 		val a = array; val e = offset; var i = offset+length-1
 		while(i>=e) { f(a(i)); i-=1 }
 	}
 	
 	
 	
-	override final def foldLeft[@specialized(Fun2Vals) U](z: U)(op: (U, E) => U): U = {
+	@inline final override def foldLeft[@specialized(Fun2Vals) U](z: U)(op: (U, E) => U): U = {
 		var i=offset; val e = offset+length; val a = array
 		var res = z
 		while(i<length) { res = op(res, a(i)); i+=1 }
 		res
 	}
 	
-	override def foldRight[@specialized(Fun2Vals) O](z: O)(op: (E, O) => O): O = {
+	@inline final override def foldRight[@specialized(Fun2Vals) O](z: O)(op: (E, O) => O): O = {
 		val e = offset; var i = e+length; val a = array
 		var acc = z
 		while(i>=e) { acc = op(a(i), acc); i-=1 }
@@ -151,8 +139,8 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr[X] <: ArrayViewLike[X, Repr
 	
 	/* ********** filtering and other self-typed collections ************** */
 	
-	//temporarily commented out for tests of super impl
-/*	override protected[this] def filter(p: (E) => Boolean, value: Boolean): Repr[E] = {
+	
+	override protected[this] def filter(p: (E) => Boolean, value: Boolean): Repr[E] = {
 		val b = newBuilder
 		b.sizeHint(length)
 		var i = offset; val e = i+length; val a = array
@@ -162,22 +150,18 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr[X] <: ArrayViewLike[X, Repr
 			i+=1
 		}
 		b.result()
-	}*/
-	
-	
-	
-	
-	override def toBuffer[U >: E]: FitBuffer[U] = {
-		if (storageClass isAssignableFrom Specialized[U].runType)
-			new GrowingArrayBuffer[E](array, offset, length, true).asInstanceOf[FitBuffer[U]]
-		else new GrowingArrayBuffer[U]() ++= this
 	}
+	
+	
+	
+	//todo: optimistic specialization
+//	override def toBuffer[U >: E]: FitBuffer[U] =
 
 
 	override def toFitBuffer[U >: E: Specialized]: SharedArrayBuffer[U] =
 		if (storageClass isAssignableFrom Specialized[U].runType)
 			new GrowingArrayBuffer[E](array, offset, length, true).asInstanceOf[SharedArrayBuffer[U]]
-		else new GrowingArrayBuffer[U]() ++= this
+		else SharedArrayBuffer.upon(Specialized[U].emptyArray.asInstanceOf[Array[U]]) ++= this
 	
 	
 	override def toIndexedSeq: ConstSeq[E] =
@@ -206,4 +190,3 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr[X] <: ArrayViewLike[X, Repr
 
 	override protected[this] def typeStringPrefix = "ArrayView"
 }
-

@@ -1,12 +1,11 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.sets
 
-import java.lang.Long.{bitCount, lowestOneBit, numberOfTrailingZeros}
-
-import scala.collection.{GenIterable, GenTraversableOnce}
 import scala.collection.generic.CanBuildFrom
+import scala.collection.{GenIterable, GenTraversableOnce}
 
-import net.turambar.palimpsest.specialty.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
+import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
+import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator}
 
 /**
   * @author Marcin Mościcki
@@ -253,7 +252,7 @@ object ByteSet {
 	
 	
 	
-	class ByteSetIterator private[ByteSet] (bitmap :ByteSetBitmap)
+	class ByteSetIterator private[ByteSet](bitmap :ByteSetBitmap)
 		extends BaseIterator[Byte] with FitIterator[Byte]
 	{
 		

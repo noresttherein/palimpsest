@@ -1,11 +1,11 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
-
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import scala.reflect._
 
+import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitBuilder, FitCompanion, Specialize, Specialized, SpecializedIterableFactory, arrayFill}
 
 
 
@@ -108,7 +108,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  */
 	def apply[E](from :Int, contents :Array[E], until :Int) :S[E] = apply(ArrayBounds.share(from, contents, until))
 
-	protected[specialty] def apply[E](contents :ArrayBounds[E]) :S[E] = ForArray(contents)(contents.specialization)
+	protected[seqs] def apply[E](contents :ArrayBounds[E]) :S[E] = ForArray(contents)(contents.specialization)
 
 	/** Create a specialized sequence backed by an array of the given type, initialized by runtime default value for `E`.
 	  * This method is intended to be used only for primitive types, and calling it for user-defined value types
@@ -201,7 +201,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 		shared(ArrayBounds.copy(fromIndex, contents, untilIndex))
 
 
-	protected[specialty] def shared[E](contents :ArrayBounds[E]) :S[E] = ForArray(contents)(contents.specialization)
+	protected[seqs] def shared[E](contents :ArrayBounds[E]) :S[E] = ForArray(contents)(contents.specialization)
 
 	
 	private[this] final val ForArray = new Specialize.With[S, ArrayBounds] {
@@ -210,7 +210,10 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	}
 
 
-	@inline final private[specialty] def view[@specialized(Elements) E] (array :Array[E], offset :Int, length :Int) =
+	/** Delegates to this factory's [[ArrayViewFactory#using]], which creates a new array view of corresponding specialization
+	  * and parameters. Doesn't validate input and trusts the caller to be in an appropriate specialization context, hence access restriction.
+	  */
+	@inline final private[palimpsest] def view[@specialized(Elements) E] (array :Array[E], offset :Int, length :Int) =
 		using(array, offset, length)
 
 	protected def using[@specialized(Elements) E](array :Array[E], offset :Int, length :Int) :S[E]
@@ -342,7 +345,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 		def this()(implicit elementType :ClassTag[E]) = this(new Array[E](0))
 		
 		protected[this] final var len = 0
-		protected[specialty] final var offset=0
+		protected[seqs] final var offset=0
 		override protected var unmodifiable: Boolean = false
 		
 		/** Overriden due to conflict in inheritance. */
@@ -432,6 +435,9 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 */
 
 }
+
+
+
 
 
 

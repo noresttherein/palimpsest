@@ -1,4 +1,4 @@
-import net.turambar.palimpsest.specialty.{SharedArray, ConstArray, FitSeq}
+import net.turambar.palimpsest.specialty.seqs.FitSeq
 
 /**
   * @author Marcin Mościcki
@@ -7,6 +7,7 @@ object playground extends App {
 	
 	
 	val twoInts = FitSeq(42, 44)
+	twoInts.foldLeft(0)((_:Int) + (_:Int))
 	twoInts.traverse { i :Int => i*i; }
 //	twoInts.items.foreach { i :Int => i*i; }
 	val slice = twoInts.slice(0, 2)

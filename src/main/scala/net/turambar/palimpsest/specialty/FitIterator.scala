@@ -7,6 +7,7 @@ import scala.collection.{BufferedIterator, GenTraversableOnce, Iterator, immutab
 import net.turambar.palimpsest.{IndexedIteratorLike, ReverseIndexedIteratorLike}
 import net.turambar.palimpsest.specialty.FitIterator.{FilterIterator, LimitedIterator, MappedIterator, ScanLeftIterator, TakeWhileIterator}
 import Specialized.{Fun1, Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.seqs.{ConstSeq, FitBuffer, FitSeq}
 
 
 
@@ -30,6 +31,7 @@ trait FitIterator[@specialized(Elements) +E]
 	extends FitItems[E] with BufferedIterator[E] //with FilterMonadic[E, FitIterator[E]]
 { self =>
 	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
+	
 	override def specialization :Specialized[_<:E] = mySpecialization
 	
 	@unspecialized
@@ -101,6 +103,7 @@ trait FitIterator[@specialized(Elements) +E]
 	override def foreach[@specialized(Unit) U](f: (E) => U): Unit =
 		{ while (hasNext) f(next()) }
 	
+	@unspecialized
 	def traverse(f :E => Unit) :Unit //= { while (hasNext) f(next()) }
 	
 
@@ -261,6 +264,20 @@ object FitIterator {
 	def adapt[@specialized(Elements) E](iter :Iterator[E]) :FitIterator[E] = iter match {
 		case spec :FitIterator[_] => spec.asInstanceOf[FitIterator[E]]
 		case i => new ErasedIterator(iter.buffered)
+	}
+	
+	
+	/** Checks if the given instance can be converted to a [[FitIterator]].
+	  * Matching succeeds if the instance already is a `FitIterator`,
+	  * is a [[FitIterable]] (in which case its iterator is returned),
+	  * or is an instance of `mutable.WrappedArray`, in which case a properly
+	  * specialized iterator is created.
+	  */
+	def unapply[E](items :GenTraversableOnce[E]) :Option[FitIterator[E]] = items match {
+		case it :FitIterator[E] => Some(it)
+		case es :FitIterableLike[E, _] => Some(es.iterator)
+		case arr :mutable.WrappedArray[E] => Some(ArrayIterator(arr.array))
+		case _ => None
 	}
 	
 	
