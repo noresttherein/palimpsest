@@ -2,18 +2,23 @@ package net.turambar.palimpsest.specialty.sets
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenIterable, GenTraversableOnce}
-
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator}
+import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, Specialized}
+import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun2, Fun1Vals}
 
 /**
   * @author Marcin Mościcki
   */
 class ByteSet private[ByteSet](bytes :ByteSetBitmap) extends FitSet[Byte] {
 	private[ByteSet] def bitmap = bytes
-	
+
+	override protected[this] def mySpecialization = Specialized.SpecializedByte
+	override def empty = ByteSet.Empty
+
 	override final def size: Int = bytes.size
+	override def hasFastSize = false
+	override def hasDefiniteSize = true
 	
 	override final def nonEmpty = bytes.nonEmpty
 	
@@ -33,15 +38,18 @@ class ByteSet private[ByteSet](bytes :ByteSetBitmap) extends FitSet[Byte] {
 	
 	override final def -(elem: Byte): FitSet[Byte] = new ByteSet(bytes - elem)
 	
-	override final def foreach[U](f: (Byte) => U): Unit = bytes.foreach(f)
-	
-	
+	override final def foreach[@specialized(Unit) U](f: (Byte) => U): Unit = bytes.foreach(f)
+	override protected def reverseForeach(f: (Byte) => Unit): Unit = bytes.reverseForeach(f)
+
+
+
 	override final def filterNot(p: (Byte) => Boolean): FitSet[Byte] = new ByteSet(bytes.filterNot(p))
 	
 	override final def filter(p: (Byte) => Boolean): FitSet[Byte] = new ByteSet(bytes.filter(p))
-	
-	
-	override final def map[B, That](f: (Byte) => B)(implicit bf: CanBuildFrom[FitSet[Byte], B, That]): That = {
+	override protected[this] def filter(p: (Byte) => Boolean, ourTruth: Boolean): FitSet[Byte] =
+		new ByteSet(bytes.filter(p, ourTruth))
+
+	override final def map[@specialized(Fun1Vals) B, That](f: (Byte) => B)(implicit bf: CanBuildFrom[FitSet[Byte], B, That]): That = {
 		val bu = bf(this)
 		if (nonEmpty) {
 			bu.sizeHint(size)
@@ -69,10 +77,10 @@ class ByteSet private[ByteSet](bytes :ByteSetBitmap) extends FitSet[Byte] {
 		bu.result()
 	}
 	
-	override final def iterator: Iterator[Byte] =
-		new ByteSetIterator(bytes.copy)
+	override final def fitIterator: FitIterator[Byte] = new ByteSetIterator(bytes.copy)
+	override final def iterator :FitIterator[Byte] = new ByteSetIterator(bytes.copy)
 	
-	override protected[this] def newBuilder: FitBuilder[Byte, ByteSet] = new ByteSetBuilder
+	override def newBuilder: FitBuilder[Byte, ByteSet] = new ByteSetBuilder
 	
 	override def equals(that: Any): Boolean = that match {
 		case bytes :ByteSet => bitmap sameElements bytes.bitmap
@@ -83,6 +91,8 @@ class ByteSet private[ByteSet](bytes :ByteSetBitmap) extends FitSet[Byte] {
 		case bytes :ByteSet => bitmap sameElements bytes.bitmap
 		case _ => super.sameElements(that)
 	}
+
+	override def stringPrefix = "ByteSet"
 }
 
 
@@ -93,12 +103,21 @@ object ByteSet {
 	import java.lang.Long.{bitCount, numberOfTrailingZeros}
 	
 	final val Empty = new ByteSet(EmptyBitmap())
-	
+
+	@inline final def newBuilder :FitBuilder[Byte, ByteSet] = new ByteSetBuilder
+
+	def empty :ByteSet = Empty
+
+	def apply(bytes :Byte*) :ByteSet = (newBuilder ++= bytes).result()
+
 	private final val GarbageBitmap = EmptyBitmap()
 	@inline private def EmptyBitmap() = new ByteSetBitmap(Array[Long](0L, 0L, 0L, 0L))
 	
-	@inline final def newBuilder :FitBuilder[Byte, ByteSet] = new ByteSetBuilder
-	
+
+
+
+
+
 	
 	private[ByteSet] class ByteSetBitmap(val bitmap :Array[Long]) extends AnyVal {
 		
@@ -217,29 +236,36 @@ object ByteSet {
 		
 		
 		
-		def foreach[U](f: (Byte) => U): Unit = {
+		def foreach[@specialized(Unit) U](f: (Byte) => U): Unit = {
 			var i=0
 			while(i<256) {
 				if (contains(i.toByte)) f(i.toByte)
 				i += 1
 			}
 		}
-		
-		
-		def filterNot(p: (Byte) => Boolean): ByteSetBitmap = {
+
+		def reverseForeach(f :Byte=>Unit) :Unit = {
+			var i = 255
+			while(i>=0) {
+				if (contains(i.toByte)) f(i.toByte)
+				i -= 1
+			}
+		}
+
+		@inline final def filterNot(p :Byte=>Boolean) :ByteSetBitmap = filter(p, ourTruth = false)
+		@inline final def filter(p :Byte=>Boolean) :ByteSetBitmap = filter(p, ourTruth = true)
+
+		def filter(p :Byte=>Boolean, ourTruth :Boolean) :ByteSetBitmap = {
+			val copy = Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3))
 			var i = 0
-			var copy = Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3))
-			while (i < 256) {
+			while(i < 256) {
 				val b = i.toByte
-				if (contains(b) && p(b))
-					copy(3 - i/64) ^ 1L << i % 63
+				if (contains(b) && p(b)!=ourTruth)
+					copy(3-i/64) ^ 1L << i //jvm does % 63
 				i += 1
 			}
 			new ByteSetBitmap(copy)
 		}
-		
-		def filter(p: (Byte) => Boolean): ByteSetBitmap = filterNot(!p(_))
-		
 
 		
 		def iterator: FitIterator[Byte] =

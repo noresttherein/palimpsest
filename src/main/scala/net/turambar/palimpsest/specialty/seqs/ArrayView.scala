@@ -2,10 +2,12 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.reflect._
-
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
-import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitBuilder, FitCompanion, Specialize, Specialized, SpecializedIterableFactory, arrayFill}
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitBuilder, FitCompanion, FitTraversableOnce, SpecializableIterable, Specialize, Specialized, SpecializedIterableFactory, arrayFill}
+
+import scala.annotation.unspecialized
+import scala.collection.{IndexedSeqOptimized, LinearSeq, LinearSeqLike}
 
 
 
@@ -17,20 +19,62 @@ import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitBuilder, Fit
   * as ''views'' on the parent sequence - any modifications made to one will be visible in the other.
   */
 trait ArrayView[@specialized(Elements) +E]
-	extends FitSeq[E] with ArrayViewLike[E, ArrayView]
+	extends LinearSeq[E] with LinearSeqLike[E, ArrayView[E]] with IndexedSeqOptimized[E, ArrayView[E]] //generic interfase extracted so it doesn't override FitIndexedSeq methods
+			with FitIndexedSeq[E] with ArrayViewLike[E, ArrayView[E]]
+			with SpecializableIterable[E, ArrayView]
 {
+	@unspecialized override protected[this] def thisCollection = this
+	@unspecialized override protected[this] def toCollection(repr :ArrayView[E]) = repr
+	@unspecialized override def seq :ArrayView[E] = this
+
+
+	override protected[this] def at(idx: Int): E = array(headIdx + idx)
+
+
+	
+	
+	override protected[this] def startsWithUnchecked(that :SliceLike[E, _], offset :Int) :Boolean = that match {
+		case a :ArrayView[_] =>
+			var me = offset; var she = a.headIdx; val myEnd = me + a.length
+			val my = array; val her = a.arr.asInstanceOf[Array[E]]
+			while(me<myEnd && my(me)==her(she)) { me+=1; she += 1 }
+			me==myEnd
+		case _ =>
+			super.startsWithUnchecked(that, offset)
+	}
+	
+	
+	
 	override def companion: FitCompanion[ArrayView] = ArrayView
+
+
+	protected[this] def writeReplace :AnyRef =
+		if (length==array.length) this
+		else {
+			val b = newBuilder; b.sizeHint(length)
+			(b ++= this).result()
+		}
+
 }
 
 
 
 
 
-abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with ArrayViewLike[X, S]]
+abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with SpecializableIterable[X, S]]
 	extends SpecializedIterableFactory[S]
 { outer =>
 	
 	override val Empty: S[Nothing] = empty
+	
+	
+	/** Creates an empty specialized sequence based on implicitly available specialization information.
+	  * @param elementType specialization defining the component type of the array
+	  * @tparam E array component type
+	  * @return a sequence backed by an empty array of the runtime type defined by `elementType`.
+	  */
+	@inline final override def like[E](implicit elementType :Specialized[E]) :S[E] =
+		emptyOf(elementType.classTag.asInstanceOf[ClassTag[E]])
 	
 	/** Creates an empty specialized sequence. If `E` is statically known to be a specializable (primitive) type,
 	  * a proper specialized subclass of `S[E]` will be returned. However, when used from a generic type
@@ -41,6 +85,8 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
       * @return an empty sequence.
 	  */
 	@inline final override def empty[@specialized(Elements) E]: S[E] = using(Specialized.erasedArray[E], 0, 0)
+	
+	
 	
 	/** Creates an empty specialized sequence proper for the given element type.
 	  * Returned sequence will be a specialized variant of `S[E]` iff `elementType` is a syntetic class
@@ -345,27 +391,28 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 		def this()(implicit elementType :ClassTag[E]) = this(new Array[E](0))
 		
 		protected[this] final var len = 0
-		protected[seqs] final var offset=0
+		protected[seqs] final var headIdx=0
 		override protected var unmodifiable: Boolean = false
-		
-		/** Overriden due to conflict in inheritance. */
-		override protected[this] def mySpecialization: Specialized[E] = Specialized[E]
-		
-		override def result(): S[E] = {
-			val res = outer.using(array, offset, length)
+
+
+
+		override def result(): S[E] = { //todo: verify this is properly specialized
+			val res = outer.using(array, headIdx, length)
 			unmodifiable = true
 			res
 		}
-		
-//		override def ++=(xs: TraversableOnce[E]): ArraySeqBuilder.this.type = super.++=(xs)
-		
+
+
+		@unspecialized
+		override def ++=(elems: FitTraversableOnce[E]) :this.type = { appendAll(elems); this }
+
 		override def sizeHint(targetSize :Int) :Unit =
 			if (targetSize>array.length)
 				reserve(targetSize-array.length)
 		
 		override def count: Int = length
 		
-		override def source: Any = outer
+		override def origin: Any = outer
 		
 		override def typeHint[L <: E](implicit specialization: Specialized[L]): FitBuilder[E, S[E]] =
 			if (length>0 || specialization =:= mySpecialization) this
@@ -382,6 +429,8 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	protected class ReverseArraySeqBuilder[@specialized(Elements) E](buffer :GrowingArrayBuffer[E] = new GrowingArrayBuffer[E]())
 		extends FitBuilder[E, S[E]]
 	{
+		private[this] def mySpecialization = Specialized[E]
+
 		override def addOne :E=>Unit = { e :E => e +=: buffer }
 		
 		override def +=(elem: E): this.type = { elem +=: buffer; this}
@@ -390,14 +439,14 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 		
 		override def result(): S[E] = {
 			buffer.freeze()
-			outer.using(buffer.arr, buffer.offset, buffer.length)
+			outer.using(buffer.arr, buffer.headIdx, buffer.length)
 		}
 		
 		override def clear(): Unit = buffer.clear()
 		
 		override def sizeHint(expect: Int): Unit =
 			if (buffer.arr.length<expect)
-				buffer.reserveFront(expect - buffer.offset - buffer.length)
+				buffer.reserveFront(expect - buffer.headIdx - buffer.length)
 		
 		override def toString = s"$outer.reverseBuilder[$mySpecialization]"
 	}
@@ -444,6 +493,10 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 
 /** Factory of specialized sequences backed by arrays, with fast slicing and random access. */
 object ArrayView extends ArrayViewFactory[ArrayView] {
+	type Stable[@specialized(Elements) +E] = StableArray[E]
+	type Mutable[@specialized(Elements) E] = SharedArray[E]
+
+
 	@inline def Acc[E :Specialized] :ArrayView[E] = ArrayPlus.Acc[E]
 
 	override protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): ArrayView[E] =

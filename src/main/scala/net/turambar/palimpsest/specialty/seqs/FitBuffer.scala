@@ -1,10 +1,21 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.mutable
-
+import scala.collection.{GenTraversableOnce, IndexedSeqLike, mutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitItems, FitIterableFactory, InterfaceIterableFactory, Specialized, SpecializedTraversableTemplate, arrayFill}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized, arrayFill}
+
+import scala.annotation.unspecialized
+
+
+/*
+
+trait FitBufferLike[E, +Repr<:FitBufferLike[E, Repr]]
+	extends mutable.BufferLike[E, Repr] with MutableSliceLike[E, Repr]
+{ self :Repr =>
+
+}
+*/
 
 
 
@@ -13,20 +24,51 @@ import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitItems, FitI
   * @author Marcin Mościcki
   */
 trait FitBuffer[@specialized(Elements) E]
-	extends mutable.Buffer[E] with mutable.BufferLike[E, FitBuffer[E]] with SpecializedTraversableTemplate[E, FitBuffer]
-	        with MutableSeq[E] with MutableSeqLike[E, FitBuffer[E]]
+	extends mutable.Buffer[E] with mutable.BufferLike[E, FitBuffer[E]]
+			with MutableSeq[E] with ValSeqLike[E, FitBuffer[E]]
+			with SpecializableIterable[E, FitBuffer]
 {
 //	import Specialized.Fun1
 	
-	def appender :FitBuffer[E] = new TailBuffer(this)
+	//todo: this is here till we find a better place for Subtractable implementatoin
+	protected[seqs] def indicesOf(elems1 :Traversable[E], elems2 :GenTraversableOnce[E]) :mutable.Set[Int] = {
+		var result = mutable.Set[Int]()
+		var searchOffsets = mutable.Map[E, Int]().withDefaultValue(0)
+		def collect(e :E) :Unit = { //todo this is not specialized!
+		val i = indexOf(e, searchOffsets(e))
+			if (i>=0) {
+				result += i
+				searchOffsets += e -> (i+1)
+			}
+		}
+		elems1.foreach(collect); elems2.foreach(collect)
+		result
+	}
 	
+	
+	
+	
+	def appender :FitBuffer[E] = new TailBuffer(this)
+
+//	def overwrite(offset :Int) :FitBuffer[E]
 
 	override def +=(elem: E): this.type
 
 	override def +=(elem1: E, elem2: E, elems: E*): this.type =
 		this += elem1 += elem2 ++= elems
 
-	def ++=(elems :FitItems[E]) :this.type
+
+	override def ++=(xs: TraversableOnce[E]) :this.type = xs match {
+		case fit :FitTraversableOnce[E] => this ++= fit
+		case _ => xs.foreach (this += _); this
+
+	}
+
+	def ++=(elems :FitTraversableOnce[E]) :this.type = {
+		val it = elems.fitIterator
+		while(it.hasNext) this += it.next()
+		this
+	}
 
 	override def +=:(elem: E): this.type
 	

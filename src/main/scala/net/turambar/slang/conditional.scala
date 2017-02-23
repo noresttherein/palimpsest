@@ -54,11 +54,11 @@ object conditional {
 		*/
 		
 		/** Return `this` if `condition` is true, or the alternative value otherwise. Don't evaluate the alternative if `condition` is true. */
-		@inline def providingOrElse(condition :Boolean)(alternative : =>T) =
+		@inline def providingOrElse(condition :Boolean)(alternative : =>T) :T =
 			if (condition) self else alternative
 		
 		/** Return `this` if `condition(this)` is true, or the alternative value otherwise. Don't evaluate the alternative if `condition` is true. */
-		@inline def providingOrElse(condition :T=>Boolean)(alternative : =>T) =
+		@inline def providingOrElse(condition :T=>Boolean)(alternative : =>T) :T =
 			if (condition(self)) self else alternative
 		
 		

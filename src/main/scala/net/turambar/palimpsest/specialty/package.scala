@@ -3,10 +3,11 @@ package net.turambar.palimpsest
 import java.util
 
 import scala.Specializable.SpecializedGroup
-import scala.collection.{GenTraversableOnce, IndexedSeqLike, mutable}
+import scala.collection.{BitSet, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike, mutable}
 import scala.reflect.ClassTag
-
 import net.turambar.palimpsest.specialty.FitCompanion.{CanBreakOut, CanFitFrom}
+
+import scala.collection.immutable.ListSet
 
 
 /**
@@ -40,8 +41,11 @@ package object specialty {
 	
 	@inline
 	private[palimpsest] final def ofKnownSize[T](col :GenTraversableOnce[T]) =  col match {
-		case fit :FitItems[T] => fit.hasFastSize
+		case fit :FitTraversableOnce[T] => fit.hasFastSize
 		case _ :IndexedSeqLike[_, _] => true
+		case _ :ListSet[_] => col.isEmpty
+		case _ :BitSetLike[_] => false
+		case _ :SetLike[_, _] => true
 		case _ => col.isEmpty
 	}
 		

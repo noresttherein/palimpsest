@@ -26,9 +26,21 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	
 	/** An empty, unspecialized instance of S[_] and a valid instance of `S[T]` for all immutable (variant) collections `S`. */
 	val Empty :S[Nothing] //= empty[Nothing]
-
 	
-	/** An empty collection `S[E]` instance specialized in regard to `E`. */
+	protected[this] final val NewEmpty :Specialize[S] = new Specialize[S] {
+		override def specialized[@specialized E : Specialized]: S[E] = empty[E]
+	}
+	
+	/** An empty collection `S[E]` instance specialized in regard to `E` as described by
+	  * implicit specialization information.
+	  */
+	def like[E :Specialized] :S[E] = NewEmpty() //fitBuilder[E].result()
+	
+	/** An empty collection `S[E]` instance specialized in regard to `E`.
+	  * Note that this method can rely on local specialization context only.
+	  * Consider using [[like]] which takes an implicit parameter and can create
+	  * a properly specialized instance in any context where one is available.
+	  */
 	override def empty[@specialized(Elements) E]: S[E] =
 		newBuilder[E].result()
 
@@ -44,14 +56,14 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 		else (newBuilder[E] ++= elems).result()
 
 
-	def apply[E](elems :TraversableOnce[E])(implicit specializationHint :Specialized[E]) :S[E] = {
-		val spec = elems match {
-			case it :FitIterator[E] => it.specialization.asInstanceOf[Specialized[E]]
-			case items :FitIterable[E] => items.specialization.asInstanceOf[Specialized[E]]
-			case _ => specializationHint
-		}
-		(fitBuilder(spec) ++= elems).result()
-	}
+//	def apply[E](elems :TraversableOnce[E])(implicit specializationHint :Specialized[E]) :S[E] = {
+//		val spec = elems match {
+//			case it :FitIterator[E] => it.specialization.asInstanceOf[Specialized[E]]
+//			case items :FitIterable[E] => items.specialization.asInstanceOf[Specialized[E]]
+//			case _ => specializationHint
+//		}
+//		(fitBuilder(spec) ++= elems).result()
+//	}
 	
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] //= specializedBuilder[E]
 
@@ -67,7 +79,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	
 	/** Generic, unspecialized builder of the associated sequence type.
 	  * Always prefer [[newBuilder]] or [[fitBuilder]] whenether any information about element type is present.
-	  * This method exists specifically as the target of unspecialized calls to [[SpecializedTraversableTemplate#genericBuilder]]
+	  * This method exists specifically as the target of unspecialized calls to [[SpecializableIterable#genericBuilder]]
 	  * from unspecialized `CanBuildFrom` factories when operating on specialized sequences through standard, unspecialized
 	  * scala interfaces. For this reason [[FitBuilder]] provides two methods which can be used to obtain a specialized
 	  * version. One is [[FitBuilder#typeHint]], which will try to provide an appropriate specialized version of itself,

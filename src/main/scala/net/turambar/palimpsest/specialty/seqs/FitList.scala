@@ -4,12 +4,13 @@ import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
 import scala.collection.{GenSeq, LinearSeqLike, SeqLike, mutable}
-
+import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
 import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
 import net.turambar.palimpsest.specialty.seqs.FitList.{FitListBuilder, FitListIterator, FullLink, Link, Terminus}
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterator, ImplementationIterableFactory, Specialized, SpecializedTraversableTemplate}
+import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterator, ImplementationIterableFactory, Specialize, Specialized, SpecializableIterable}
 
 /** Specialized linked list with O(1) `length` and O(1) `take` operations.
   * Random indexing and `drop` still take O(n), though.
@@ -21,63 +22,67 @@ import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, Fi
   */
 class FitList[@specialized(Elements) +E] private[seqs] (
 		override val length :Int,
-		contents :Link[E]
-	) extends IterableFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
-              with ConstSeq[E] with FitSeqLike[E, FitList[E]] with SpecializedTraversableTemplate[E, FitList]
+		start :Link[E]
+	) extends SeqFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
+			  with StableSeq[E] with SliceLike[E, FitList[E]] with SpecializableIterable[E, FitList]
 {
 	import Specialized.Fun2Vals
-	
-	
-	@tailrec private[this] final def dropped(n :Int, l :Link[E]=contents) :Link[E] =
+
+	override def isEmpty = length == 0
+	override def nonEmpty = length > 0
+	override def hasFastSize = true
+
+	@tailrec private[this] final def dropped(n :Int, l :Link[E]=start) :Link[E] =
 		if (n<=0) l
 		else dropped(n-1, l.tail)
-	
+
 	override protected def section(from: Int, until: Int): FitList[E] =
 		new FitList(until - from, dropped(from))
-	
-	override protected[this] def emptyCollection: FitList[E] = FitList.Empty
-	
-	override protected[this] def at(idx: Int): E = {
-		var i = 0; var l = contents
-		while (i<idx) { l = l.tail; i += 1 }
-		l.head
-	}
-	
+
+	override protected[this] def empty: FitList[E] = FitList.Empty
+
+	override protected[this] def at(idx: Int): E = dropped(idx).head
+//	override def apply(idx :Int) :E =
+//		if (idx<0 || idx>=length) throw new IndexOutOfBoundsException(idx.toString)
+//		else dropped(idx).head
+
+
 	override def head: E =
-		if (length>0) contents.head
+		if (length>0) start.head
 		else throw new NoSuchElementException(s"FitList().head")
-	
-	
+
 	override def headOption =
-		if (length>0) Some(contents.head)
+		if (length>0) Some(start.head)
 		else None
-	
+
+	override def last :E =
+		if (length>0) dropped(length-1).head
+		else throw new NoSuchElementException(s"FitList().last")
+
+	override def lastOption =
+		if (length>0) Some(dropped(length-1).head)
+		else None
+
 	/************** Slicing methods ***************/
-	
+
 	override def tail :FitList[E] =
 		if (length==0) throw new UnsupportedOperationException(s"FitList().tail")
-		else new FitList(length-1, contents.tail)
-	
-	
-	override def take(n: Int): FitList[E] =
-		if (n<=0) FitList.Empty
-		else if (n>=length) this
-		else new FitList[E](n, contents)
-	
-	
+		else new FitList(length-1, start.tail)
+
+
 	override def dropWhile(p: (E) => Boolean): FitList[E] = {
-		var len=length; var elems=contents
+		var len=length; var elems=start
 		while(len>0 && p(elems.head)) { len-=1; elems=elems.tail }
 		new FitList(len, elems)
 	}
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
 	/************** Searching for an element methods  ***************/
-	
+
 	override def segmentLength(p: (E) => Boolean, from: Int): Int =
 		if (from>=length) 0
 		else {
@@ -87,8 +92,8 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 			}
 			len
 		}
-	
-	
+
+
 	override def indexWhere(p: (E) => Boolean, from: Int): Int =
 		if (from>=length) 0
 		else {
@@ -98,32 +103,33 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 			}
 			len
 		}
-	
-	
-	
+
+
+
 	override def find(p: (E) => Boolean): Option[E] = {
-		var len = length; var elem = contents
+		var len = length; var elem = start
 		while(len>0 && !p(elem.head)) {
 			len -= 1; elem = elem.tail
 		}
 		if (len>0) Some(elem.head)
 		else None
 	}
-	
 
-	
+
+
 	override def lastIndexWhere(p: (E) => Boolean, from: Int): Int = {
-		var i =0; var l = contents; var last = -1; val e = math.min(from, length)
+		var i =0; var l = start; var last = -1; val e = math.min(from, length)
 		while(i<e) {
-			if (p(l.head)) last = i
+			if (p(l.head))
+				last = i
 			i += 1
 			l = l.tail
 		}
 		last
 	}
-	
-	
-	override protected[this] def fitIndexOf(elem: E, from: Int): Int =
+
+
+	override protected[this] def positionOf(elem: E, from: Int): Int =
 		if (from>=length) -1
 		else {
 			var i = math.max(from, 0); var l = dropped(i)
@@ -132,81 +138,82 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 			}
 			if (i==length) -1 else i
 		}
-	
-	override protected[this] def fitLastIndexOf(elem: E, end: Int): Int = {
-		var i = 0; var l = contents; var last = -1; val e = math.min(end, length)
+
+	override protected[this] def lastPositionOf(elem: E, end: Int): Int = {
+		var i = 0; var l = start; var last = -1; val e = math.min(end, length)
 		while(i<e) {
 			if (l.head==elem) last = i
 			i+=1; l=l.tail
 		}
 		last
 	}
-	
-	
-	
+
+
+
 	/************** Searching & matching for sequences ***************/
-	
+
 //	override def indexOfSlice[U >: E](that: GenSeq[U], from: Int): Int = this[LinearSeq].indexOfSlice(that, from)
 //
 //	override def lastIndexOfSlice[U >: E](that: GenSeq[U], end: Int): Int = super[LinearSeq].lastIndexOfSlice(that, end)
 //
 //	override def startsWith[U](that: GenSeq[U], offset: Int): Boolean = super[LinearSeq].startsWith(that, offset)
-	
-	@unspecialized
-	override protected[this] def startsWithUnchecked(that: FitSeqLike[E, _], offset: Int): Boolean = {
-		iterator.drop(offset).take(that.length) sameElements that.iterator
-	}
-	
-	
 
-	
-	
-	override def indexOfSlice[U >: E](that: GenSeq[U], from: Int): Int = defaultImpl.indexOfSlice(that, from)
-	
-	override def lastIndexOfSlice[U >: E](that: GenSeq[U], end: Int): Int = defaultImpl.lastIndexOfSlice(that, end)
-	
-	
+//	@unspecialized
+//	override protected[this] def startsWithUnchecked(that: FitSeqLike[E, _], offset: Int): Boolean = {
+//		iterator.drop(offset).take(that.length) sameElements that.iterator
+//	}
+
+
+
+
+
+//	override def indexOfSlice[U >: E](that: GenSeq[U], from: Int): Int = defaultImpl.indexOfSlice(that, from)
+//
+//	override def lastIndexOfSlice[U >: E](that: GenSeq[U], end: Int): Int = defaultImpl.lastIndexOfSlice(that, end)
+
+
 	/************** Predicate testing and traversing methods ***************/
-	
+
 	override def foreach[@specialized(Unit) O](f: (E) => O): Unit = {
-		var left = length; var link = contents
-		while(left>0) { f(link.head); link=link.tail }
+		var left = length; var link = start
+		while(left>0) { f(link.head); link=link.tail; left -= 1 }
 	}
-	
+
 	@unspecialized
 	override def reverseForeach(f: (E) => Unit): Unit = inverse.foreach(f)
-	
+
 	override def foldLeft[@specialized(Fun2Vals) O](z: O)(op: (O, E) => O): O = {
-		var left = length; var link = contents
+		var left = length; var link = start
 		var acc = z
 		while(left>0) { acc = op(acc, link.head); link = link.tail }
 		acc
 	}
-	
-	
-	
-	
-	
 
-	
+
+
+
+
+
+
 	override protected[this] def filter(p :(E) => Boolean, value :Boolean) :FitList[E] = {
 		val builder = newBuilder
-		var i = 0; val l = length; var link = contents
+		var i = 0; val l = length; var link = start
 		while (i < l) {
 			val e = link.head
 			if (p(e)==value) builder += e
 			i += 1
+			link = link.tail
 		}
 		builder.result()
 	}
-	
 
-	
+
+
 	@unspecialized
 	override def reverse: FitList[E] = inverse
-	
+
 	override def inverse: FitList[E] = {
-		var l = length; var tail :Link[E] = Terminus; var elem = contents
+		var l = length; var tail :Link[E] = Terminus; var elem = start
 		while(l>0) {
 			tail = new FullLink[E](elem.head, tail)
 			elem = elem.tail
@@ -214,14 +221,16 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 		}
 		new FitList[E](length, tail)
 	}
-	
-	override def iterator: FitIterator[E] = new FitListIterator(contents, length)
-	
+
+	override def iterator: FitIterator[E] = new FitListIterator(start, length)
+
 	@unspecialized
 	override def reverseIterator: FitIterator[E] = inverse.iterator
-	
-	override protected[this] def specializedCopy(xs: Array[E], start: Int, total: Int): Unit = {
-		var i = start; val e = start+total; var l = contents
+
+
+
+	protected[this] override def specializedCopy(xs: Array[E], start: Int, total: Int): Unit = {
+		var i = start; val e = start + math.min(total, length); var l = this.start
 		while (i<e) {
 			xs(i) = l.head
 			l = l.tail
@@ -230,12 +239,12 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 	}
 	
 	
-	override protected[this] def defaultImpl: SeqLike[E, FitList[E]] = new LinearSeq[E] with SeqLike[E, FitList[E]] {
-		override def seq: LinearSeq[E] = FitList.this
-		override def length: Int = FitList.this.length
-		override def apply(idx: Int): E = at(idx)
-		override protected[this] def newBuilder: mutable.Builder[E, FitList[E]] = FitList.this.newBuilder
-	}
+//	override protected[this] def defaultImpl: SeqLike[E, FitList[E]] = new LinearSeq[E] with SeqLike[E, FitList[E]] {
+//		override def seq: LinearSeq[E] = FitList.this
+//		override def length: Int = FitList.this.length
+//		override def apply(idx: Int): E = FitList.this.apply(idx)
+//		override protected[this] def newBuilder: mutable.Builder[E, FitList[E]] = FitList.this.newBuilder
+//	}
 	
 	override def companion: FitCompanion[FitList] = FitList
 	
@@ -266,6 +275,11 @@ object FitList extends ImplementationIterableFactory[FitList] {
 
 	def newReverseBuilder[@specialized(Elements) E] :FitBuilder[E, FitList[E]] = new ReverseFitListBuilder[E]
 	
+	def reverseBuilder[E :Specialized] = ReverseBuilder()
+	
+	private[this] final val ReverseBuilder = new Specialize[ReverseFitListBuilder] {
+		override def specialized[@specialized E : Specialized] = new ReverseFitListBuilder[E]
+	}
 	
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitList[_], E, FitList[E]]): CanBuildFrom[FitList[_], E, FitList[E]] =
 		fit.cbf

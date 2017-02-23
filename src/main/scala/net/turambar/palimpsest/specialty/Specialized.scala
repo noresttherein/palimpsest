@@ -407,8 +407,10 @@ object Specialized extends SecondarySpecializedImplicits {
 	
 	/** Result types `scala.Function2` is specialized for, except for `Unit` - same as `Fun1Vals`. */
 	final val Fun2Vals = new Specializable.Group(Boolean, Int, Float, Long, Double)
-	
-//	@inline final def apply[E](specialized :Specialize.[E])
+
+	/** Element types `scala.Tuple2` is specialized for. */
+	final val Tuple2Elem = new Specializable.Group(Int, Long, Double, Char, Boolean)
+
 
 	
 

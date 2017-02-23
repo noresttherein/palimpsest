@@ -3,18 +3,15 @@ package net.turambar.palimpsest.specialty
 import scala.collection.generic.GenericTraversableTemplate
 
 
-
+//trait CovariantTraversableTemplate[@specialized(Elements) +E, +S[@specialized(Elements) +X] <: FitIterable[X] with CovariantTraversableTemplate[X, S]]
+//	extends SpecializableIterable[E, S]
 
 /**
   * @author Marcin Mościcki
   */
-trait SpecializedTraversableTemplate[@specialized(Elements) +E, +S[@specialized(Elements) X] <: FitIterable[X] with SpecializedTraversableTemplate[X, S]]
-	extends GenericTraversableTemplate[E, S] //with GenTraversable[E]
+trait SpecializableIterable[@specialized(Elements) +E, +S[@specialized(Elements) X] <: FitIterable[X] with SpecializableIterable[X, S]]
+	extends GenericTraversableTemplate[E, S]
 {
-//	override def foreach[@specialized(Unit) U](f: (E) => U): Unit
-
-//	override def head: E
-
 	override def companion: FitCompanion[S]
 
 	override protected[this] def newBuilder: FitBuilder[E, S[E]] = companion.newBuilder[E]

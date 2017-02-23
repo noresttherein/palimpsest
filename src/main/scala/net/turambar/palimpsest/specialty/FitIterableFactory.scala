@@ -14,7 +14,7 @@ import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
   * @tparam S type constructor for specialized collections.
   * @author Marcin Mościcki
   */
-trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializedTraversableTemplate[X, S] with FitIterable[X]]
+trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends GenTraversableFactory[S] with FitCompanion[S]
 { factory =>
 	
@@ -150,7 +150,7 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializedTraversableTe
 
 
 
-trait SpecializedIterableFactory[S[@specialized(Elements) X] <: SpecializedTraversableTemplate[X, S] with FitIterable[X]]
+trait SpecializedIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends FitIterableFactory[S]
 {
 	/** Performs identity conversion from a specialized [[CanFitFrom]] to a generic `CanBuildFrom`.
@@ -178,15 +178,17 @@ trait SpecializedIterableFactory[S[@specialized(Elements) X] <: SpecializedTrave
 /** Base class for companion objects of specialized 'interface' traits which delegate all constructor (and builder)
   * methods eventually to the companion of the default implementation type.
   */
-abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: SpecializedTraversableTemplate[X, S] with FitIterable[X]]
+abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends SpecializedIterableFactory[S]
 {
 	
 	override val Empty: S[Nothing] = default.Empty
 	
-	protected[this] type RealType[@specialized(Elements) X] <: S[X] with SpecializedTraversableTemplate[X, RealType]
+	protected[this] type RealType[@specialized(Elements) X] <: S[X] with SpecializableIterable[X, RealType]
 	protected[this] def default :FitIterableFactory[RealType]
 	private[this] val impl = default
+	
+	@inline final override def like[E :Specialized] :S[E] = impl.like[E]
 	
 	@inline final override def empty[@specialized(Elements) E]: S[E] = impl.empty[E]
 
@@ -200,7 +202,7 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 
 
 
-abstract class ImplementationIterableFactory[S[@specialized(Elements) X] <: SpecializedTraversableTemplate[X, S] with FitIterable[X]]
+abstract class ImplementationIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends SpecializedIterableFactory[S]
 {
 	override val Empty :S[Nothing] = empty

@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.reflect.ClassTag
 
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, Specialized, SpecializedTraversableTemplate}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, Specialized, SpecializableIterable}
 import net.turambar.palimpsest.testutil._
 import net.turambar.slang.conditional._
 import org.scalacheck.Prop._
@@ -11,7 +11,7 @@ import org.scalacheck.Properties
 /**
   * @author Marcin Mościcki
   */
-class FitSeqProps[+S[@specialized(Elements) X] <: FitSeq[X] with SpecializedTraversableTemplate[X, S]]
+class FitSeqProps[+S[@specialized(Elements) X] <: FitSeq[X] with SpecializableIterable[X, S]]
 		(companion :FitCompanion[S])
 //	extends Properties(companion.toString)
 {

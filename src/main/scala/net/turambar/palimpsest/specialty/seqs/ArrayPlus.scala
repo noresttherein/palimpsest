@@ -1,21 +1,23 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{GenTraversableOnce, breakOut}
-
+import scala.collection.{GenTraversableOnce, breakOut, immutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
-import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, Specialized}
+import net.turambar.palimpsest.specialty.seqs.StableSeq.MakeStableIndexed
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, Specialized, SpecializableIterable, ofKnownSize}
+
+import scala.annotation.unspecialized
 
 /** An immutable, specialized view on a section of an array with O(n) recursive concatenation/extension.
   * This holds only for one selected, but very common scenario, where the final sequence is built by
   * recursively growing an accumulator sequence, such as in:
   * {{{
-  * (GrowableArray.empty /: seqs){ (acc, elems) => acc :++ elems }
+  * (ArrayPlus.empty /: seqs){ (acc, elems) => acc :++ elems }
   * }}}
   * As such, its mainly a means for more convenient building of the final sequence without an intermediate
   * builder / linked list, rather than an implementation suited towards common concatenation,
-  * as only the result of the concatenation is guaranteed to be expandable in ammortized constant time per element.
+  * as only the result of the concatenation is guaranteed to be expandable in amortized constant time per element.
   * All intermediate valeus of the accumulator in the above case will cause buffer copying on following expansion.
   *
   *
@@ -35,22 +37,25 @@ import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, Fi
   */
 class ArrayPlus[@specialized(Elements) E] protected[seqs](
 		final protected[this] val array :Array[E],
-		final protected[seqs] val offset :Int,
+		final protected[seqs] val headIdx :Int,
 		final val length :Int,
 		private[this] var ownsPrefix :Boolean=false,
 		private[this] var ownsSuffix :Boolean=false
 	)
-	extends IterableFoundation[E, ArrayPlus[E]] with ArrayView[E] with ArrayViewLike[E, ArrayPlus] with ConstSeq[E] //with ConstSeqLike[E, GrowableArray[E]]
-	        with FitSeqLike[E, ArrayPlus[E]] //with SpecializedTraversableTemplate[E, GrowableArray]
+	extends IterableFoundation[E, ArrayPlus[E]] with MakeStableIndexed[E] with StableSeq[E]
+			with ArrayView[E] with ArrayViewLike[E, ArrayPlus[E]]
+			with SpecializableIterable[E, ArrayPlus]
 {
-//	override protected[this] def factory: ArrayViewFactory[ArrayPlus] = ArrayPlus
-	
+
+	@unspecialized
+	override def seq = this
+
 	override def companion: FitCompanion[ArrayPlus] = ArrayPlus
 	
 	override protected def section(from: Int, until: Int): ArrayPlus[E] =
-		new ArrayPlus[E](array, offset+from, until-from, false, false)
+		new ArrayPlus[E](array, headIdx+from, until-from, false, false)
 	
-	override def copy: ArrayPlus[E] =
+	override def clone(): ArrayPlus[E] =
 		if (array.length>0 && array.length / length >= 2)
 			ArrayPlus.view(toArray, 0, length)
 		else this
@@ -68,7 +73,7 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 	}
 	
 	@inline final protected[this] def needsSuffix =
-		(array.length - offset - length > 0) && synchronized { ownsSuffix }
+		(array.length - headIdx - length > 0) && synchronized { ownsSuffix }
 	
 	
 	@inline final protected[this] def shouldSharePrefix = synchronized {
@@ -76,7 +81,7 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 	}
 	
 	@inline final protected[this] def needsPrefix =
-		(offset > 0) && synchronized { ownsPrefix }
+		(headIdx > 0) && synchronized { ownsPrefix }
 	
 	@inline final protected[this] def reclaimSuffix() :Unit = synchronized {
 		ownsSuffix = true
@@ -86,7 +91,7 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 		ownsPrefix = true
 	}
 	
-	@inline private[this] def suffixCapacity = array.length - offset - length
+	@inline private[this] def suffixCapacity = array.length - headIdx - length
 
 	
 	
@@ -100,15 +105,15 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 				if (length == 0 && array.length > 0 && shouldShareArray) {
 					array(length - 1) = elem.asInstanceOf[E]
 					new ArrayPlus[E](array, length-1, 1, true, true)
-				} else if (offset > 0 && shouldSharePrefix) {
-					val start = offset - 1
+				} else if (headIdx > 0 && shouldSharePrefix) {
+					val start = headIdx - 1
 					array(start) = elem.asInstanceOf[E]
 					new ArrayPlus[E](array, start, length + 1, true, shouldShareSuffix)
 				} else {
 					val prefixReserve = (length+1) * 2
 					val suffixReserve = if (needsSuffix) length else 0
 					val copy = storageClassTag.newArray(prefixReserve + length + suffixReserve)
-					System.arraycopy(array, offset, copy, prefixReserve, length)
+					System.arraycopy(array, headIdx, copy, prefixReserve, length)
 					copy(prefixReserve-1) = elem.asInstanceOf[E]
 					new ArrayPlus[E](copy, prefixReserve-1, length+1, true, true)
 				}
@@ -126,13 +131,13 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 					array(0) = elem.asInstanceOf[E]
 					new ArrayPlus[E](array, 0, 1, true, true)
 				} else if (suffixCapacity > 0 && shouldShareSuffix) {
-					array(offset+length) = elem.asInstanceOf[E]
-					new ArrayPlus[E](array, offset, length+1, shouldSharePrefix, true)
+					array(headIdx+length) = elem.asInstanceOf[E]
+					new ArrayPlus[E](array, headIdx, length+1, shouldSharePrefix, true)
 				} else {
 					val prefixReserve = if (needsPrefix) length else 0
 					val suffixReserve = (length+1) * 2
 					val copy = storageClassTag.newArray(prefixReserve + length + suffixReserve)
-					System.arraycopy(array, offset, copy, prefixReserve, length)
+					System.arraycopy(array, headIdx, copy, prefixReserve, length)
 					copy(prefixReserve+length) = elem.asInstanceOf[E]
 					new ArrayPlus[E](copy, prefixReserve, length+1, true, true)
 				}
@@ -175,14 +180,14 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 			that.copyToArray(array.asInstanceOf[Array[B]])
 			new ArrayPlus[E](array, 0, extras, true, true)
 		} else if (suffixCapacity > extras && shouldShareSuffix) {
-			that.copyToArray(array.asInstanceOf[Array[B]], offset + length)
-			new ArrayPlus[E](array, offset, length + extras, shouldSharePrefix, true)
+			that.copyToArray(array.asInstanceOf[Array[B]], headIdx + length)
+			new ArrayPlus[E](array, headIdx, length + extras, shouldSharePrefix, true)
 		} else {
 			val prefixReserve = if (needsPrefix) length else 0
 			val size = length + extras
 			val capacity = newCapacity(size)
 			val copy = storageClassTag.newArray(prefixReserve + capacity)
-			System.arraycopy(array, offset, copy, prefixReserve, length)
+			System.arraycopy(array, headIdx, copy, prefixReserve, length)
 			that.copyToArray(copy.asInstanceOf[Array[B]], prefixReserve + length)
 			new ArrayPlus[E](copy, prefixReserve, size, true, true)
 		}
@@ -196,8 +201,8 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 			val offset = array.length - extras
 			that.copyToArray(array.asInstanceOf[Array[B]], offset)
 			new ArrayPlus[E](array, offset, extras, true, true)
-		} else if (offset > extras && shouldSharePrefix) {
-			val start = offset-extras
+		} else if (headIdx > extras && shouldSharePrefix) {
+			val start = headIdx-extras
 			that.copyToArray(array.asInstanceOf[Array[B]], start)
 			new ArrayPlus[E](array, start, length+extras, true, shouldShareSuffix)
 		} else {
@@ -207,7 +212,7 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 			val start = capacity - size
 			val copy = storageClassTag.newArray(capacity + suffixReserve)
 			that.copyToArray(copy.asInstanceOf[Array[B]], start)
-			System.arraycopy(array, offset, copy, capacity-length, length)
+			System.arraycopy(array, headIdx, copy, capacity-length, length)
 			new ArrayPlus[E](array, start, size, true, true)
 		}
 	}

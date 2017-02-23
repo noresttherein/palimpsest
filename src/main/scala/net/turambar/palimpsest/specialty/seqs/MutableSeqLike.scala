@@ -8,9 +8,10 @@ import net.turambar.palimpsest.specialty.{Elements, Specialized}
 /**
   * @author Marcin Mościcki
   */
+/*
 trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] with MutableSeq[E]]
 	extends mutable.IndexedSeqOptimized[E, Repr] with mutable.SeqLike[E, Repr] with Subtractable[E, Repr]
-	        with FitSeqLike[E, Repr]
+	        with FitIndexedSeq[E, Repr]
 {
 
 	@inline override final def specialization :Specialized[E] = Specialized[E]
@@ -44,6 +45,8 @@ trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] wi
 		this
 	}
 
+	
+	//todo: move subtractable implementation somewhere
 	override def -(elem: E): Repr = {
 		val i = indexOf(elem)
 		if (i<0)
@@ -109,3 +112,4 @@ trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] wi
 
 
 }
+*/

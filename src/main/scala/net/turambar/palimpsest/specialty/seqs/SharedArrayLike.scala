@@ -1,12 +1,59 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import scala.reflect.ClassTag
+import net.turambar.palimpsest.specialty.{Elements, IterableSpecialization, SpecializableIterable, arrayFill, ofKnownSize}
 
-import net.turambar.palimpsest.specialty.{Elements, arrayFill, ofKnownSize}
+import scala.collection.mutable
+
+
+
+trait SharedArrayLike[@specialized(Elements) E, +Repr[X]<:SharedArrayLike[X, Repr] with SharedArray[X]]
+	extends mutable.SeqLike[E, Repr[E]] with mutable.IndexedSeqLike[E, Repr[E]]
+			with ValSeqLike[E, Repr[E]] with ArrayViewLike[E, Repr[E]]
+			with SpecializableIterable[E, Repr]
+{
+	protected[this] override def toCollection(repr: Repr[E]) = repr
+	protected[this] override def thisCollection = this.asInstanceOf[Repr[E]]
+	override def seq = this.asInstanceOf[Repr[E]]
+
+	override protected[this] def empty = companion.empty[E]
+
+	override def transform(f: (E) => E) = {
+		var i = headIdx; val lim = i + length; val a = array
+		while(i<lim) {
+			a(i) = f(a(i)); i+=1
+		}
+		this
+	}
+
+//	override def positionOf(elem: E, from: Int) = super.positionOf(elem, from)
+//
+//	override def lastPositionOf(elem: E, end: Int) = super.lastPositionOf(elem, end)
+
+	//todo: these are straight copy&paste from ArrayViewLike, but we need to make them public; think of a place to extract them to.
+
+	override def positionOf(elem: E, from: Int): Int =
+		if (from>=length) -1 //also guards against arithmetic overflow on indices
+		else {
+			var i = headIdx + math.max(from, 0); val e = headIdx+length
+			val a = array
+			while(i<e && a(i) != elem) i+=1
+			if (i==e) -1 else i-headIdx
+		}
+
+	override def lastPositionOf(elem: E, end: Int): Int = {
+		var i = math.min(end, length-1) + headIdx
+		val a = array
+		while(i>=headIdx && a(i) != elem) i-=1
+		if (i<headIdx) -1 else i-headIdx
+	}
+
+}
 
 /**
   * @author Marcin Mościcki
   */
+/*
 trait SharedArrayLike[@specialized(Elements) E, +Repr[X]<:SharedArrayLike[X, Repr] with SharedArray[X]]
 	extends MutableSeqLike[E, Repr[E]] with ArrayViewLike[E, Repr]
 {
@@ -64,3 +111,4 @@ trait SharedArrayLike[@specialized(Elements) E, +Repr[X]<:SharedArrayLike[X, Rep
 		}
 
 }
+*/

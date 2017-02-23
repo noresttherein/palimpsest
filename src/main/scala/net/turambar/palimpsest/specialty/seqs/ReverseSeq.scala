@@ -11,23 +11,28 @@ import net.turambar.palimpsest.specialty.{Elements, FitIterator}
   *
   * @author Marcin Mościcki
   */
-class ReverseSeq[@specialized(Elements) +E](override val reverse :FitSeq[E]) extends IterableFoundation[E, FitSeq[E]] with FitSeq[E] {
+class ReverseSeq[@specialized(Elements) +E](override val reverse :FitIndexedSeq[E]) //todo: IndexedSeq?
+	extends IterableFoundation[E, FitIndexedSeq[E]] with FitIndexedSeq[E] //with SliceLike[E, FitSeq[E]]//with FitIndexedSeqLike[E, FitSeq[E]]
+{
 	@inline
 	final private[this] def orgIdx(idx :Int) = reverse.length -1 -idx
 	
-	@inline
-	final override protected[this] def at(idx: Int): E = reverse(orgIdx(idx))
-	
+
+	/** Target of `apply` for internal use, assuming the index is valid (faster). */
+	override protected[this] def at(idx: Int): E = reverse.get(reverse.length -1 -idx)
+
 	@inline
 	final override def length: Int = reverse.length
 
+//	override def hasFastSize = reverse.hasFastSize
+//	override def hasDefiniteSize = true
 	
 	@inline
-	final override protected def section(from: Int, until: Int): FitSeq[E] =
+	final override protected def section(from: Int, until: Int): FitIndexedSeq[E] =
 		new ReverseSeq(sectionOf(reverse, orgIdx(until), orgIdx(from)))
 	
 	
-	override def reverseMap[@specialized(Fun2Vals) U, That](f: (E) => U)(implicit bf: CanBuildFrom[FitSeq[E], U, That]): That =
+	override def reverseMap[@specialized(Fun2Vals) U, That](f: (E) => U)(implicit bf: CanBuildFrom[FitIndexedSeq[E], U, That]): That =
 		reverse.map(f)
 	
 	override def inverse = reverse

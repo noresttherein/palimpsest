@@ -3,10 +3,12 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.reflect.ClassTag
-
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
-import net.turambar.palimpsest.specialty.{ArrayBounds, Elements}
+import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, SpecializableIterable}
+
+import scala.annotation.unspecialized
 
 
 /** A view of an `Array[E]` as a buffer. The buffer is 'lent' in the sense that can neither modify the underlying
@@ -14,16 +16,18 @@ import net.turambar.palimpsest.specialty.{ArrayBounds, Elements}
   * bestowed the underlying array on us will see all the changes made via this instance.
   *
   * @param array underlying array used for storage which real runtime element type might actually be a supertype of E (up to `Any/Object`).
-  * @param offset index in the array where the data starts.
+  * @param headIdx index in the array where the data starts.
   * @param len number of elements in the array considered as initial contents.
   * @param lowerBound minimum index in the array which can't be exceeded by prepending elements to this buffer.
   * @param higherBound maximum index in the array which can't be exceeded by appending elements to this buffer.
   * @tparam E element type before erasure
   */
 class LentArrayBuffer[@specialized(Elements) E] protected[seqs]
-		(protected[this] final var array :Array[E], protected[seqs] final var offset :Int, protected[this] final var len :Int, lowerBound :Int, higherBound :Int)
-	extends IterableFoundation[E, LentArrayBuffer[E]] with SharedArrayBuffer[E]
-	        with SharedArrayLike[E, LentArrayBuffer] with mutable.BufferLike[E, LentArrayBuffer[E]]
+		(protected[this] final var array :Array[E], protected[seqs] final var headIdx :Int, protected[this] final var len :Int, lowerBound :Int, higherBound :Int)
+	extends SeqFoundation[E, LentArrayBuffer[E]] with SharedArrayBuffer[E] //with ArrayBufferLike[E, LentArrayBuffer[E]]
+//		with ArrayBufferLike[E, LentArrayBuffer]
+		with SharedArrayLike[E, LentArrayBuffer]
+//		with SpecializedTraversableTemplate[E, LentArrayBuffer]
 {
 	def this(array :Array[E]) = this(array, 0, 0, 0, array.length)
 
@@ -34,20 +38,21 @@ class LentArrayBuffer[@specialized(Elements) E] protected[seqs]
 	override def reserve(required: Int): Int =
 		if (capacity-len < required)
 			throw new IndexOutOfBoundsException(s"Can't extend $stringPrefix past preconfigured index of $higherBound (capacity: ${higherBound-lowerBound})")
-		else if (higherBound-end < required) {
-			System.arraycopy(array, offset, array, lowerBound, len)
-			offset = lowerBound
+		else if (higherBound-endIdx < required) {
+			System.arraycopy(array, headIdx, array, lowerBound, len)
+			headIdx = lowerBound
 			higherBound
 		} else higherBound
 
 	override def reserveFront(required: Int): Unit =
 		if (capacity-len < required)
 			throw new IndexOutOfBoundsException(s"Can't extend $stringPrefix before preconfigured index of $lowerBound (capacity: ${higherBound-lowerBound})")
-		else if (offset<required) {
-			System.arraycopy(array, offset, array, higherBound - len, len)
-			offset = higherBound-len
+		else if (headIdx<required) {
+			System.arraycopy(array, headIdx, array, higherBound - len, len)
+			headIdx = higherBound-len
 		}
 
+	@unspecialized
 	override protected[this] def dropSuffix(splitIndex: Int, required: Int): ArrayView[E] = {
 		val tail = ArrayView.copy[E](array, splitIndex, len-splitIndex)
 		len = splitIndex
@@ -60,7 +65,7 @@ class LentArrayBuffer[@specialized(Elements) E] protected[seqs]
 	override def companion = LentArrayBuffer
 	
 	override protected def section(from: Int, until: Int): LentArrayBuffer[E] =
-		new LentArrayBuffer(array, offset+from, until-from, lowerBound, higherBound)
+		new LentArrayBuffer(array, headIdx+from, until-from, lowerBound, higherBound)
 
 
 	override protected[this] def typeStringPrefix = "LentBuffer"
@@ -72,17 +77,17 @@ object LentArrayBuffer extends ArrayViewFactory[LentArrayBuffer] {
 
 	/** Creates an empty buffer of the given capacity, using an array of the type specified by implicit `ClassTag[E]`. */
 	def emptyOf[E :ClassTag](capacity :Int) :LentArrayBuffer[E] =
-		shared(ArrayBounds.share(new Array[E](capacity))).empty()
+		shared(ArrayBounds.share(new Array[E](capacity))).cleared()
 
 	/** Creates an empty buffer writing to the given array, starting from the first index. */
 	def upon[E](buffer :Array[E]) :LentArrayBuffer[E] =
-		shared(ArrayBounds.share(buffer)).empty()
+		shared(ArrayBounds.share(buffer)).cleared()
 
 	/** Creates an empty buffer using the given array limited by the given bounds.
 	  * The buffer will start appending from `lowerBound` and will not grow past `upperBound-lowerBound` bytes.
 	  */
 	def upon[E](buffer :Array[E], lowerBound :Int, upperBound :Int=Int.MaxValue) :LentArrayBuffer[E] =
-		shared(ArrayBounds.share(buffer, lowerBound, upperBound)).empty()
+		shared(ArrayBounds.share(buffer, lowerBound, upperBound)).cleared()
 
 	/** Creates a `FixedArrayBuffer` using the given array, with content spanning `length` bytes from byte `offset`, which will not grow past the given bounds. */
 	def apply[E](buffer :Array[E], offset :Int, length :Int, lowerBound :Int, upperBound :Int) :LentArrayBuffer[E] = {

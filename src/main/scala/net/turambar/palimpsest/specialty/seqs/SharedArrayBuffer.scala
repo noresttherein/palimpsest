@@ -1,14 +1,15 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import scala.annotation.unspecialized
+import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{IndexedSeqLike, mutable}
 import scala.reflect.ClassTag
-
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
-import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, FitItems, Specialized}
+import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, FitTraversableOnce, SpecializableIterable, Specialized}
+
+
 
 
 
@@ -26,103 +27,235 @@ import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, F
   */
 trait SharedArrayBuffer[@specialized(Elements) E]
 //	extends ArrayBufferFoundation[E]
-	        extends FitBuffer[E] with SharedArray[E] with SharedArrayLike[E, SharedArrayBuffer]
-	        with mutable.BufferLike[E, SharedArrayBuffer[E]]
+	extends FitBuffer[E] with mutable.BufferLike[E, SharedArrayBuffer[E]]
+			with SharedArray[E] with SharedArrayLike[E, SharedArrayBuffer] //with ArrayBufferLike[E, SharedArrayBuffer]
+//            with SpecializedTraversableTemplate[E, SharedArrayBuffer]
 {
-	
-	
-	
-	
+	cleared
+
+
+	protected[seqs] def arr_=(a :Array[E]) :Unit = array = a
 	protected[this] var array :Array[E]
-	protected[seqs] var offset :Int
+	protected[seqs] var headIdx :Int
 	protected[this] var len :Int
-	
+//	protected var baseOffset :Int
+
+
+
 	@inline final def length = len
-	@inline final protected[this] def end = offset + len
-	
+//	@inline final protected[this] def end = headIdx + len
+
+
+	override protected def section(from: Int, until: Int): SharedArrayBuffer[E] =
+		new LentArrayBuffer[E](array, headIdx+from, until-from, headIdx, headIdx+length)
+
+
+
+
 	override def ++=(xs: TraversableOnce[E]): this.type = xs match {
 		case _ if xs.isEmpty => this
-		
-		case fit :FitItems[E] =>
+
+		case fit :FitTraversableOnce[E] =>
 			this ++= fit
-		
-		case _ :IndexedSeqLike[_, _] =>
+
+		case _ if ofKnownSize(xs) =>
 			directAppend(xs)
 			this
 		case _ =>
 			var a = array
-			var o = offset
-			var i = o + len; var nextcheck = i
+			var offset = headIdx
+			var i = offset + len; var nextcheck = i
 			for(elem <- xs) {
 				if (i==nextcheck) {
 					nextcheck = reserve()
 					a = array
-					i += offset-o //in case reserve() shifted the contents
-					o = offset
+					i += headIdx-offset //in case reserve() shifted the contents
+					offset = headIdx
 				}
 				a(i) = elem
 				i += 1
 			}
-			len = i-o
+			len = i-offset
 			this
 	}
-	
+
 	//can be extracted to unspecialized class
 	protected def directAppend(elems :TraversableOnce[E]) :Unit = {
 		val count = elems.size
 		reserve(count)
-		elems.copyToArray(array, offset + len)
+		elems.copyToArray(array, headIdx + len)
 		len += count
 	}
-	
-	
+
+
 	//can be extracted to unspecialized class
 	override def ++=:(xs: TraversableOnce[E]): this.type = xs match {
 		case _ if xs.isEmpty => this
-		case items :FitItems[E] =>
+		case items :FitTraversableOnce[E] =>
 			items ++=: this
 		case _ if xs.isTraversableAgain && xs.hasDefiniteSize =>
 			val added = xs.size
 			reserveFront(added)
-			offset -= added; len += added
-			xs.copyToArray(array, offset)
+			headIdx -= added; len += added
+			xs.copyToArray(array, headIdx)
+//			logicalOffset += added
 			this
 		case _ =>
 			val prefix = newBuffer
 			prefix ++= xs
 			prefix ++=: this
 			this
-		
+
 	}
-	
-	
-	
-	
+
+
+
 	//can be extracted to unspecialized class
-	override def insertAll(n: Int, elems: Traversable[E]): Unit =
-		if (n<0 || n>len)
-			throw new IndexOutOfBoundsException(stringPrefix+"("+n+")")
+	override def insertAll(idx: Int, elems: Traversable[E]): Unit =
+		if (idx<0 || idx>len)
+			throw new IndexOutOfBoundsException(stringPrefix+"("+idx+")")
 		else if (elems.nonEmpty)
-			     if (specialty.ofKnownSize(elems)) {
-				     val added = elems.size
-				     if (array.length-end>=added) {
-					     reserve(added)
-					     val pos = offset+n
-					     System.arraycopy(array, pos, array, pos+added, len - n)
-					     elems.copyToArray(array, pos)
-					     len += added
-				     }else {
-					     val tail = dropSuffix(n, len + added)
-					     elems.copyToArray(array, end)
-					     tail.copyToArray(array, end+added)
-					     len += tail.size + added
-				     }
-			     } else  {
-				     val tail = dropSuffix(n, len+1)
-				     this ++= elems
-				     this ++= tail
-			     }
-	
+			 if (specialty.ofKnownSize(elems)) {
+				 val added = elems.size
+				 shiftAside(idx, added)
+				 elems.copyToArray(array, headIdx+idx)
+			 } else  {
+				 val tail = dropSuffix(idx, len+1)
+				 this ++= elems
+				 this ++= tail
+			 }
+
+
+
+	//can be extracted to unspecialized class
+	override def remove(n: Int, count: Int): Unit = {
+		val removed = count min (len - n) max 0
+		if (n < 0 || n > len)
+			throw new IndexOutOfBoundsException(s"$stringPrefix[$length].remove($n, $count)")
+		else if (removed>0)
+			shiftIn(n, count)
+
+	}
+
+
+
+
+	override def +=(elem: E): this.type = {
+		reserve()
+		array(headIdx+len) = elem
+		len += 1
+		this
+	}
+
+	override def +=(elem1: E, elem2: E, elems: E*): this.type = {
+		if (specialty.ofKnownSize(elems))
+			reserve(elems.size+2)
+		else
+	        reserve(2)
+		array(headIdx+len) = elem1
+		array(headIdx+len+1) = elem2
+		len += 2
+		this ++= elems
+	}
+
+
+	protected[this] def appendAll(elems :FitTraversableOnce[E]) :Unit =
+		if (elems.hasFastSize) {
+			directAppend(elems)
+		} else {
+			var a = array
+			var o = headIdx
+			var i = o+len; val it=elems.toIterator //todo: specialization
+			var nextcheck = i
+			while(it.hasNext) { //we are using an iterator to avoid boxing of function calls
+				if (i==nextcheck) { //call to reserve() requires several static forwarders
+					nextcheck = reserve()
+					a = array
+					i += headIdx-o //reserve might have shift the contents
+					o = headIdx
+				}
+				a(i) = it.next()
+				i += 1
+			}
+			len = i-o
+		}
+
+	override def ++=(elems: FitTraversableOnce[E]): this.type = { appendAll(elems); this }
+
+
+	override def +=:(elem: E): this.type = {
+		reserveFront()
+		headIdx -= 1
+		array(headIdx) = elem
+		len += 1
+		this
+	}
+
+
+
+
+	override def -=(x: E): this.type = {
+		val idx = indexOf(x)
+		if (idx>0) remove(idx)
+		this
+	}
+
+	override def -=(elem1: E, elem2: E, elems: E*): this.type =
+		minus(FitSeq.pair(elem1, elem2), elems)
+
+	//can be extracted to unspecialized class
+	override def --=(xs: TraversableOnce[E]): this.type = minus(Seq(), xs)
+
+
+
+	override def remove(n: Int): E = {
+		val removed = apply(n)
+		shiftIn(n, 1)
+		removed
+	}
+
+
+
+	//can be extracted to unspecialized class
+	override def clear(): Unit = {
+		len=0
+	}
+
+	/** Lazybones variant of `clear()` returning this instance. */
+	def cleared() :this.type = {
+		clear(); this
+	}
+
+
+
+	//can be extracted to unspecialized class
+	protected[this] def minus(elems1 :Traversable[E], elems2 :TraversableOnce[E]) :this.type = {
+		val removedIndices = indicesOf(elems1, elems2)
+		if (removedIndices.nonEmpty) {
+			val cuts = removedIndices.toList.sorted
+			copyWithout(cuts, array, headIdx)
+			len -= removedIndices.size
+		}
+		this
+	}
+
+	//can be extracted to unspecialized class
+	@unspecialized
+	protected[this] def copyWithout(removedIndices :List[Int], toArray :Array[E], toOffset :Int) :Unit = {
+		@tailrec def copy(from :Int, cuts :List[Int], to :Int) :Unit =
+			if (cuts.isEmpty)
+				System.arraycopy(array, from, toArray, to, len-from)
+			else {
+				val nextRemoved = cuts.head
+				val section = nextRemoved-from
+				System.arraycopy(array, from, toArray, to, section)
+				copy(nextRemoved+1, cuts.tail, to+section)
+			}
+		copy(headIdx, removedIndices, toOffset)
+	}
+
+
+
 	/** Callback method to be implemented by subclasses called as a result of inserting new content between existing
 	  * elements in this buffer when it is not possible to simply shift the suffix due to lack of space in the underlying array
 	  * or unknown number of elements to be inserted.
@@ -138,60 +271,101 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 	  * @param requiredCapacity final required minimal size of the buffer defined as number of valid array indices after `offset`
 	  * @return a sequence independent on this containing elements `splitIndex..length` of this buffer.
 	  */
-	protected[this] def dropSuffix(splitIndex :Int, requiredCapacity :Int=len) :ArrayView[E]
-	
-	
-	
-	//can be extracted to unspecialized class
-	protected[this] def minus(elems1 :Traversable[E], elems2 :TraversableOnce[E]) :this.type = {
-		val removedIndices = indicesOf(elems1, elems2).toSeq.sorted.view
-		if (removedIndices.nonEmpty) {
-			copyWithout(removedIndices, array, offset)
-			len -= removedIndices.length
-		}
-		this
+	@unspecialized
+	protected[this] def dropSuffix(splitIndex :Int, requiredCapacity :Int=len) :ArrayView[E] = {
+		val tail =
+			if (splitIndex >= length/2 && array.length-headIdx >= requiredCapacity) {
+				//append to current array, copy suffix from splitIndex to a new array
+				val remainder = len-splitIndex
+				if (remainder>0) {
+					val copy = new Array[E](remainder)
+					System.arraycopy(array, headIdx + splitIndex, copy, 0, remainder)
+					newArrayView(copy, 0, remainder)
+				}else
+					ArrayView.Empty
+			} else {
+				//copy prefix until splitIndex into a new array and leave the suffix in current array
+				val old = array
+				array = new Array[E](math.max(headIdx + requiredCapacity, array.length))
+				System.arraycopy(old, headIdx, array, headIdx, splitIndex)
+				newArrayView(old, headIdx+splitIndex, len-splitIndex)
+			}
+		len = splitIndex
+		tail
 	}
-	
-	//can be extracted to unspecialized class
-	protected[this] def copyWithout(removedIndices :Seq[Int], @unspecialized to :Array[E], from :Int) :Unit = {
-		(removedIndices zip removedIndices.tail).zipWithIndex foreach { case ((start, end), shift) =>
-			System.arraycopy(array, offset + start + 1, to, from + start - shift, end - start - 1)
-		}
-		val last = removedIndices.last
-		System.arraycopy(array, last+1, to, from + last - removedIndices.size, len-last-1)
-	}
-	
-	
-	
-	//can be extracted to unspecialized class
-	protected[this] final def cleanUpAfterRemoval(n :Int) :Unit = {
-		if (n == 0) {
-			offset += 1
-			len -=1
-		} else if (n == len - 1) {
-			len -= 1
+
+
+
+
+
+	/** Create space for new elements in the middle of the buffer.
+	  * This is a callback from [[SharedArrayBuffer#insertAll]] which allows subclasses
+	  * to implement their own buffer management strategy. After the function returns, `length`
+	  * should be increased by `count` and both `array` and `offset` be adjusted to reflect the widening of the buffer,
+	  * with elements currently at indices `[0..idx)` occupying cells `[offset..offset+idx)` in the underlying array,
+	  * and current elements from `[idx..length)` occupying cells `[offset+idx+count..offset+length)`.
+	  * If for any reason it is impossible to create a continuous gap at these indices, including possible reallocation
+	  * of the underlying array, an exception should be thrown.
+	  * @param idx index in the buffer where the first element will be inserted
+	  * @param count number of inserted elements/size of the created gap.
+	  */
+	protected[this] def shiftAside(idx :Int, count :Int) :Unit = { //unspecialized
+		import SharedArrayBuffer.nextCapacity
+		val spaceBack = array.length-headIdx-len
+		if (idx==len && spaceBack>=count)
+			len += count
+		else if (idx==0 && headIdx >= count) {
+			headIdx -= count
+			len += count
+		} else if (headIdx >= count && (idx <= len / 2 || spaceBack < count)) {
+			val pos = headIdx - count
+			System.arraycopy(array, headIdx, array, pos, idx)
+			headIdx = pos
+			len += count
+		} else if (spaceBack >= count) {
+			System.arraycopy(array, headIdx+idx, array, headIdx+idx+count, len-idx)
+			len += count
 		} else {
-			shiftLeft(n, 1)
-		}
-	}
-	
-	//can be extracted to unspecialized class
-	override def remove(n: Int, count: Int): Unit = {
-		val removed = count min (len - n) max 0
-		if (n < 0 || n > len)
-			throw new IndexOutOfBoundsException(s"$stringPrefix[$length].remove($n, $count)")
-		else if (removed>0) {
-			if (n == 0) {
-				offset += removed
-				len -= removed
-			} else if (removed == len-n) {
-				len -= removed
-			}else {
-				shiftLeft(n, removed)
+			if (idx<=len/2) {
+				val capacity = nextCapacity(headIdx+len, len+count) + spaceBack
+				val first = capacity - spaceBack - len - count
+				val a = new Array[E](capacity)
+				System.arraycopy(array, headIdx, a, first, idx)
+				System.arraycopy(array, headIdx+idx, a, first+idx+count, len-idx)
+				array = a
+				headIdx = first
+				len += count
+			} else {
+				val capacity = nextCapacity(len+spaceBack, len+count) + headIdx
+				val a = new Array[E](capacity)
+				System.arraycopy(array, headIdx, a, headIdx, idx)
+				System.arraycopy(array, headIdx+idx, a, headIdx+idx+count, len-idx)
+				array = a
+				len += count
 			}
 		}
 	}
-	
+
+	/** Cover the gap created by removal of elements from the buffer by shifting remaining items into their place.
+	  * This is a callback from [[SharedArrayBuffer#remove(Int, Int)]] which allows the subclasses to execute
+	  * their strategy of buffer management. The function should shift elements right, left or both
+	  * to eliminate the gap in indices `[idx..idx+count)` and restore the continuity of data.
+	  * After the execution of this method, `len` and `offset` should be adjusted to reflect performed changes.
+	  * @param idx public index in the buffer of the beginning of the gap
+	  * @param count length of the gap.
+	  */
+	protected[this] def shiftIn(idx :Int, count :Int) :Unit = //unspecialized
+		if (idx==0) {
+			headIdx += count
+			len -= count
+		} else if (idx+count==len)
+			len -= count
+		else if (idx < (len - idx - count))
+			shiftRight(idx, count)
+		else
+			shiftLeft(idx, count)
+
+
 	/** Callback from `remove` methods shifting back the suffix to replace removed elements within the array.
 	  * This method should copy in place elements `downto+by..length` to positions `downto..length-by` and reduce
 	  * length accordingly.
@@ -199,129 +373,70 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 	  * @param by number of elements removed at that index.
 	  */
 	//can be extracted to unspecialized class
-	protected[this] def shiftLeft(downto :Int, by :Int) :Unit = {
+	protected[this] def shiftLeft(downto :Int, by :Int) :Unit = { //unspecialized
 		val from = downto+by
-		System.arraycopy(array, offset+from, array, offset+downto, len-from)
+		System.arraycopy(array, headIdx+from, array, headIdx+downto, len-from)
 		len -= by
 	}
-	
-	
-	//can be extracted to unspecialized class
-	override def clear(): Unit = {
-		len=0
+
+	protected[this] def shiftRight(from :Int, upby :Int) :Unit = { //unspecialized
+		System.arraycopy(array, headIdx, array, headIdx+upby, from)
+		headIdx += upby
+		len -= upby
 	}
-	
-	/** Lazybones variant of `clear()` returning this instance. */
-	def empty() :this.type = {
-		clear(); this
-	}
-	
+
+
+
 	/** Ensure available space for `capacity` elements after the current contents of this buffer.
-	  * Might involve allocating a new array or moving elements.
+	  * Might involve allocating a new array or moving elements. This method is called whenever
+	  * new elements are appended to the buffer, and any pending change of the bounds (`offset` and `length`) of the buffer
+	  * triggers a call to either this method or [[SharedArrayBuffer#reserveFront]] in order to allow subclasses to
+	  * implement their own buffer management/allocation strategy.
 	  * If this method returns without an exception, it is assumed that `offset+length+capacity <= array.length`.
-	  * @return index in the array past `offset+length` upto which (exclusively) this buffer can write within a single operation
-	  *         without a further check of capacity with this method.
+	  * @param required non-negative extra space needed after current end of the buffer (zero denoting simple permission check).
+	  * @return index in the array past the new value of `offset+length` upto which (exclusively)
+	  *         this buffer can write within a single operation without a further check of capacity with this method.
 	  */
-	def reserve(capacity :Int=1) :Int
-	
-	/** Ensure available space for `capacity` elements before the current contents of this buffer.
-	  * Might involve allocating a new array or moving elements.
-	  * If this method returns without an exception, it is assumed that `offset >= capacity`.
-	  */
-	def reserveFront(capacity :Int=1) :Unit
-	
-	
-	
-	
-	
-	//	protected[this] var array :Array[E]
-//	protected[seqs] var offset :Int
-//	protected[this] var len :Int
-//
-//	@inline final def length = len
-//	@inline final protected[this] def end = offset + len
-
-
-
-	override def +=(elem: E): this.type = {
-		reserve()
-		array(offset+len) = elem
-		len += 1
-		this
-	}
-
-	override def +=(elem1: E, elem2: E, elems: E*): this.type = {
-		if (specialty.ofKnownSize(elems))
-			reserve(elems.size+2)
-		else
-	        reserve(2)
-		array(offset+len) = elem1
-		array(offset+len+1) = elem2
-		len += 2
-		this ++= elems
-	}
-
-	//
-	override def ++=(elems: FitItems[E]): this.type =
-		if (elems.hasFastSize) {
-			directAppend(elems); this
-		}else {
-			var a = array
-			var o = offset
-			var i = o+len; val it=elems.toIterator //todo: specialization
-			var nextcheck = i
-			while(it.hasNext) { //we are using an iterator to avoid boxing of function calls
-				if (i==nextcheck) { //call to reserve() requires several static forwarders
-					nextcheck = reserve()
-					a = array
-					i += offset-o //reserve might have shift the contents
-					o = offset
-				}
-				a(i) = it.next()
-				i += 1
-			}
-			len = i-o
-			this
+	def reserve(required :Int=1) :Int = { //unspecialized
+		var capacity = array.length-headIdx
+		val requested = len + required
+		if (requested > capacity) {
+			capacity = SharedArrayBuffer.nextCapacity(capacity, requested)
+			val extended = new Array[E](headIdx + capacity)
+			System.arraycopy(array, headIdx, extended, headIdx, len)
+			array = extended
 		}
-	
-
-	override def +=:(elem: E): this.type = {
-		reserveFront()
-		offset -= 1
-		array(offset) = elem
-		len += 1
-		this
-	}
-	
-
-	
-
-	override def -=(x: E): this.type = {
-		val idx = indexOf(x)
-		if (idx>0) remove(idx)
-		this
+		array.length
 	}
 
-	override def -=(elem1: E, elem2: E, elems: E*): this.type =
-		minus(FitSeq.pair(elem1, elem2), elems)
-	//can be extracted to unspecialized class
-	override def --=(xs: TraversableOnce[E]): this.type = minus(Seq(), xs)
-	
+	/** Ensure available space for `capacity` elements before the current contents of this buffer.
+	  * Might involve allocating a new array or moving elements. This function is called whenever
+	  * new elements are prepended to the buffer, and no change to this buffer's bounds is made without
+	  * a call to either this method or [[SharedArrayBuffer#reserve]] in order to allow subclasses to
+	  * implement their own buffer allocation/management strategy.
+	  * If this method returns without an exception, it is assumed that `offset >= capacity`.
+	  * @param required non-negative extra space needed before `offset`, with zero used as a permission check.
+	  */
+	def reserveFront(required :Int=1) :Unit = //unspecialized
+		if (required > headIdx) {
+			val current = headIdx + length
+			var capacity = SharedArrayBuffer.nextCapacity(current, length+required)
+			val extended = new Array[E](capacity + (array.length-current))   //we have an implicit class tag,
+			System.arraycopy(array, headIdx, extended, capacity-len, len) //so it will turn out properly specialized
+			array = extended
+			headIdx = capacity-len
+		}
 
 
-	override def remove(n: Int): E = {
-		val removed = apply(n)
-		cleanUpAfterRemoval(n)
-		removed
-	}
-	
+
+
 	/** A quick access to a specialized sequence backed by the given section of the array for subclasses. */
-	protected[this] def newArrayView(array :Array[E], offset :Int, length :Int) :ArrayView[E] =
+	protected[this] def newArrayView(array :Array[E], offset :Int, length :Int) :ArrayView[E] = //specialized
 		SharedArray.view(array, offset, length)
-	
-	
-//	this.companion
-//	this.typeStringPrefix
+
+
+
+
 	override def companion: FitCompanion[SharedArrayBuffer] = SharedArrayBuffer
 //
 	override protected[this] def typeStringPrefix = "SharedBuffer"
@@ -353,12 +468,12 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 	
 	//can be extracted and made unspecialized
 	override def reserve(required: Int=1): Int = {
-		var capacity = array.length-offset
+		var capacity = array.length-headIdx
 		if (required > capacity - len || unmodifiable) {
 			capacity += 1
 			do { capacity *= 2 } while (capacity < len + required)
-			val extended = new Array[E](offset + capacity)
-			System.arraycopy(array, offset, extended, offset, len)
+			val extended = new Array[E](headIdx + capacity)
+			System.arraycopy(array, headIdx, extended, headIdx, len)
 			array = extended
 		}
 		array.length
@@ -366,46 +481,27 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 	
 	//can be extracted and made unspecialized
 	override def reserveFront(required: Int=1): Unit =
-		if (required > offset || unmodifiable) {
-			var capacity = offset+len+1
+		if (required > headIdx || unmodifiable) {
+			var capacity = headIdx+len+1
 			do { capacity *= 2 } while (capacity<len+required)
-			val extended = new Array[E](capacity + (array.length-end))   //we have an implicit class tag,
-			System.arraycopy(array, offset, extended, capacity-len, len) //so it will turn out properly specialized
+			val extended = new Array[E](capacity + (array.length-endIdx))   //we have an implicit class tag,
+			System.arraycopy(array, headIdx, extended, capacity-len, len) //so it will turn out properly specialized
 			array = extended
-			offset = capacity-len
+			headIdx = capacity-len
 		}
 	
-	
-	protected[this] def dropSuffix(splitIndex :Int, capacity :Int=len) :ArrayView[E] =
+
+	@unspecialized
+	override protected[this] def dropSuffix(splitIndex :Int, capacity :Int=len) :ArrayView[E] =
 		if (unmodifiable) {
-			val tail = newArrayView(array, offset+splitIndex, len-splitIndex)
+			val tail = newArrayView(array, headIdx+splitIndex, len-splitIndex)
 			//			val tail = new GrowingArrayBuffer[E](array, offset+splitIndex, len-splitIndex, true)
 			len = splitIndex
 			reserve(capacity-len)
 			tail
-		} else {
-			val tail =
-				if (splitIndex >= length/2 && array.length-offset >= capacity) {
-					//append to current array, copy suffix from splitIndex to a new array
-					val remainder = len-splitIndex
-					if (remainder>0) {
-						val copy = new Array[E](remainder)
-						System.arraycopy(array, offset + splitIndex, copy, 0, remainder)
-						//						ArrayView[E](copy)
-						newArrayView(copy, 0, remainder)
-					}else
-						 ArrayView.Empty //new GrowingArrayBuffer[E](array, len, 0, true)
-				} else {
-					//copy prefix until splitIndex into a new array and leave the suffix in current array
-					val old = array
-					array = new Array[E](math.max(offset+capacity, array.length))
-					System.arraycopy(old, offset, array, offset, splitIndex)
-					//					ArrayView[E](old, offset+splitIndex, len-splitIndex)
-					newArrayView(old, offset+splitIndex, len-splitIndex)
-				}
-			len = splitIndex
-			tail
-		}
+		} else
+			super.dropSuffix(splitIndex, capacity)
+
 	
 	
 	override protected[this] def shiftLeft(downto: Int, by: Int): Unit =
@@ -415,50 +511,68 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 			val amount = len-from
 			len -= by
 			val shift = new Array[E](len)
-			Array.copy(array, offset, shift, 0, downto)
-			Array.copy(array, offset+from, shift, downto, amount)
-		}else{
+			Array.copy(array, headIdx, shift, 0, downto)
+			Array.copy(array, headIdx+from, shift, downto, amount)
+		}else
 			super.shiftLeft(downto, by)
-		}
+
 	
 	
 	override protected[this] def minus(elems1: Traversable[E], elems2: TraversableOnce[E]): this.type = {
-		val removedIndices = indicesOf(elems1, elems2).toSeq.sorted.view
+		val removedIndices = indicesOf(elems1, elems2)
 		if (removedIndices.nonEmpty) {
+			val cuts = removedIndices.toList.sorted
 			if (unmodifiable) {
-				val to = new Array[E](len-removedIndices.length)
-				copyWithout(removedIndices, to, 0)
+				val to = new Array[E](len-removedIndices.size)
+				copyWithout(cuts, to, 0)
 				array = to
-				offset=0
+				headIdx=0
 				len = array.length
 				unmodifiable = false
 			}else {
-				copyWithout(removedIndices, array, offset)
-				len -= removedIndices.length
+				copyWithout(cuts, array, headIdx)
+				len -= removedIndices.size
 			}
 		}
 		this
 	}
-	
-	
-	
-	
-	
-	
-	
-	@inline override protected[this] def set(idx: Int, elem: E): Unit = {
+
+
+
+
+
+
+	final override def update(idx: Int, elem: E): Unit =
+		if (idx<0 || idx>=length)
+			throw new IndexOutOfBoundsException(idx.toString)
+		else {
+			reserve(0)
+			array(headIdx+idx) = elem
+		}
+
+//	@inline override protected[this] def set(idx: Int, elem: E): Unit = {
+//		reserve(0)
+//		array(offset+idx) = elem
+//	}
+
+
+	override def transform(f: (E) => E) = {
 		reserve(0)
-		array(offset+idx) = elem
+		var i = headIdx; val lim = i+len; val a = array
+		while(i<lim) {
+			a(i) = f(a(i)); i+=1
+		}
+		this
 	}
 
-	
 	override protected def section(from: Int, until: Int): SharedArrayBuffer[E] =
-		new GrowingArrayBuffer[E](array, offset + from, until - from, unmodifiable)
+//		new LentArrayBuffer[E](array, from, until, headIdx, length)
+		new GrowingArrayBuffer[E](array, headIdx + from, until - from, unmodifiable)
 
 
 	override def toFitBuffer[U >: E : Specialized]: SharedArrayBuffer[U] =
 		if (storageClass isAssignableFrom Specialized[U].runType)
-			new GrowingArrayBuffer[E](array, offset, length).asInstanceOf[SharedArrayBuffer[U]]
+			new GrowingArrayBuffer[E](array, headIdx, length).asInstanceOf[SharedArrayBuffer[U]]
 		else new GrowingArrayBuffer[U]() ++= this
 
 }
@@ -468,16 +582,16 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
   * is exceeded.
   *
   * @param array initial underlying buffer, for erased type `E` may be any of its super types.
-  * @param offset offset at which actual data starts in the array
+  * @param headIdx offset at which actual data starts in the array
   * @param len initial size of the buffer
   * @param unmodifiable can this buffer modify the given array, or is it shared in read-only mode.
   * @tparam E element type before erasure.
   */
 class GrowingArrayBuffer[@specialized(Elements) E](
-		protected[this] final var array :Array[E],
-		protected[seqs] final var offset :Int,
-		protected[this] final var len :Int,
-		protected final var unmodifiable :Boolean=false)
+													  protected[this] final var array :Array[E],
+													  protected[seqs] final var headIdx :Int,
+													  protected[this] final var len :Int,
+													  protected final var unmodifiable :Boolean=false)
 	extends IterableFoundation[E, SharedArrayBuffer[E]] with DefaultArrayBuffer[E]
 {
 	def this(array :Array[E]) = this(array, 0, array.length)
@@ -528,10 +642,19 @@ object SharedArrayBuffer extends ArrayViewFactory[SharedArrayBuffer] {
 	override protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): SharedArrayBuffer[E] =
 		new GrowingArrayBuffer[E](array, offset, length)
 
-	final val DefaultSize = 16
+	final val DefaultSize = 8
 	
 	
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[SharedArrayBuffer[_], E, SharedArrayBuffer[E]]): CanBuildFrom[SharedArrayBuffer[_], E, SharedArrayBuffer[E]] =
 		fit.cbf
+
+
+	@inline private[seqs] final def nextCapacity(current :Int, required :Int) :Int = {
+		import java.lang.Integer.highestOneBit
+		var capacity = highestOneBit(required)
+		if (capacity<required) capacity <<= 1
+		if (capacity<0) capacity = Int.MaxValue
+		capacity
+	}
 }
 

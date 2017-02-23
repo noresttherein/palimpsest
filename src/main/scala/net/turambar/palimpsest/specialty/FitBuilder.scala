@@ -2,17 +2,20 @@ package net.turambar.palimpsest.specialty
 
 import scala.annotation.tailrec
 import scala.collection.{GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce, mutable}
-
 import Specialized.{Fun1, Fun1Vals}
 import net.turambar.palimpsest.specialty.FitBuilder.{BuilderAdapter, BuilderWrapper}
 import net.turambar.palimpsest.specialty.seqs.FitSeq
+
+import scala.collection.generic.CanBuildFrom
 
 
 
 /** Specialized version of [[mutable.Builder]] (for any result type). */
 trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] {
-	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
-	
+//	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
+
+
+
 	private[specialty] def addOne :E=>Unit = { elem :E => this += elem }
 	
 	//this is unspecialized :(
@@ -25,14 +28,22 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 
 	def flatMapInput[@specialized(Fun1) X](f :X=>GenTraversableOnce[E]) :FitBuilder[X, To] =
 		new BuilderAdapter(this, { x: X => this ++= f(x).seq }, build, true)
-	
+
+	override def mapResult[R](f :To=>R) :FitBuilder[E, R] =
+		new BuilderAdapter(this, addOne, addMany, () => f(result()), false)
 	
 	override def +=(elem1: E, elem2: E, elems: E*): this.type =
 		this += elem1 += elem2 ++= elems
-	
+
+	def ++=(xs :FitTraversableOnce[E]) :this.type = {
+		val it = xs.fitIterator
+		while(it.hasNext) this += it.next()
+		this
+	}
+
 	override def ++=(xs: TraversableOnce[E]): this.type = xs match {
-		case fit :FitItems[E] => fit traverse addOne; this
-		
+		case fit :FitTraversableOnce[E] =>
+			this ++= fit
 		case list :LinearSeq[E] =>
 			@tailrec def loop(l :LinearSeq[E]=list) :Unit =
 				if (l.nonEmpty) {
@@ -48,11 +59,14 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 	
 	
 	
-	/** Method used by most concatenation/summing methods of [[FitIterable]]. */
-	def ++=(first :TraversableOnce[E], second :TraversableOnce[E]) :this.type =
-		this ++= first ++= second
+//	/** Method used by most concatenation/summing methods of [[FitIterable]]. */
+//	def ++=(first :TraversableOnce[E], second :TraversableOnce[E]) :this.type =
+//		this ++= first ++= second
 	
 	override def result(): To
+
+	def result(first :TraversableOnce[E], second :TraversableOnce[E]) :To =
+		(this ++= first ++= second).result()
 	
 	override def sizeHint(expect: Int): Unit = ()
 	
@@ -78,7 +92,7 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 	
 	def typeHint[L<:E](implicit specialization :Specialized[L]) :FitBuilder[E, To] = this
 	
-	def source :Any = this
+	def origin :Any = this
 	
 	
 	
@@ -87,7 +101,9 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 
 
 
-
+trait GenericBuilder[@specialized(Elements) E, +C[X]] extends FitBuilder[E, C[E]] {
+	def like[@specialized(Elements) X] :GenericBuilder[X, C]
+}
 
 
 
@@ -102,14 +118,14 @@ object FitBuilder {
 		case _ => new BuilderWrapper(builder)
 	}
 	
-	
+//	def unapply[E, What](cbf :CanBuildFrom[_, E, What]) :Option[FitBuilder[E, What]] =
 	
 	private def mapper[@specialized(Fun1) X, @specialized(Fun1Vals) Y, To](b :mutable.Builder[Y, To])(f :X=>Y) :X=>Unit =
 		{ x :X => b += f(x) }
 	
 	private def traversed[@specialized(Fun1) X](appender :X=>Unit) :TraversableOnce[X]=>Unit =
 		xs => xs match {
-			case fit :FitItems[X] => fit traverse appender
+			case fit :FitTraversableOnce[X] => fit traverse appender
 			case _ => xs foreach appender
 		}
 
@@ -127,7 +143,14 @@ object FitBuilder {
 		val append = builder.addOne
 		new BuilderAdapter(builder, { x :X => if (p(x)) append(x) }, builder.build, true)
 	}
-	
+
+
+	trait IgnoresHints extends mutable.Builder[Nothing, Any] {
+		override def sizeHint(size: Int) :Unit = ()
+		override def sizeHint(coll: TraversableLike[_, _]) :Unit = ()
+		override def sizeHint(coll: TraversableLike[_, _], delta: Int) :Unit = ()
+		override def sizeHintBounded(size: Int, boundingColl: TraversableLike[_, _]) :Unit = ()
+	}
 
 	private class BuilderWrapper[-E, +To](vanilla :mutable.Builder[E, _], override val build :()=>To, supressHints :Boolean = false)
 		extends FitBuilder[E, To]
@@ -269,13 +292,13 @@ object FitBuilder {
 			@tailrec def rec(soFar :Specialized[E], remaining :List[TraversableOnce[E]]) :Specialized[E] =
 				remaining match {
 					case Nil => soFar
-					case FitItems(col)::rest if col.specialization == soFar =>
+					case FitTraversableOnce(col)::rest if col.specialization == soFar =>
 						rec(soFar, rest)
 					case hd::rest if hd.isEmpty => rec(soFar, rest)
 					case _ => Specialized.generic
 				}
 			elems match {
-				case FitItems(col)::rest if col.specialization!=Specialized.SpecializedAnyRef =>
+				case FitTraversableOnce(col)::rest if col.specialization!=Specialized.SpecializedAnyRef =>
 					rec(col.specialization.asInstanceOf[Specialized[E]], rest)
 				case _ => Specialized.generic[E]
 			}
@@ -364,64 +387,6 @@ object FitBuilder {
 	
 	
 	
-	
-/*
-	class FilteredBuilder[@specialized(Fun1) -X, +To] (p :X=>Boolean, target :mutable.Builder[X, To], override val addOne :X=>Unit)
-		extends FitBuilder[X, To]
-	{
-		def this(p :X=>Boolean, target :mutable.Builder[X, To]) =
-			this(p, target, { x :X => if (p(x)) target += x; })
-		
-		def predicate[U<:X] :U=>Boolean = p
-		def builder = target
-		
-		
-		
-		override def ++=(xs: TraversableOnce[X]): this.type = xs match {
-			case fit :FitItems[X] => fit traverse addOne; this
-			case _ => xs foreach addOne; this
-		}
-		
-		override def +=(elem: X): this.type = { addOne(elem); this } //{ if (p(elem)) target += elem; this }
-		
-		override def result(): To = target.result()
-		
-		override def size: Int = ???
-		
-		override def clear(): Unit = target.clear()
-	}
-*/
-	
-	//todo: sizeHint
-	
-	
-/*	class ComposedFitBuilder[@specialized(Fun1) -X, @specialized(Fun1Vals) Y, +To](target :FitBuilder[Y, To], f :X=>Y)
-		extends FitBuilder[X, To]
-	{
-		/** Extracted to minimize the number of produced classes. */
-		override val addOne :X=>Unit = { x => val y = f(x); target += y }
-		
-		override def ++=(xs: TraversableOnce[X]): this.type = xs match {
-			case fit :FitItems[X] => fit traverse addOne; this
-			case _ => xs foreach addOne; this
-		}
-		
-		override def +=(elem: X): this.type = { target += f(elem); this }
-		
-		
-		override def mapInput[@specialized(Fun1) E](g: (E) => X): FitBuilder[E, To] =
-			new ComposedFitBuilder[E, Y, To](target, { e :E => f(g(e)) })
-		
-		override def result(): To = target.result()
-		
-		override def sizeHint(expect: Int): Unit = target.sizeHint(expect)
-		
-		override def size: Int = target.size
-		
-		override def clear(): Unit = target.clear()
-		
-		override def toString = s"($mySpecialization ++=: $target)"
-	}
-	*/
+
 }
 	

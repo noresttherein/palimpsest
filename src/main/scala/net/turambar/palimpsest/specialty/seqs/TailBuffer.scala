@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.annotation.unspecialized
 
 import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitItems, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce, Specialized}
 
 
 /** A mutable view of the tail of a buffer which allows to modify its contents only past some specified index.
@@ -11,7 +11,7 @@ import net.turambar.palimpsest.specialty.{Elements, FitItems, Specialized}
   * @author Marcin Mościcki
   */
 class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], offset :Int)
-		extends IterableFoundation[E, FitBuffer[E]] with FitBuffer[E]
+		extends IterableFoundation[E, FitBuffer[E]] with FitBuffer[E] with SliceLike[E, FitBuffer[E]]
 {
 
 	def this(buffer :FitBuffer[E]) = this(buffer, buffer.length)
@@ -22,6 +22,7 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 
 	override protected[this] def at(idx: Int): E = buffer.get(offset+idx)
 
+	@unspecialized
 	override protected def section(from: Int, until: Int): FitBuffer[E] =
 		sectionOf(buffer, offset+from, offset+until)
 
@@ -37,11 +38,12 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 			throw new IndexOutOfBoundsException(stringPrefix + s"($size).overwrite($start, $length)")
 		else buffer.overwrite(offset+start, length)
 
-
+	@unspecialized
 	override def toFitBuffer[U >: E : Specialized]: FitBuffer[U] =
 		buffer.drop(offset).toFitBuffer[U]
 
-	
+
+	@unspecialized
 	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
 		buffer.drop(offset).copyToArray(xs, start, len)
 
@@ -76,7 +78,7 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 	}
 	
 	@unspecialized
-	override def ++=(elems: FitItems[E]): this.type = { buffer ++= elems; this }
+	override def ++=(elems: FitTraversableOnce[E]): this.type = { buffer ++= elems; this }
 	
 	
 	
@@ -132,7 +134,13 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 
 
 	override def clear(): Unit = buffer.remove(offset, buffer.length-offset)
-	
+
+	@unspecialized
+	override def iterator = buffer.iterator.drop(offset)
+
+	@unspecialized
+	override def reverseIterator = buffer.reverseIterator.take(buffer.length-offset)
+
 	override protected[this] def typeStringPrefix: String = "TailBuffer"
 }
 
