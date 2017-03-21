@@ -2,10 +2,14 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.lang
 
+import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, EmptyIterable, IterableFoundation, SingletonFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, Specialized}
-import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
+import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, FastSizeIterator}
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.BooleanSet.{BooleanSetBuilder, BooleanSetIterator}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun2, Fun1Vals}
+import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.sets.ValSet.{ImmutableSetBuilder, Mutable, Stable}
+
 import scala.collection.GenTraversableOnce
 import scala.collection.generic.CanBuildFrom
 
@@ -16,7 +20,7 @@ import scala.collection.generic.CanBuildFrom
   * This is my sense of humor, if anyone wondered.
   * @author Marcin Mościcki
   */
-class BooleanSet private (bitmap :Int) extends FitSet[Boolean] {
+sealed class BooleanSet protected (private[this] var bitmap :Int) extends ValSet[Boolean] with OfKnownSize {
 	import java.{lang=>j}
 
 	protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
@@ -44,10 +48,10 @@ class BooleanSet private (bitmap :Int) extends FitSet[Boolean] {
 	override final def contains(elem: Boolean): Boolean =
 		elem && (bitmap & 1) >0 || !elem && (bitmap & 2) > 0
 	
-	override final def +(elem: Boolean): FitSet[Boolean] =
+	override final def +(elem: Boolean): ValSet[Boolean] =
 		new BooleanSet(bitmap | (if (elem) 1 else 2))
 	
-	override def -(elem: Boolean): FitSet[Boolean] =
+	override def -(elem: Boolean): ValSet[Boolean] =
 		new BooleanSet(bitmap & (if (elem) 2 else 1))
 
 	override def foreach[@specialized(Unit) U](f: (Boolean) => U) :Unit = bitmap match {
@@ -64,29 +68,30 @@ class BooleanSet private (bitmap :Int) extends FitSet[Boolean] {
 		case _ => ()
 	}
 
-	override protected[this] def filter(p: (Boolean) => Boolean, ourTruth: Boolean): FitSet[Boolean] = new BooleanSet(
+	override protected[this] def filter(p: (Boolean) => Boolean, ourTruth: Boolean): ValSet[Boolean] = new BooleanSet(
 		(if ((bitmap & 1) > 0 && p(true)==ourTruth) 1 else 0) |
 		(if ((bitmap & 2) > 0 && p(false)==ourTruth) 2 else 0)
 	)
 
-	override def map[@specialized(Fun1Vals) O, That](f: (Boolean) => O)(implicit bf: CanBuildFrom[FitSet[Boolean], O, That]) = {
+	override def map[@specialized(Fun1Vals) O, That](f: (Boolean) => O)(implicit bf: CanBuildFrom[ValSet[Boolean], O, That]) = {
 		val b = bf(this)
 		if ((bitmap & 1) > 0) b += f(true)
 		if ((bitmap & 2) > 0) b += f(false)
 		b.result()
 	}
 
-	override def flatMap[U, That](f: (Boolean) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[FitSet[Boolean], U, That]) = {
+	override def flatMap[U, That](f: (Boolean) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[ValSet[Boolean], U, That]) = {
 		val b = bf(this)
 		if ((bitmap & 1) > 0) b ++= f(true).seq
 		if ((bitmap & 2) > 0) b ++= f(false).seq
 		b.result()
 	}
 
-	override def fitIterator: FitIterator[Boolean] = new BooleanSetIterator(bitmap)
+//	override def fitIterator: FitIterator[Boolean] = new BooleanSetIterator(bitmap)
 	override def iterator: FitIterator[Boolean] = new BooleanSetIterator(bitmap)
 
-
+	override def mutable = MutableSet.from(this)
+	override def stable: Stable[Boolean] = ???
 
 	override def newBuilder: FitBuilder[Boolean, BooleanSet] = new BooleanSetBuilder
 	
@@ -102,15 +107,122 @@ class BooleanSet private (bitmap :Int) extends FitSet[Boolean] {
 
 
 
-object BooleanSet {
-	final val Empty = new BooleanSet(0)
+private[sets] object BooleanSet {
+	def empty :StableOrderedSet[Boolean] = Empty
+
+	@inline final def apply(value :Boolean) :StableOrderedSet[Boolean] =
+		if(value) True else False
+
+	@inline final def singleton(value :Boolean) :StableOrderedSet[Boolean] =
+		if (value) True else False
+
+	//todo:
+	@inline final def newBuilder :FitBuilder[Boolean, StableOrderedSet[Boolean]] = //new BooleanSetBuilder
+		new ImmutableSetBuilder[Boolean, StableOrderedSet[Boolean]](Empty)
+
+	object Empty extends EmptyIterable[Boolean, StableOrderedSet[Boolean]] with StableOrderedSet[Boolean] {
+		override def ordering = Ordering.Boolean
+
+		override def empty = this
+		override def contains(elem: Boolean): Boolean = false
+
+		override def +(elem: Boolean): StableOrderedSet[Boolean] = if (elem) True else False
+
+		override def -(elem: Boolean): StableOrderedSet[Boolean] = this
+
+		override def mutable: MutableOrderedSet[Boolean] = ???
+
+		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] = FitIterator.Empty
+
+		override def rangeImpl(from: Option[Boolean], until: Option[Boolean]): StableOrderedSet[Boolean] = this
+
+		protected override def verifiedCopyTo(xs: Array[Boolean], start: Int, total: Int) = 0
+	}
+	private class Singleton(value :Boolean)
+		extends SingletonFoundation[Boolean, StableOrderedSet[Boolean]] with StableOrderedSet[Boolean]
+				with SingletonSpecialization[Boolean, StableOrderedSet[Boolean]]
+	{
+		override def ordering = Ordering.Boolean
+
+		override def empty = Empty
+		override def head = value
+
+		override def contains(elem: Boolean): Boolean = elem==head
+
+		override def +(elem: Boolean): StableOrderedSet[Boolean] = if (elem==head) this else Both
+
+		override def -(elem: Boolean): StableOrderedSet[Boolean] = if (elem==value) Empty else this
+
+		override def mutable: MutableOrderedSet[Boolean] = ???
+
+		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
+			if (start && !value) FitIterator.empty else FitIterator(value)
+
+		override def rangeImpl(from: Option[Boolean], until: Option[Boolean]): StableOrderedSet[Boolean] =
+			if (until.isDefined)
+				if (value || !until.get) Empty
+				else if(from.isDefined && from.get) Empty
+				else this
+			else if (!value && from.isDefined && from.get) Empty
+			else this
+
+		protected override def verifiedCopyTo(xs: Array[Boolean], start: Int, total: Int) = {
+			xs(start) = value; 1
+		}
+	}
+
+	final val True :StableOrderedSet[Boolean] = new Singleton(true)
+	final val False :StableOrderedSet[Boolean] = new Singleton(false)
+
+	object Both extends DoubletonFoundation[Boolean, StableOrderedSet[Boolean]] with StableOrderedSet[Boolean] {
+		override implicit def ordering: Ordering[Boolean] = Ordering.Boolean
+
+		override def empty = Empty
+		override def head = true
+		override def last = false
+		override def init = True
+		override def tail = False
+
+		override def contains(elem: Boolean): Boolean = true
+
+		override def +(elem: Boolean): StableOrderedSet[Boolean] = this
+
+		override def -(elem: Boolean): StableOrderedSet[Boolean] = if (elem) False else True
+
+
+		override def mutable: MutableOrderedSet[Boolean] = ???
+
+
+		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
+			if (start) FitIterator(true)
+			else FitIterator(false, true)
+
+		override def rangeImpl(from: Option[Boolean], until: Option[Boolean]): StableOrderedSet[Boolean] =
+			if (until.isDefined)
+				if (!until.get) Empty
+				else if (from.isDefined && from.get) Empty
+				else False
+			else if (from.isDefined && from.get) True
+			else this
+
+		protected override def verifiedCopyTo(xs: Array[Boolean], start: Int, total: Int) = {
+			xs(start) = false
+			if (total>1) {
+				xs(start+1) = true
+				2
+			} else 1
+		}
+	}
+
+//	final val Empty = new BooleanSet(0)
 	
-	@inline final def newBuilder :FitBuilder[Boolean, BooleanSet] = new BooleanSetBuilder
+//	@inline final def newBuilder :FitBuilder[Boolean, BooleanSet] = new BooleanSetBuilder
 	
 	private class BooleanSetIterator (private[this] var bitmap :Int)
-		extends BaseIterator[Boolean] with FitIterator[Boolean]
+		extends FastSizeIterator[Boolean] with FitIterator[Boolean]
 	{
-		def hasNext = bitmap != 0
+		override def hasNext = bitmap != 0
+		override def size = bitmap - ((bitmap & 2) >> 1)
 		
 		def head :Boolean = (bitmap & 1) > 0
 		

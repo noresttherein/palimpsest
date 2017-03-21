@@ -136,7 +136,7 @@ object conditional {
 	
 	
 	/** Extension methods evaluating and returning the value passed as `this` argument only if a given predicate is satisfied. */
-	implicit class LazyOptionalExpression[T](self : =>T)  {
+	implicit final class LazyOptionalExpression[T](self : =>T)  {
 		
 		/** Return `Some(this)` if `condition` is true, or `None` and don't evaluate this expression otherwise. */
 		@inline

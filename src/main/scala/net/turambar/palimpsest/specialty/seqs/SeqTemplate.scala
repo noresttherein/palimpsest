@@ -12,12 +12,11 @@ import scala.collection.immutable.IndexedSeq
   * @author Marcin Mościcki
   */
 trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, Repr] {
-	this :IterableSpecialization[E, Repr] =>
 
 	
-	/** Fixed to equal [[SeqTemplate#length]]. */
-	@inline
-	final override def size: Int = length
+//	/** Fixed to equal [[SeqTemplate#length]]. */
+//	@inline
+//	final override def size: Int = length
 
 	def length :Int
 
@@ -30,9 +29,9 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 
 	
-	
+	//todo: make this public again;
 	/** Delegates to [[SeqTemplate#reverseIterator]]'s `foreach` method. */
-	override def reverseForeach(f: (E) => Unit): Unit = reverseIterator.foreach(f)
+	override protected def reverseForeach(f: (E) => Unit): Unit = reverseIterator.foreach(f)
 
 	/** Fixed to use [[SeqTemplate#indexOf(U)]]. */
 	override def contains[U >: E](elem: U): Boolean = indexOf(elem) >= 0
@@ -229,15 +228,25 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 
 
+/*
 	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
 		if (mySpecialization.runType isAssignableFrom xs.getClass.getComponentType )
 			if (start<0)
-				throw new IllegalArgumentException(s"FitSeq.copyToArray([], $start, $len)")
-			else
-				specializedCopy(xs.asInstanceOf[Array[E]], start, math.min(xs.length-start, len))
+				throw new IllegalArgumentException(s"$stringPrefix.copyToArray([], $start, $len)")
+			else {
+				val count = math.min(xs.length-start, len)
+				if (count>0)
+					verifiedCopyTo(xs.asInstanceOf[Array[E]], start, count)
+			}
 		else iterator.copyToArray(xs, start, len)
 
-	protected[this] def specializedCopy(xs: Array[E], start: Int, total: Int): Unit = iterator.copyToArray(xs, start, total)
+	protected[this] def verifiedCopyTo(xs: Array[E], start: Int, total: Int): Int =
+		if (isEmpty || total<=0) 0
+		else {
+			iterator.copyToArray(xs, start, total)
+			math.min(total, length)
+		}
+*/
 
 
 

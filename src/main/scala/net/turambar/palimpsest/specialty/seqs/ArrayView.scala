@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.reflect._
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitBuilder, FitCompanion, FitTraversableOnce, SpecializableIterable, Specialize, Specialized, SpecializedIterableFactory, arrayFill}
 
 import scala.annotation.unspecialized
@@ -65,7 +65,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	extends SpecializedIterableFactory[S]
 { outer =>
 	
-	override val Empty: S[Nothing] = empty
+	val Empty: S[Nothing] = empty
 	
 	
 	/** Creates an empty specialized sequence based on implicitly available specialization information.
@@ -247,7 +247,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 		shared(ArrayBounds.copy(fromIndex, contents, untilIndex))
 
 
-	protected[seqs] def shared[E](contents :ArrayBounds[E]) :S[E] = ForArray(contents)(contents.specialization)
+	private[seqs] def shared[E](contents :ArrayBounds[E]) :S[E] = ForArray(contents)(contents.specialization)
 
 	
 	private[this] final val ForArray = new Specialize.With[S, ArrayBounds] {

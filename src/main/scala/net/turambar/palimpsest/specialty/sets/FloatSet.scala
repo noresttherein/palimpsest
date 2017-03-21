@@ -12,15 +12,16 @@ object FloatSet {
 	private[this] final val FloatToInt :Float => Int = floatToRawIntBits
 	private[this] final val IntToFloat :Int=>Float = intBitsToFloat
 
-	final val Empty = new IntSet.ViewAs[Float](IntToFloat, FloatToInt)(IntSet.Empty)
+	final val Empty :StableSet[Float] = new IntSet.ViewAs[Float](IntToFloat, FloatToInt)(IntSet.Empty)
 	
-	def empty :FitSet[Float] = Empty
+	def empty :StableSet[Float] = Empty
 	
-	def newBuilder :FitBuilder[Float, FitSet[Float]] =
+	def newBuilder :FitBuilder[Float, StableSet[Float]] =
 		IntSet.newBuilder.mapInput(FloatToInt).mapResult(ints => new IntSet.ViewAs[Float](IntToFloat, FloatToInt)(ints))
 
-	def Singleton(value :Float) :FitSet[Float] = new IntSet.ViewAs[Float](IntToFloat, FloatToInt)(IntSet.Singleton(floatToRawIntBits(value)))
+	def singleton(value :Float) :StableSet[Float] = new IntSet.ViewAs[Float](IntToFloat, FloatToInt)(IntSet.singleton(floatToRawIntBits(value)))
 
+	def mutable :MutableSet[Float] = new IntSet.MutableViewAs[Float](IntToFloat, FloatToInt)(IntSet.mutable)
 //	type Sorted = FitSet.Sorted[Float]
 //
 //	object Sorted {

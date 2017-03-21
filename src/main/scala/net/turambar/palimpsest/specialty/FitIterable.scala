@@ -6,9 +6,9 @@ import scala.annotation.unspecialized
 import scala.collection.generic.{CanBuildFrom, FilterMonadic, GenericCompanion}
 import scala.collection.{GenIterable, GenTraversableOnce, IterableLike, breakOut, mutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
 import net.turambar.palimpsest.specialty.FitIterator.MappedIterator
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun1Res, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitList, FitSeq, SharedArray}
 
 import scala.runtime.Nothing$
@@ -140,166 +140,6 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 
 
-	/** Base class for [[FitIterable]] hierarchy containing default implementations of all methods
-	  * which don't require specialization (or can be implemented by delegating to a smaller subset of specialized methods).
-	  * Exists to decrease the class sizes of concrete types as well as static forwarding to trait-implemented methods.
-	  * All implementations provided here, unless stated to the contrary, delegate to the corresponding iterator methods and,
-	  * in case of collection results, append the iterator as a whole to `newBuilder`.
-	  */
-	abstract class IterableFoundation[+E, +Repr] extends FitTraversableOnce[E] with IterableSpecialization[E, Repr] {
-		override def specialization :Specialized[_<:E] = mySpecialization
-
-//		@inline override final def items :ForEach[E] = new ForEach(this)
-		override def isEmpty = iterator.isEmpty
-		override def nonEmpty = iterator.hasNext
-		override def hasFastSize = isEmpty
-
-		
-		/** Generic default target of all slicing methods defined in `FitIterable` extracted to be specializable.
-		  * @param from index of the first element of the slice, validated to be >=0.
-		  * @param until not validated index after the last element of the slice
-		  */
-		protected[this] def dropTake(from :Int, until :Int) :Repr = {
-			val builder = newBuilder
-			val taken = until-from
-			if (taken<=0)
-				builder.result()
-			else {
-				builder.sizeHintBounded(taken, this)
-				builder ++= iterator.drop(from).take(taken)
-				builder.result()
-			}
-		}
-		
-		override def slice(from: Int, until: Int): Repr = dropTake(math.max(from, 0), until)
-		
-		override def take(n: Int): Repr = dropTake(0, n)
-		
-		override def drop(n: Int): Repr = dropTake(math.max(n, 0), Int.MaxValue)
-		
-		/** Creates a new collection with [[newBuilder]] and iterator's specialized [[FitIterator#takeWhile]]. */
-		override def takeWhile(p: (E) => Boolean): Repr = {
-			val b = newBuilder
-			b ++= iterator.takeWhile(p)
-			b.result()
-		}
-		
-		/** Creates a new collection with [[newBuilder]] and iterator's specialized [[FitIterator#dropWhile]]. */
-		override def dropWhile(p: (E) => Boolean): Repr = {
-			val b = newBuilder
-			b ++= iterator.dropWhile(p)
-			b.result()
-		}
-		
-		
-		
-		
-		/*  ********** Traversing & predicate testing methods delegating to the iterator *************  */
-
-		//overrides to limit static forwarders in subclasses
-
-		/** Delegates to iterator's specialized [[FitIterator#foreach]]. */
-		override def foreach[@specialized(Unit) O](f: (E) => O): Unit = iterator.foreach(f)
-		
-		/** Traverses the whole collection in an order opposite to [[foreach]]. */
-		override protected def reverseForeach(f :E=>Unit) :Unit = inverse.foreach(f)
-		
-		override def traverse(f :E=>Unit) :Unit = foreach(f) //iterator.foreach(f)
-		
-		/** Delegates to iterator's specialized [[FitIterator#forall]]. */
-		override def forall(p: E => Boolean): Boolean = iterator.forall(p)
-		
-		
-		/** Delegates to iterator's specialized [[FitIterator#exists]]. */
-		override def exists(p: E => Boolean): Boolean = iterator.exists(p)
-		
-		
-		/** Delegates to iterator's specialized [[FitIterator#find]]. */
-		override def find(p: E => Boolean): Option[E] = iterator.find(p)
-		
-		
-		/** Delegates to iterator's specialized [[FitIterator#count]]. */
-		override def count(p: (E) => Boolean): Int = iterator.count(p)
-		
-		
-		/** Delegates to iterator's specialized [[FitIterator#foldLeft]]. */
-		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O): O = iterator.foldLeft(z)(op)
-		
-		
-		/** Delegates to [[foldLeft]]. */
-		@inline final override def /:[@specialized(Fun2) O](z: O)(op: (O, E) => O): O = foldLeft(z)(op)
-		
-		
-		/** Delegates to specialized [[foldRight]]. */
-		@inline final override def :\[@specialized(Fun2) O](z: O)(op: (E, O) => O): O = foldRight(z)(op)
-		
-		
-		/** Delegates to [[foldLeft]]. */
-		override def fold[U >: E](z: U)(op: (U, U) => U): U = foldLeft(z)(op)
-		
-		
-		
-		/** Delegates to the corresponding method of our iterator and adds the whole iterator to a new builder from `newBuilder`. */
-		protected[this] def filter(p :(E) => Boolean, ourTruth :Boolean) :Repr =
-			(newBuilder ++= iterator.filter(p, ourTruth)).result()
-		
-		
-		override def filter(p: (E) => Boolean): Repr = filter(p, ourTruth = true)
-		
-		override def filterNot(p: (E) => Boolean): Repr = filter(p, ourTruth = false)
-		
-
-		
-		
-		override def map[@specialized(Fun1Vals) O, That](f: (E) => O)(implicit bf: CanBuildFrom[Repr, O, That]): That = {
-			val b = FitBuilder(bf(repr)).mapInput(f)
-			b.sizeHint(this)
-			b ++= this
-			b.result()
-		}
-		
-		
-		
-		override def flatMap[U, That](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[Repr, U, That]): That = {
-			val b = FitBuilder(bf(repr)).flatMapInput(f)
-			b ++= this
-			b.result()
-		}
-		
-		
-		
-		override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[Repr, B, That]): That = {
-			val b = FitBuilder(bf(repr))
-			if (hasFastSize && ofKnownSize(that))
-				b.sizeHint(size + that.size)
-			b ++= thisCollection ++= that.seq
-			b.result()
-		}
-		
-		override def ++:[B >: E, That](that: TraversableOnce[B])(implicit bf: CanBuildFrom[Repr, B, That]): That = {
-			val b = FitBuilder(bf(repr))
-			if (hasFastSize && ofKnownSize(that))
-				b.sizeHint(size + that.size)
-			b ++= thisCollection ++= that.seq
-			b.result()
-		}
-		
-		
-		
-		override def fitIterator :FitIterator[E] = iterator
-
-		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
-			iterator.copyToArray(xs, start, len)
-
-		
-		override def sameElements[U >: E](that: GenIterable[U]): Boolean = {
-			val these = this.iterator
-			val those = that.iterator
-			these sameElements those
-		}
-		
-	}
-
 
 
 
@@ -320,7 +160,8 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	  * @tparam This self type of this collection
 	  * @author Marcin Mościcki
 	  */
-	abstract class IterableMapping[X, +That<:IterableSpecialization[X, That], +E, +This] extends IterableSpecialization[E, This] {
+	abstract class IterableMapping[X, +That<:IterableSpecialization[X, That], +E, +This] extends IterableTemplate[E, This] {
+
 		/** collection containing actual elements of this collection to be mapped with `my`/`from`. */
 		protected[this] def source :That
 
@@ -345,6 +186,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		override def hasDefiniteSize: Boolean = source.hasDefiniteSize
 		override def isEmpty = source.isEmpty
 		override def nonEmpty = source.nonEmpty
+		override def ofAtLeast(items :Int) = source.ofAtLeast(items)
 
 
 		override def foreach[@specialized(Unit) U](f: (E) => U) :Unit = source foreach forSource(f)
@@ -406,7 +248,8 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 		override def flatMap[U, C](f: (E) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C = source.flatMap(forSource(f))(breakOut)
 
-		override def fitIterator :FitIterator[E] = new MappedIterator(from)(source.iterator)
+		/** Unspecialized mapped iterator asking for being overriden. */
+//		override def iterator :FitIterator[E] = new MappedIterator(from)(source.iterator)
 
 		//	override protected[this] def newBuilder: FitBuilder[E, This] = source.fit
 
@@ -432,6 +275,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	  * @tparam This self type for this collection (not enforced apart from actually being a specialized iterable).
 	  */
 	abstract class IterableAdapter[+Source<:IterableSpecialization[E, Source], +E, +This] extends IterableFoundation[E, This] {
+
 		override def specialization :Specialized[_<:E] = source.specialization
 
 		protected[this] def source :Source
@@ -443,6 +287,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		override def hasDefiniteSize: Boolean = source.hasDefiniteSize
 		override def isEmpty = source.isEmpty
 		override def nonEmpty = source.nonEmpty
+		override def ofAtLeast(items :Int) = source.ofAtLeast(items)
 
 		override def foreach[@specialized(Unit) U](f: (E) => U) :Unit = source foreach f
 		override protected def reverseForeach(f: (E) => Unit): Unit = source reverseTraverse f
@@ -513,7 +358,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 		override def sameElements[U >: E](that: GenIterable[U]) = source.sameElements(that)
 
-		override def fitIterator :FitIterator[E] = source.fitIterator
+		override def iterator :FitIterator[E] = source.iterator
 
 		override def head = source.head
 		override def last = source.last

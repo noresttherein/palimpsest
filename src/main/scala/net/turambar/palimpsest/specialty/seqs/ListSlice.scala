@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterable, FitIterator, FitTraversableOnce, ImplementationIterableFactory, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterable, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, NonEmpty}
 
 import scala.annotation.unspecialized
@@ -12,6 +12,7 @@ import scala.collection.immutable.LinearSeq
 import Specialized.Fun2
 import net.turambar.palimpsest.specialty.FitIterable.{ElementDeserializer, ElementSerializer}
 import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.seqs.ListSlice.{ListSliceBuilder, ListSliceIterator, SerializedListSlice}
 
 /**
@@ -20,7 +21,8 @@ import net.turambar.palimpsest.specialty.seqs.ListSlice.{ListSliceBuilder, ListS
 @SerialVersionUID(100)
 class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], end :LinkedList[E], override val length :Int)
 	extends SeqFoundation[E, ListSlice[E]] with LinearSeq[E] with LinearSeqLike[E, ListSlice[E]]
-			with StableSeq[E] with SliceLike[E, ListSlice[E]] with SpecializableIterable[E, ListSlice]
+			with StableSeq[E] with IterableSpecialization[E, ListSlice[E]] with SliceLike[E, ListSlice[E]] with SpecializableIterable[E, ListSlice]
+			with OfKnownSize
 {
 	private[seqs] def firstLink = start
 	private[seqs] def lastLink = end
@@ -232,10 +234,11 @@ class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], 
 		}
 
 
-	override protected[this] def specializedCopy(xs: Array[E], start: Int, total: Int) :Unit = {
-		var i = start; val end = start + math.min(total, length)
+	override protected[this] def verifiedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+		var i = start; val count = math.min(total, length); val end = start + count
 		var l = this.start
 		while (i < end) { xs(i) = l.head; i+=1; l = l.tail }
+		count
 	}
 
 	override def iterator = new ListSliceIterator(start, length)
@@ -256,6 +259,8 @@ class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], 
 
 
 object ListSlice extends ImplementationIterableFactory[ListSlice] {
+	final val Empty = empty[Nothing]
+
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[ListSlice[_], E, ListSlice[E]]): CanBuildFrom[ListSlice[_], E, ListSlice[E]] =
 		fit.cbf

@@ -4,9 +4,9 @@ import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenTraversableOnce, SeqLike, immutable, mutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, IterableFoundation, SingletonFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.seqs.StableSeq.MakeStableIndexed
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, IterableSpecialization, FitIterator, InterfaceIterableFactory, Specialized, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 
 
 /** A scala `Seq` (either mutable or immutable underneath) which is specialized on its element type.
@@ -68,7 +68,8 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	type Mutable[@specialized(Elements) E] = MutableSeq[E]
 	type Indexed[@specialized(Elements) +E] = FitIndexedSeq[E]
 
-	
+	final val Empty :FitSeq[Nothing] = ArrayPlus.Empty
+
 	@inline def Acc[E :Specialized] :StableSeq[E] = ArrayPlus.Acc[E]
 	
 	protected[this] type RealType[@specialized(Elements) X] = StableArray[X]
@@ -101,18 +102,14 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	
 	/** Specialized singleton sequence (small wrapper over a single element). */
 	private[seqs] class Seq1[@specialized(Elements) +E](override val head :E)
-		extends IterableFoundation[E, MakeStableIndexed[E]] //with immutable.IndexedSeq[E] with FitIndexedSeq[E, ConstSeq[E]] with ConstSeq[E]
-				with MakeStableIndexed[E] with FitIndexedSeq[E] with StableSeq[E]
+		extends SeqFoundation[E, MakeStableIndexed[E]] //with immutable.IndexedSeq[E] with FitIndexedSeq[E, ConstSeq[E]] with ConstSeq[E]
+				with MakeStableIndexed[E] with FitIndexedSeq[E] with StableSeq[E] with SingletonSpecialization[E, MakeStableIndexed[E]]
 	{
-		override def headOption = Some(head)
-		override def last = head
-		override def lastOption = headOption
+		override def empty = MakeStableIndexed.Empty
 		
-		override def tail = MakeStableIndexed.Empty
-		
-		override def length: Int = 1
-		
-		
+		override final def length: Int = 1
+
+
 		override def apply(idx: Int): E =
 			if (idx!=0) throw new IndexOutOfBoundsException(s"$this($idx)")
 			else head
@@ -130,7 +127,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 		
 		override def indexWhere(p: (E) => Boolean, from: Int): Int =
 			if (from==0 && !p(head)) 1 else 0
-		
+
 		@unspecialized
 		override def lastIndexWhere(p: (E) => Boolean, from: Int): Int = indexWhere(p, from)
 		
@@ -139,10 +136,11 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 		
 		override def lastIndexOf[U>:E](elem :U, from :Int) :Int = indexOf(elem, from)
 		
-		override def find(p: (E) => Boolean): Option[E] = if (p(head)) Some(head) else None
+//		override def find(p: (E) => Boolean): Option[E] = if (p(head)) Some(head) else None
 		
 		
 		
+/*
 		override def foreach[@specialized(Unit) U](f: (E) => U): Unit = f(head)
 
 		override def filter(f :E=>Boolean) :MakeStableIndexed[E] =
@@ -164,18 +162,20 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 			(bf(this) ++= f(head).seq).result()
 		
 		
-		override def iterator: FitIterator[E] = FitIterator.single(head)
+		override def iterator: FitIterator[E] = FitIterator(head)
+*/
 		@unspecialized
 		final override def reverseIterator :FitIterator[E] = iterator
-		
+
+		@unspecialized override def toFitSeq = this
 		@unspecialized override def reverse = this
 		@unspecialized override def inverse = this
 		
-		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
-			if (len>0 && start<xs.length)
-				xs(start) = head
-		
-		override def copyToBuffer[B >: E](dest: mutable.Buffer[B]): Unit = dest += head
+//		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
+//			if (len>0 && start<xs.length)
+//				xs(start) = head
+//
+//		override def copyToBuffer[B >: E](dest: mutable.Buffer[B]): Unit = dest += head
 		
 		override def typeStringPrefix = "Seq1"
 	}
@@ -186,15 +186,17 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	
 	/** Specialized two-element sequence. */
 	private[seqs] class Seq2[@specialized(Elements) +E](override val head :E, override val last :E)
-		extends IterableFoundation[E, MakeStableIndexed[E]] //with immutable.IndexedSeq[E]
-				with MakeStableIndexed[E] with FitIndexedSeq[E] with StableSeq[E]
+		extends SeqFoundation[E, MakeStableIndexed[E]] //with immutable.IndexedSeq[E]
+				with MakeStableIndexed[E] with FitIndexedSeq[E] with DoubletonSpecialization[E, MakeStableIndexed[E]]
 	{
 		override def headOption = Some(head)
 		override def lastOption = Some(last)
 		
 		override def length: Int = 2
-		
+
+		override def empty = MakeStableIndexed.Empty
 		override def tail = new Seq1(last)
+		override def init = new Seq1(head)
 		
 		
 		override def apply(idx: Int): E = idx match {
@@ -234,12 +236,15 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 				else if (p(last)) 1 else 2
 			else if (from==1 && p(head)) 1
 			else 0
-		
-		
+
+
+
+		override def reverseIterator = FitIterator(last, head)
 		override def reverse = new Seq2(last, head)
 		@unspecialized override def inverse = reverse
+		@unspecialized override def toFitSeq = this
 		
-		override def foreach[@specialized(Unit) U](f: (E) => U): Unit = { f(head); f(last) }
+/*		override def foreach[@specialized(Unit) U](f: (E) => U): Unit = { f(head); f(last) }
 		
 		override def filter(p: (E) => Boolean): MakeStableIndexed[E] =
 			if (p(head))
@@ -283,7 +288,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 			dest += head
 			dest += last
 		}
-		
+		*/
 		override def typeStringPrefix = "Seq2"
 	}
 	
@@ -324,15 +329,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 
 
 
-		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
-			if (mySpecialization.runType isAssignableFrom xs.getClass.getComponentType )
-				if (start<0)
-					throw new IllegalArgumentException(s"FitSeq.copyToArray([], $start, $len)")
-				else
-					specializedCopy(xs.asInstanceOf[Array[E]], start, math.min(xs.length-start, len))
-			else iterator.copyToArray(xs, start, len)
 
-		override protected[this] def specializedCopy(xs: Array[E], start: Int, total: Int): Unit = iterator.copyToArray(xs, start, total)
 	}
 	
 }

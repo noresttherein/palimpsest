@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
 
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce, Specialized}
 
 
@@ -19,6 +19,8 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 
 
 	override final def length: Int = buffer.length - offset
+	override def hasFastSize = buffer.hasFastSize
+	override def ofAtLeast(elems :Int) = elems<=0 || buffer.ofAtLeast(offset+elems)
 
 	override protected[this] def at(idx: Int): E = buffer.get(offset+idx)
 

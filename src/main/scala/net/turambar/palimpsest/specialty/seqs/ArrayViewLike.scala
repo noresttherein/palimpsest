@@ -1,16 +1,21 @@
 package net.turambar.palimpsest.specialty.seqs
 
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+
 import scala.annotation.unspecialized
 import scala.reflect.ClassTag
 import scala.collection.{IndexedSeqLike, IndexedSeqOptimized, LinearSeqLike, immutable}
 import net.turambar.palimpsest.specialty.Specialized.Fun2Vals
-import net.turambar.palimpsest.specialty.{ArrayIterator, Elements, FitBuilder, IterableSpecialization, ReverseArrayIterator, Specialized, SpecializableIterable, arrayCopy}
+import net.turambar.palimpsest.specialty.{ArrayIterator, Elements, FitBuilder, IterableSpecialization, ReverseArrayIterator, SpecializableIterable, Specialized, arrayCopy}
+
+import scala.compat.Platform
 
 /**
   * @author Marcin Mościcki
   */
 trait ArrayViewLike[@specialized(Elements) +E, +Repr]
-	extends IndexedSeqOptimized[E, Repr] with SliceLike[E, Repr] with IterableSpecialization[E, Repr] with Serializable//extend specialized version of iterable
+	extends IndexedSeqOptimized[E, Repr] with SliceLike[E, Repr] with IterableSpecialization[E, Repr]
+			with OfKnownSize with Serializable//extend specialized version of iterable
 {
 
 	protected[this] def array :Array[E]
@@ -166,7 +171,12 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 			else
 				Array.copy(array, headIdx, xs, start, len min length min (xs.length - start))
 
-
+	@inline @unspecialized
+	override final protected[this] def verifiedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+		val count = math.min(total, length)
+		Platform.arraycopy(array, headIdx, xs, start, count)
+		count
+	}
 
 	override def iterator: ArrayIterator[E] = new ArrayIterator[E](array, headIdx, headIdx+length)
 

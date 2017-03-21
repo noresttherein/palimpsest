@@ -153,13 +153,6 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X,
 trait SpecializedIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends FitIterableFactory[S]
 {
-	/** Performs identity conversion from a specialized [[CanFitFrom]] to a generic `CanBuildFrom`.
-	  * Unfortunately, in order to avoid conflicts in implicit resolution of `CanBuildFrom` with scala collection instances,
-	  * concrete descendant companion objects must implement it directly.
-	  * @param fit specialized builder factory for this collection type
-	  * @tparam E desired element type of built collection
-	  * @return [[CanFitFrom#cbf]]
-	  */
 	implicit def canBuildFrom[E](implicit fit :CanFitFrom[S[_], E, S[E]]) :CanBuildFrom[S[_], E, S[E]] //=
 //		fit.cbf
 	
@@ -182,7 +175,7 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 	extends SpecializedIterableFactory[S]
 {
 	
-	override val Empty: S[Nothing] = default.Empty
+//	override val Empty: S[Nothing] = default.Empty
 	
 	protected[this] type RealType[@specialized(Elements) X] <: S[X] with SpecializableIterable[X, RealType]
 	protected[this] def default :FitIterableFactory[RealType]
@@ -197,6 +190,14 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 	@inline final override def fitBuilder[E: Specialized]: FitBuilder[E, S[E]] = impl.fitBuilder[E]
 	
 	@inline override final def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, S[E]] = impl.specializedBuilder[E]
+
+
+	override def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E] = impl.fill(n)(elem)
+
+	override def tabulate[@specialized(Elements) E](n: Int)(f: (Int) => E): S[E] = impl.tabulate(n)(f)
+
+	override def iterate[@specialized(Elements) E](start: E, len: Int)(f: (E) => E): S[E] = impl.iterate(start, len)(f)
+
 }
 
 
@@ -205,7 +206,7 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 abstract class ImplementationIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends SpecializedIterableFactory[S]
 {
-	override val Empty :S[Nothing] = empty
+//	override val Empty :S[Nothing] = empty
 	
 //	override def newBuilder[E]: FitBuilder[E, S[E]] = ???
 //

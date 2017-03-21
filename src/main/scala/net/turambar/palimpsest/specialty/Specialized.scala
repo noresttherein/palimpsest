@@ -2,7 +2,8 @@ package net.turambar.palimpsest.specialty
 
 import java.util
 
-import net.turambar.palimpsest.specialty.Specialized.{Erased, SpecializedKey}
+import net.turambar.palimpsest.specialty.Specialized.{Erased, SpecializedKey, SpecializedInt, SpecializedLong, SpecializedFloat, SpecializedDouble, SpecializedBoolean, SpecializedUnit}
+
 import scala.annotation.implicitNotFound
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.{TypeTag, typeOf}
@@ -265,6 +266,12 @@ sealed trait Specialized[@specialized E] {
 	@inline final def isAnyRef = runType eq Specialized.AnyRefClass
 	
 	@inline final def isRef = Specialized.AnyRefClass.isAssignableFrom(runType)
+
+	@inline final def isFun1Arg = (this eq SpecializedInt) || (this eq SpecializedLong) || (this eq SpecializedFloat) || (this eq SpecializedDouble)
+
+	@inline final def isFun1Res =
+		(this eq SpecializedInt) || (this eq SpecializedLong) || (this eq SpecializedFloat) ||
+			(this eq SpecializedDouble) || (this eq SpecializedBoolean) || (this eq SpecializedUnit)
 
 //	@inline final private[specialty] def cast[T>:E] :E SpecializedAs T = this.asInstanceOf[E SpecializedAs T]
 

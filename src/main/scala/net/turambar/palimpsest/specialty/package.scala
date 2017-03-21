@@ -16,6 +16,7 @@ import scala.collection.immutable.ListSet
 package object specialty {
 
 	final val Elements = Specialized.Values
+	final val SetElements = Elements //we might want to exclude Boolean
 	
 	/** Same as `scala.collection.breakOut`, but for [[CanFitFrom]] instances.
 	  * Named differently to avoid conflicts when both are imported.

@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.sets
 import net.turambar.palimpsest.specialty.FitIterable.{IterableMapping}
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun1Vals, Fun2, Fun2Vals}
-import net.turambar.palimpsest.specialty.sets.FitSet.Sorted
+import net.turambar.palimpsest.specialty.sets.ValSet.Sorted
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, forceFit}
 
 
@@ -17,7 +17,7 @@ import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, forceFit}
 
 
 
-object ShortSet {
+private[sets] object ShortSet {
 
 
 	private[this] final val ShortToInt = (_:Short).toInt
@@ -28,24 +28,34 @@ object ShortSet {
 //		override def +(elem: Short): FitSet[Short] = Singleton(elem)
 //		override def -(elem: Short): FitSet[Short] = this
 //	}
-	final val Empty = new IntSet.ViewAs[Short](IntToShort, ShortToInt)(IntSet.Empty)
+	final val Empty :StableSet[Short] = new IntSet.ViewAs[Short](IntToShort, ShortToInt)(IntSet.Empty)
 
-	def empty :FitSet[Short] = Empty
+	def empty :StableSet[Short] = Empty
 
-	def newBuilder :FitBuilder[Short, FitSet[Short]] =
+	def newBuilder :FitBuilder[Short, StableSet[Short]] =
 		IntSet.newBuilder.mapInput(ShortToInt).mapResult(ints => new IntSet.ViewAs[Short](IntToShort, ShortToInt)(ints))
 
-	def Singleton(value :Short) :FitSet[Short] = new IntSet.ViewAs[Short](IntToShort, ShortToInt)(IntSet.Singleton(value.toInt))
+	def singleton(value :Short) :StableSet[Short] = new IntSet.ViewAs[Short](IntToShort, ShortToInt)(IntSet.singleton(value.toInt))
 
-	type Sorted = FitSet.Sorted[Short]
+	def mutable :MutableSet[Short] = new IntSet.MutableViewAs[Short](IntToShort, ShortToInt)(IntSet.mutable)
+//	type Sorted = OrderedSet[Short]
 
-	object Sorted {
-		final val Empty :SortedFitSet[Short] = new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(IntSet.Sorted.Empty)
-		def newBuilder :FitBuilder[Short, SortedFitSet[Short]] = IntSet.Sorted.newBuilder.mapInput(ShortToInt).mapResult(
+
+	object Ordered {
+		final val Empty :StableOrderedSet[Short] = new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(IntSet.Sorted.Empty)
+		def newBuilder :FitBuilder[Short, StableOrderedSet[Short]] = IntSet.Sorted.newBuilder.mapInput(ShortToInt).mapResult(
 			ints => new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(ints)
 		)
-		def Singleton(value :Short) :SortedFitSet[Short] = new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(IntSet.Sorted.Singleton(value.toInt))
+		def Singleton(value :Short) :StableOrderedSet[Short] = new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(IntSet.Sorted.singleton(value.toInt))
+
+		def mutable :MutableOrderedSet[Short] = new IntSet.MutableSortedViewAs[Short](IntToShort, ShortToInt)(IntSet.Sorted.mutable)
 	}
+
+//	type Mutable = MutableSet[Short]
+//
+//	object Mutable {
+//		final def empty :MutableSet[Short] = new IntSet.MutableViewAs[Short](IntToShort, ShortToInt)(IntSet.Mutable.empty)
+//	}
 
 /*
 

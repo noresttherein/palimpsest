@@ -2,15 +2,15 @@ package net.turambar.palimpsest.specialty.maps
 
 import java.lang.Long.highestOneBit
 
-import net.turambar.palimpsest.specialty.FitIterable.{IterableFoundation, IterableMapping}
+import net.turambar.palimpsest.specialty.FitIterable.{IterableMapping}
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun2}
 import net.turambar.palimpsest.specialty.Elements
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.sets.FitSet.ImmutableSetBuilder
+import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
 //import net.turambar.palimpsest.specialty.maps.LongKey.{LongMapIterator, Singleton}
-import net.turambar.palimpsest.specialty.sets.{FitSet, MutableSet, SetSpecialization, SortedFitSet}
+import net.turambar.palimpsest.specialty.sets.{ValSet, MutableSet, SetSpecialization, OrderedSet}
 
 import scala.annotation.tailrec
 

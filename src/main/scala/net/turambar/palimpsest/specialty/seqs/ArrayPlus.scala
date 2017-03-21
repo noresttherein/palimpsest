@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenTraversableOnce, breakOut, immutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.seqs.StableSeq.MakeStableIndexed
 import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, Specialized, SpecializableIterable, ofKnownSize}
 
@@ -61,14 +61,14 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 		else this
 	
 	
-	@inline final protected[this] def shouldShareArray = synchronized {
+	final protected[this] def shouldShareArray = synchronized {
 		if (ownsSuffix && ownsPrefix) {
 			ownsSuffix = false; ownsPrefix = false
 			true
 		} else false
 	}
 	
-	@inline final protected[this] def shouldShareSuffix = synchronized {
+	final protected[this] def shouldShareSuffix = synchronized {
 		if (ownsSuffix) { ownsSuffix = false; true } else false
 	}
 	
@@ -76,18 +76,18 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
 		(array.length - headIdx - length > 0) && synchronized { ownsSuffix }
 	
 	
-	@inline final protected[this] def shouldSharePrefix = synchronized {
+	final protected[this] def shouldSharePrefix = synchronized {
 		if (ownsPrefix) { ownsPrefix = false; true } else false
 	}
 	
-	@inline final protected[this] def needsPrefix =
+	final protected[this] def needsPrefix =
 		(headIdx > 0) && synchronized { ownsPrefix }
 	
-	@inline final protected[this] def reclaimSuffix() :Unit = synchronized {
+	final protected[this] def reclaimSuffix() :Unit = synchronized {
 		ownsSuffix = true
 	}
 	
-	@inline final protected[this] def reclaimPrefix() :Unit = synchronized {
+	final protected[this] def reclaimPrefix() :Unit = synchronized {
 		ownsPrefix = true
 	}
 	

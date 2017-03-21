@@ -3,6 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized, ofKnownSize}
 
+import scala.annotation.unspecialized
 import scala.collection.generic.{CanBuildFrom, Subtractable}
 import scala.collection.{GenTraversableOnce, mutable}
 
@@ -144,9 +145,16 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	override def clone() :Repr = (newBuilder ++= this).result()
 
 
-
-
-
+	@unspecialized
+	def copyToFitArray(xs :Array[E], start :Int=0, count :Int = Int.MaxValue) :Int =
+		if (start<0)
+			throw new IllegalArgumentException(s"$stringPrefix<$length>.copyToFitArray([], $start, $count")
+		else {
+			val max = math.min(count, xs.length-start)
+			if (max > 0)
+				verifiedCopyTo(xs, start, max)
+			else 0
+		}
 }
 
 

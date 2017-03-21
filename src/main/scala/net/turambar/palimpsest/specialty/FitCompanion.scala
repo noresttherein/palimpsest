@@ -25,7 +25,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 { factory =>
 	
 	/** An empty, unspecialized instance of S[_] and a valid instance of `S[T]` for all immutable (variant) collections `S`. */
-	val Empty :S[Nothing] //= empty[Nothing]
+//	val Empty :S[Nothing] //= empty[Nothing]
 	
 	protected[this] final val NewEmpty :Specialize[S] = new Specialize[S] {
 		override def specialized[@specialized E : Specialized]: S[E] = empty[E]

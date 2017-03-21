@@ -30,7 +30,6 @@ import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterable, Ite
   * @author Marcin Mościcki
   */
 trait SliceLike[+E, +Repr] extends SeqTemplate[E, Repr] { //with IterableSpecialization[E, Repr] /*with mutable.Cloneable[Repr]*/ {
-	this :IterableSpecialization[E, Repr] =>
 
 
 	/** Empty collection returned when requested for slices of zero length; implemented as `section(0, 0)`. */
@@ -128,16 +127,13 @@ trait SliceLike[+E, +Repr] extends SeqTemplate[E, Repr] { //with IterableSpecial
 
 
 	/** Fixed to use [[SliceLike#indexOf(U)]]. */
-	@inline
-	final override def contains[U >: E](elem: U): Boolean = indexOf(elem) >= 0
+	override def contains[U >: E](elem: U): Boolean = indexOf(elem) >= 0
 
 	/** Fixed to delegate to [[SliceLike#prefixLength]]. */
-	@inline
-	final override def forall(p: E => Boolean): Boolean = prefixLength(p) == length
+	override def forall(p: E => Boolean): Boolean = prefixLength(p) == length
 
 	/** Fixed to delegate to [[SliceLike#indexWhere]]. */
-	@inline
-	final override def exists(p: E => Boolean): Boolean = indexWhere(p, 0) >= 0
+	override def exists(p: E => Boolean): Boolean = indexWhere(p, 0) >= 0
 
 
 }

@@ -15,14 +15,16 @@ object DoubleSet {
 	private[this] final val DoubleToLong :Double => Long = doubleToLongBits
 	private[this] final val LongToDouble :Long=>Double = longBitsToDouble
 
-	final val Empty :FitSet[Double] = new LongView(LongSet.Empty)
+	final val Empty :StableSet[Double] = new LongView(LongSet.Empty)
 	
-	def empty :FitSet[Double] = Empty
+	def empty :StableSet[Double] = Empty
 	
-	def newBuilder :FitBuilder[Double, FitSet[Double]] =
+	def newBuilder :FitBuilder[Double, StableSet[Double]] =
 		LongSet.newBuilder.mapInput(DoubleToLong).mapResult(ints => new LongView(ints))
 
-	def Singleton(value :Double) :FitSet[Double] = new LongView(LongSet.Singleton(doubleToLongBits(value)))
+	def singleton(value :Double) :StableSet[Double] = new LongView(LongSet.singleton(doubleToLongBits(value)))
+
+	def mutable :MutableSet[Double] = new MutableLongView(LongSet.mutable)
 
 //	type Sorted = FitSet.Sorted[Double]
 //
@@ -37,11 +39,11 @@ object DoubleSet {
 	object Mutable {
 		def empty :MutableSet[Double] = new MutableLongView(LongSet.Mutable.empty)
 		def newBuilder :FitBuilder[Double, MutableSet[Double]] = new MutableLongView(LongSet.Mutable.empty)
-		def Singleton(value :Double) :MutableSet[Double] = new MutableLongView(LongSet.Mutable.Singleton(doubleToLongBits(value)))
+		def Singleton(value :Double) :MutableSet[Double] = new MutableLongView(LongSet.Mutable.singleton(doubleToLongBits(value)))
 	}
 
-	private trait DoubleAsLongSet[+S<:FitSet[Long] with SetSpecialization[Long, S], +Repr <: FitSet[Double] with SetSpecialization[Double, Repr]]
-		extends IterableMapping[Long, S, Double, Repr] with FitSet[Double] with SetSpecialization[Double, Repr]
+	private trait DoubleAsLongSet[+S<:ValSet[Long] with SetSpecialization[Long, S], +Repr <: ValSet[Double] with SetSpecialization[Double, Repr]]
+		extends IterableMapping[Long, S, Double, Repr] with ValSet[Double] with SetSpecialization[Double, Repr]
 	{
 		@inline override protected def forSource[@specialized(Fun1Res) O](f :Double=>O) = { x :Long => f(longBitsToDouble(x)) }
 
@@ -53,7 +55,7 @@ object DoubleSet {
 
 		override def empty :Repr = fromSource((source :SetSpecialization[Long, S]).empty)
 		override def mutable :MutableSet[Double] = new MutableLongView(source.mutable)
-		//		override def stable =
+
 
 		override def head :Double = from(source.head)
 		override def last :Double = from(source.last)
@@ -72,7 +74,7 @@ object DoubleSet {
 
 		override def -(elem: Double): Repr = fromSource(source - doubleToLongBits(elem))
 
-		override def fitIterator: FitIterator[Double] = new MappedIterator(from)(source.iterator)
+		override def iterator: FitIterator[Double] = new MappedIterator(from)(source.iterator)
 
 		override def newBuilder =
 			source.newBuilder.mapInput(DoubleToLong).mapResult(fromSource)
@@ -81,10 +83,12 @@ object DoubleSet {
 
 
 
-	private trait DoubleAsLongMutableSet[+S<:MutableSet[Long] with SetSpecialization[Long, S], +Repr<:MutableSet[Double] with SetSpecialization[Double, Repr]]
-		extends IterableMapping[Long, S, Double, Repr] with MutableSet[Double] with DoubleAsLongSet[S, Repr]
+	private trait DoubleAsLongMutableSet[
+			+S<:MutableSet[Long] with SetSpecialization[Long, S],
+			+Repr<:MutableSet[Double] with MutableSetLike[Double, Repr] with SetSpecialization[Double, Repr]
+		] extends IterableMapping[Long, S, Double, Repr] with MutableSet[Double] with MutableSetLike[Double, Repr] with DoubleAsLongSet[S, Repr]
 	{
-		override def stable :FitSet.Stable[Double] = new LongView(source.stable)
+		override def stable :ValSet.Stable[Double] = new LongView(source.stable)
 
 		override def add(elem: Double) = source.add(doubleToLongBits(elem))
 		override def remove(elem: Double) = source.remove(doubleToLongBits(elem))
@@ -108,10 +112,10 @@ object DoubleSet {
 
 
 
-	private class LongView(protected val source :FitSet[Long])
-		extends DoubleAsLongSet[FitSet[Long], FitSet[Double]]
+	private class LongView(protected val source :StableSet[Long])
+		extends DoubleAsLongSet[StableSet[Long], StableSet[Double]] with StableSet[Double]
 	{
-		override protected[this] def fromSource(col: FitSet[Long]): FitSet[Double] = new LongView(col)
+		override protected[this] def fromSource(col: StableSet[Long]): StableSet[Double] = new LongView(col)
 	}
 
 

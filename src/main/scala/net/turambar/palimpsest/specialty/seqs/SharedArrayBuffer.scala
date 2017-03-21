@@ -6,7 +6,7 @@ import scala.collection.{IndexedSeqLike, mutable}
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, FitTraversableOnce, SpecializableIterable, Specialized}
 
 
@@ -31,7 +31,7 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 			with SharedArray[E] with SharedArrayLike[E, SharedArrayBuffer] //with ArrayBufferLike[E, SharedArrayBuffer]
 //            with SpecializedTraversableTemplate[E, SharedArrayBuffer]
 {
-	cleared
+
 
 
 	protected[seqs] def arr_=(a :Array[E]) :Unit = array = a

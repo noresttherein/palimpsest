@@ -4,7 +4,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, SpecializableIterable}
 

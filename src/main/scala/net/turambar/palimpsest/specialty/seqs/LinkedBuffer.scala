@@ -1,6 +1,7 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListIterator, NonEmpty}
 import net.turambar.palimpsest.specialty.seqs.ListSlice.ListSliceIterator
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
@@ -20,14 +21,14 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 		private[this] var len :Int)
 	extends mutable.LinearSeq[E] with LinearSeqLike[E, LinkedBuffer[E]]
 			with FitBuffer[E] with ValSeqLike[E, LinkedBuffer[E]] //MutableSliceLike[E, LinkedBuffer[E]]
-			with SpecializableIterable[E, LinkedBuffer]
+			with SpecializableIterable[E, LinkedBuffer] with OfKnownSize
 { //todo: extend slicelike?
 
 	@inline final override def length: Int = len
 	@inline final override def isEmpty = length==0
 	@inline final override def nonEmpty = length>0
 	@inline final override def hasFastSize = true
-
+//	override def ofAtLeast(items :Int) = hat.drop(items).nonEmpty
 
 	@unspecialized @inline
 	final protected[this] def ff(n :Int) :NonEmpty[E] = hat.blindDrop(n+1) match {
@@ -269,7 +270,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 		new LinkedBuffer(res, last, count)
 	}
 
-	override def fitIterator :FitIterator[E] = new ListSliceIterator(hat.tail, length)
+	override def iterator :FitIterator[E] = new ListSliceIterator(hat.tail, length)
 
 	override def reverseIterator = inverse.iterator
 

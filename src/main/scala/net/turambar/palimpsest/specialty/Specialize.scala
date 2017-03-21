@@ -15,7 +15,7 @@ trait Specialize[R[X]] {
 	  * @param specialization information about runtime specialization requested for this call.
 	  * @return result of calling the most appropriately specialized variant of `this.specialized[E]`.
 	  */
-	@inline def apply[E]()(implicit specialization :Specialized[E]) :R[E] =
+	@inline final def apply[E]()(implicit specialization :Specialized[E]) :R[E] =
 		specialization.call(this)
 	
 	/** Callback specialized method to be implemented by subclasses.

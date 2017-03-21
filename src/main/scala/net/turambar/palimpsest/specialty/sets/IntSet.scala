@@ -3,18 +3,23 @@ package net.turambar.palimpsest.specialty.sets
 import java.util
 
 import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
-import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
+import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, FastSizeIterator, MappedIterator}
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.IntSet.IntSetIterator
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.iterables.EmptyIterable
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{AbstractIterator, BitSet, BitSetLike, GenTraversableOnce, Set, SortedSet, SortedSetLike, mutable}
+import scala.collection.{AbstractIterator, BitSet, BitSetLike, GenTraversableOnce, Set, SortedSet, SortedSetLike, immutable}
+
+
+
 /**
   * @author Marcin Mościcki
   */
-class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val size :Int) extends FitSet[Int] {
+@deprecated
+class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val size :Int) extends StableSet[Int] with OfKnownSize {
 
 	private[IntSet] def this(negative :BitSet, positive :BitSet) = this(negative, positive, negative.size + positive.size)
 	private[IntSet] def this(positive :BitSet) = this(BitSet.empty, positive, positive.size)
@@ -49,7 +54,7 @@ class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val si
 
 
 
-	override protected[this] def filter(p: (Int) => Boolean, ourTruth: Boolean): FitSet[Int] =
+	override protected[this] def filter(p: (Int) => Boolean, ourTruth: Boolean): StableSet[Int] =
 		if (size==0) this
 		else
 			new IntSet(negative.filter{ i => p(-i)==ourTruth }, positive.filter { i => p(i)==ourTruth })
@@ -63,14 +68,14 @@ class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val si
 		else new IntSet(negative.filter{i => !p(-i)}, positive.filterNot(p))
 
 
-	override def map[@specialized(Fun1Vals) O, That](f: (Int) => O)(implicit bf: CanBuildFrom[FitSet[Int], O, That]) = {
+	override def map[@specialized(Fun1Vals) O, That](f: (Int) => O)(implicit bf: CanBuildFrom[StableSet[Int], O, That]) = {
 		val b = bf(this)
 		negative foreach { i => b += f(-i) }
 		positive foreach { i => b += f(i) }
 		b.result()
 	}
 
-	override def flatMap[U, That](f: (Int) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[FitSet[Int], U, That]) :That = {
+	override def flatMap[U, That](f: (Int) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[StableSet[Int], U, That]) :That = {
 		val b = bf(this)
 		negative foreach { i => b ++= f(-i).seq }
 		positive foreach { i => b ++= f(i).seq }
@@ -95,43 +100,53 @@ class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val si
 			else this
 	
 	override def iterator: FitIterator[Int] = new IntSetIterator(negative, positive, size)
-	override def fitIterator :FitIterator[Int] = new IntSetIterator(negative, positive, size)
-		
+//	override def fitIterator :FitIterator[Int] = new IntSetIterator(negative, positive, size)
+
+	override def mutable: MutableSet[Int] = MutableSet.from(this)
+
 	override def stringPrefix = "IntSet"
 }
 
 
 object IntSet {
-	final val Empty :FitSet[Int] = new IntSet(BitSet.empty, BitSet.empty, 0)
+	import scala.collection.mutable.{BitSet => MutableBitSet}
+	final val Empty :StableSet[Int] = new IntSet(BitSet.empty, BitSet.empty, 0)
 	@inline final def empty = Empty
 	
-	def newBuilder :FitBuilder[Int, FitSet[Int]] = new IntSetBuilder(mutable.BitSet.empty, mutable.BitSet.empty, 0)
+	def newBuilder :FitBuilder[Int, StableSet[Int]] = new IntSetBuilder(MutableBitSet.empty, MutableBitSet.empty, 0)
 
-	def Singleton(value :Int) :FitSet[Int] = Empty + value
+	def singleton(value :Int) :StableSet[Int] = Empty + value
+	
+	def mutable :MutableSet[Int] = Mutable.empty
 
 	object Sorted {
-		final val Empty :SortedFitSet[Int] = new EmptyIterable[Int, SortedFitSet[Int]] with SortedFitSet[Int] {
+		final val Empty :StableOrderedSet[Int] = new EmptyIterable[Int, StableOrderedSet[Int]] with StableOrderedSet[Int] with EmptySetSpecialization[Int, StableOrderedSet[Int]]{
 			override implicit val ordering: Ordering[Int] = Ordering.Int
 			override def keysIteratorFrom(start: Int): FitIterator[Int] = FitIterator.empty[Int]
-			override def rangeImpl(from: Option[Int], until: Option[Int]): SortedFitSet[Int] = this
+			override def rangeImpl(from: Option[Int], until: Option[Int]): StableOrderedSet[Int] = this
 
 			override def contains(elem: Int): Boolean = false
 
-			override def +(elem: Int): SortedFitSet[Int] = Singleton(elem)
-			override def -(elem: Int): SortedFitSet[Int] = this
+			override def +(elem: Int): StableOrderedSet[Int] = singleton(elem)
+			override def -(elem: Int): StableOrderedSet[Int] = this
 		}
 
-		def Singleton(value :Int) :SortedFitSet[Int] = ???
+		def singleton(value :Int) :StableOrderedSet[Int] = ???
 
-		def newBuilder :FitBuilder[Int, SortedFitSet[Int]] = ???
+		def newBuilder :FitBuilder[Int, StableOrderedSet[Int]] = ???
+		
+		def mutable :MutableOrderedSet[Int] = ???
+	}
+
+	
+	object Mutable {
+		def empty :MutableSet[Int] = MutableSet.from(IntSet.Empty)
 	}
 
 
 
-
-
-	trait MappedIntSet[+S<:FitSet[Int] with SetSpecialization[Int, S], @specialized(Byte, Short, Char, Float) Y, +Repr <: FitSet[Y] with SetSpecialization[Y, Repr]]
-		extends IterableMapping[Int, S, Y, Repr] with FitSet[Y] with SetSpecialization[Y, Repr]
+	trait MappedIntSet[+S<:ValSet[Int] with SetSpecialization[Int, S], @specialized(Byte, Short, Char, Float) Y, +Repr <: ValSet[Y] with SetSpecialization[Y, Repr]]
+		extends IterableMapping[Int, S, Y, Repr] with ValSet[Y] with SetSpecialization[Y, Repr]
 	{ //this :IterableMapping[Int, FitSet[Int], Y, Repr] => //this :Repr =>
 		@inline override protected def forSource[@specialized(Fun1Res) O](f :Y=>O) = { x :Int => f(my(x)) }
 //		@inline override final protected def my(x: Int): Y = from(x)
@@ -164,19 +179,34 @@ object IntSet {
 
 		override def -(elem: Y): Repr = fromSource(source - toInt(elem))
 
-		override def fitIterator: FitIterator[Y] = new MappedIterator(from)(source.iterator)
+		override def iterator: FitIterator[Y] = new MappedIterator(from)(source.iterator)
 
 		override def newBuilder =
 			source.newBuilder.mapInput(to).mapResult(fromSource)
+
+		override protected def verifiedCopyTo(xs: Array[Y], start: Int, total: Int): Int =
+			if (total >= source.size) {
+				var idx = start
+				source.foreach { i: Int => xs(idx) = my(i); idx += 1 }
+				source.size
+			} else {
+				iterator.copyToArray(xs, start, total)
+				total
+			}
+
 	}
 
 
 
-	trait MappedMutableIntSet[+S<:MutableSet[Int] with SetSpecialization[Int, S], @specialized(Byte, Short, Char, Float) Y, +Repr<:MutableSet[Y] with SetSpecialization[Y, Repr]]
-		extends IterableMapping[Int, S, Y, Repr] with MutableSet[Y] with MappedIntSet[S, Y, Repr] //with MutableSet[Y]
+	trait MappedMutableIntSet[
+			+S<:MutableSet[Int] with SetSpecialization[Int, S],
+			@specialized(Byte, Short, Char, Float) Y,
+			+Repr<:MutableSet[Y] with MutableSetLike[Y, Repr] with SetSpecialization[Y, Repr]
+		] extends IterableMapping[Int, S, Y, Repr] with MutableSet[Y] with MutableSetLike[Y, Repr]
+				  with MappedIntSet[S, Y, Repr] //with MutableSet[Y]
 	{ //this :IterableMapping[Int, MutableSet[Int], Y, Repr]  => //this :Repr =>
 //		override protected[this] val source :MutableSet[Int]
-		override def stable :FitSet.Stable[Y] = new ViewAs(from, to)(source.stable)
+		override def stable :ValSet.Stable[Y] = new ViewAs(from, to)(source.stable)
 
 		override def add(elem: Y) = source.add(toInt(elem))
 		override def remove(elem: Y) = source.remove(toInt(elem))
@@ -201,12 +231,12 @@ object IntSet {
 
 
 	class ViewAs[@specialized(Byte, Short, Char, Float) Y]
-			(override final val from :Int=>Y, override final val to :Y=>Int)(protected val source :FitSet[Int])
-		extends MappedIntSet[FitSet[Int], Y, FitSet[Y]]
+			(override final val from :Int=>Y, override final val to :Y=>Int)(protected val source :StableSet[Int])
+		extends MappedIntSet[StableSet[Int], Y, StableSet[Y]] with StableSet[Y]
 	{
 		override protected def toInt(y: Y): Int = to(y)
 		override protected def my(x: Int): Y = from(x)
-		override protected[this] def fromSource(col: FitSet[Int]): FitSet[Y] = new ViewAs(from, to)(col)
+		override protected[this] def fromSource(col: StableSet[Int]): StableSet[Y] = new ViewAs(from, to)(col)
 	}
 
 	class MutableViewAs[@specialized(Byte, Short, Char, Float) Y]
@@ -220,9 +250,9 @@ object IntSet {
 
 
 	class SortedViewAs[@specialized(Byte, Short, Char, Float) Y]
-			(override final val from :Int=>Y, override final val to :Y=>Int)(override val source :FitSet.Sorted[Int])
-		extends IterableMapping[Int, FitSet.Sorted[Int], Y, FitSet.Sorted[Y]] with FitSet.MakeSorted[Y]
-				with MappedIntSet[FitSet.Sorted[Int], Y, FitSet.Sorted[Y]]
+			(override final val from :Int=>Y, override final val to :Y=>Int)(override val source :OrderedSet.Stable[Int])
+		extends IterableMapping[Int, StableOrderedSet[Int], Y, OrderedSet.Stable[Y]] with OrderedSet.Stable[Y]
+				with MappedIntSet[StableOrderedSet[Int], Y, OrderedSet.Stable[Y]]
 	{
 		implicit override def ordering = source.ordering.on(to)
 
@@ -231,48 +261,46 @@ object IntSet {
 
 		override def mutable = new MutableSortedViewAs(from, to)(source.mutable)
 
-		override protected[this] def fromSource(col: FitSet.Sorted[Int]): FitSet.Sorted[Y] =
-			new SortedViewAs(from, to)(col)
-//			fromSorted(col.asInstanceOf[FitSet.Sorted[Int]])
-
-		@inline final private[this] def fromSorted(col :FitSet.Sorted[Int]) :FitSet.Sorted[Y] =
+		override protected[this] def fromSource(col: StableOrderedSet[Int]): StableOrderedSet[Y] =
 			new SortedViewAs(from, to)(col)
 
-		override def rangeImpl(from: Option[Y], until: Option[Y]): SortedFitSet[Y] = fromSorted(
+		override def rangeImpl(from: Option[Y], until: Option[Y]): StableOrderedSet[Y] =
 			(from, until) match {
-				case (Some(f), Some(t)) => source.rangeImpl(Some(toInt(f)), Some(toInt(t)))
-				case (Some(f), _) => source.rangeImpl(Some(toInt(f)), None)
-				case (_, Some(t)) => source.rangeImpl(None, Some(toInt(t)))
-				case _ => source.rangeImpl(None, None)
+				case (Some(f), Some(t)) => fromSource(source.range(toInt(f), toInt(t)))
+				case (Some(f), _) => fromSource(source.from(toInt(f)))
+				case (_, Some(t)) => fromSource(source.until(toInt(t)))
+				case _ => this
 			}
-		)
+		
 
 		override def keysIteratorFrom(start: Y): FitIterator[Y] =
 			new MappedIterator(from)(source.keysIteratorFrom(toInt(start)))
+		
+//		override def iterator :FitIterator[Y] = new MappedIterator(from)(source.iterator)
 	}
 
 
 	class MutableSortedViewAs[@specialized(Byte, Short, Char, Float) Y]
-			(override final val from :Int=>Y, override final val to :Y=>Int)(override val source :MutableSet.Sorted[Int])
-		extends IterableMapping[Int, MutableSet.Sorted[Int], Y, MutableSet.Sorted[Y]] with MutableSet.Sorted[Y]
-				with MappedMutableIntSet[MutableSet.Sorted[Int], Y, MutableSet.Sorted[Y]]
+			(override final val from :Int=>Y, override final val to :Y=>Int)(override val source :MutableSet.Ordered[Int])
+		extends IterableMapping[Int, MutableSet.Ordered[Int], Y, MutableSet.Ordered[Y]] with MutableSet.Ordered[Y]
+				with MappedMutableIntSet[MutableSet.Ordered[Int], Y, MutableSet.Ordered[Y]]
 	{
 		implicit override def ordering = source.ordering.on(to)
 
 		override protected def toInt(y: Y): Int = to(y)
 		override protected def my(x: Int): Y = from(x)
 
-		override def mutable :MutableSortedSet[Y] = this
+		override def mutable :MutableOrderedSet[Y] = this
 		override def stable = new SortedViewAs(from, to)(source.stable)
 
-		override protected[this] def fromSource(col: MutableSet.Sorted[Int]): MutableSet.Sorted[Y] =
+		override protected[this] def fromSource(col: MutableSet.Ordered[Int]): MutableSet.Ordered[Y] =
 			new MutableSortedViewAs(from, to)(col)
-//			fromSorted(col.asInstanceOf[MutableSet.Sorted[Int]])
+//			fromSorted(col.asInstanceOf[MutableSet.Ordered[Int]])
 
-		@inline final private[this] def fromSorted(col :MutableSet.Sorted[Int]) :MutableSet.Sorted[Y] =
+		@inline final private[this] def fromSorted(col :MutableSet.Ordered[Int]) :MutableSet.Ordered[Y] =
 			new MutableSortedViewAs(from, to)(col)
 
-		override def rangeImpl(from: Option[Y], until: Option[Y]): MutableSet.Sorted[Y] = fromSorted(
+		override def rangeImpl(from: Option[Y], until: Option[Y]): MutableSet.Ordered[Y] = fromSorted(
 			(from, until) match {
 				case (Some(f), Some(t)) => source.rangeImpl(Some(toInt(f)), Some(toInt(t)))
 				case (Some(f), _) => source.rangeImpl(Some(toInt(f)), None)
@@ -283,6 +311,8 @@ object IntSet {
 
 		override def keysIteratorFrom(start: Y): FitIterator[Y] =
 			new MappedIterator(from)(source.keysIteratorFrom(toInt(start)))
+		
+//		override def iterator :FitIterator[Y] = new MappedIterator(from)(source.iterator)
 	}
 
 
@@ -290,11 +320,10 @@ object IntSet {
 
 
 
-	private class IntSetIterator(negative :BitSet, positive :BitSet, private[this] var left :Int) extends BaseIterator[Int] {
-		override def hasFastSize: Boolean = true
-		override def hasDefiniteSize = true
+	private class IntSetIterator(negative :BitSet, positive :BitSet, private[this] var left :Int) extends FastSizeIterator[Int] with FitIterator[Int] {
 		override def size = left
 		override def hasNext = left>0
+		override def ofAtLeast(n :Int) = left >= n
 		
 		var head :Int =
 			if (left<=0) 0
@@ -331,7 +360,7 @@ object IntSet {
 
 
 
-	private class IntSetBuilder(negative :mutable.BitSet, positive :mutable.BitSet, private[this] var size :Int)
+	private class IntSetBuilder(negative :MutableBitSet, positive :MutableBitSet, private[this] var size :Int)
 		extends FitBuilder[Int, IntSet]
 	{
 		override def +=(elem: Int): this.type = {
@@ -497,7 +526,7 @@ object IntSet {
 
 	private class MutableContinuousBitSet(bmap :Array[Long], precalculatedSize :Int = -1)
 		extends ContinuousBitSet(bmap, precalculatedSize) with BitSetLike[MutableContinuousBitSet]
-				with MutableSet.Sorted[Int] with mutable.SetLike[Int, MutableContinuousBitSet]
+				with MutableSet.Ordered[Int] with mutable.SetLike[Int, MutableContinuousBitSet]
 				with SetSpecialization[Int, MutableContinuousBitSet]
 	{
 		override def count = size
@@ -559,7 +588,6 @@ object IntSet {
 	private[sets] class BitSetIterator(words :Array[Long], start :Int=0) extends BaseIterator[Int] with FitIterator[Int] {
 		override def hasDefiniteSize = true
 		override def hasFastSize = false
-
 		private[this] var n=start
 		private[this] val max = words.length << 6
 		if (n < max && ((words(n >>> 6) >> n) & 1L)==0) skip()

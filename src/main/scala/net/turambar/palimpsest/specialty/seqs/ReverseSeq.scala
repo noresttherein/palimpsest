@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.Specialized.Fun2Vals
 import net.turambar.palimpsest.specialty.{Elements, FitIterator}
 

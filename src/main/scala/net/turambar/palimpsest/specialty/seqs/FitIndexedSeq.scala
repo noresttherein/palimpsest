@@ -5,6 +5,7 @@ import scala.annotation.unspecialized
 import scala.collection.{GenSeq, IndexedSeqLike, IndexedSeqOptimized, SeqLike, mutable}
 import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterator, IterableSpecialization, SpecializableIterable}
 import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 
 
 
@@ -15,22 +16,20 @@ import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIn
 trait FitIndexedSeq[@specialized(Elements) +E]
 	extends IndexedSeq[E] with IndexedSeqLike[E, FitIndexedSeq[E]]
 			with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]]
-			with SliceLike[E, FitIndexedSeq[E]] with SpecializableIterable[E, FitIndexedSeq]
+			with SliceLike[E, FitIndexedSeq[E]] with SpecializableIterable[E, FitIndexedSeq] with OfKnownSize
 { self =>
 	
-	@inline
-	final override def hasDefiniteSize: Boolean = true
-	
-	@inline
-	final override def hasFastSize :Boolean = true
+//	override def hasDefiniteSize: Boolean = true
+//	override def hasFastSize :Boolean = true
 
 
 //	@inline
 //	final override def lengthCompare(len: Int): Int = length-len
 //	override def isEmpty: Boolean = length==0
 //	override def nonEmpty: Boolean = length!=0
-	
-	
+
+
+
 
 	override protected[this] def indexWhere(p: (E) => Boolean, ourTruth: Boolean, from: Int): Int = {
 		var i = math.max(from, 0); val len = length
@@ -147,16 +146,17 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 
 	
 
-	protected[this] override def specializedCopy(target :Array[E], start :Int, len :Int) :Unit = {
+	protected[this] override def verifiedCopyTo(target :Array[E], start :Int, len :Int) :Int = {
 		var i = 0; val max = math.min(len, length)
 		while (i < max) { target(start + i) = at(i); i += 1 }
+		math.max(0, max)
 	}
 	
 	
 
 
 
-	
+
 	override def iterator: FitIterator[E] = new ForwardIterator
 	
 	override def reverseIterator: FitIterator[E] = new ReverseIterator
@@ -193,7 +193,7 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 		
 		@unspecialized
 		override def foreach[@specialized(Unit) U](f :E=>U) :Unit =
-			if (index==length-1 && end==0) toSeq.reverseForeach(f.asInstanceOf[E=>Unit])
+			if (index==length-1 && end==0) toSeq.reverseTraverse(f.asInstanceOf[E=>Unit])
 			else while(index>=end) { f(at(index)); index-=1; }
 		
 		override def toIndexedSeq = toSeq.toIndexedSeq

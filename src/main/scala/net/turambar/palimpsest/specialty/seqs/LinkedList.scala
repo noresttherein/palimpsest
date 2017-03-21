@@ -4,13 +4,14 @@ import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListBuilder, LinkedListIterator, NonEmpty, SerializedLinkedList}
-import specialty.{Elements, FitBuilder, FitCompanion, FitIterator, SpecializableIterable, Specialized}
+import specialty.{Elements, FitBuilder, FitCompanion, FitIterator, IterableSpecialization, SpecializableIterable, Specialized}
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{LinearSeq, LinearSeqLike}
 import Specialized.Fun2
 import net.turambar.palimpsest.specialty.FitIterable.{ElementDeserializer, ElementSerializer}
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 
 
@@ -25,10 +26,10 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 @SerialVersionUID(100)
 sealed trait LinkedList[@specialized(Elements) +E]
 	extends SeqFoundation[E, LinkedList[E]] with LinearSeq[E] with LinearSeqLike[E, LinkedList[E]] //with SliceLike[E, LinkedList[E]]
-			with FitSeq[E] with SpecializableIterable[E, LinkedList] with Serializable
+			with FitSeq[E] with IterableSpecialization[E, LinkedList[E]] with SpecializableIterable[E, LinkedList] with Serializable
 {
-	override def isEmpty = false
-	override def nonEmpty = true
+//	override def isEmpty = false
+//	override def nonEmpty = true
 
 
 	override def length = {
@@ -196,7 +197,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	override def takeWhile(p :E=>Boolean) = span(p)._1
 
 
-	override def span(p: (E) => Boolean) =
+	override def span(p: (E) => Boolean) :(LinkedList[E], LinkedList[E]) =
 		if (isEmpty || !p(head)) (LinkedList.Empty, this)
 		else {
 			val prefix = new NonEmpty(head, tail); var end = prefix; var suffix = tail
@@ -330,13 +331,14 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	override def inverse = reverse
 
 
-	protected[this] override def specializedCopy(xs: Array[E], start: Int, total: Int): Unit = {
+	protected[this] override def verifiedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
 		var i = start; val e = start + total; var l = this
 		while (i<e && l.nonEmpty) {
 			xs(i) = l.head
 			l = l.tail
 			i+=1
 		}
+		i-start
 	}
 
 
@@ -378,7 +380,7 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 	  * with future append operations, and some classes may empose artificial limiting of list length.
 	  * Always check `list.isEmpty` or match against `Empty()` instead!
 	  */
-	override object Empty extends Empty[Nothing] {
+	object Empty extends Empty[Nothing] {
 		def unapply[E](l :LinkedList[E]) :Boolean = l.isEmpty
 
 		override def equals(that :Any) = that match {
@@ -393,6 +395,7 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 
 	@SerialVersionUID(100)
 	sealed class Empty[@specialized(Elements) +E] private[seqs]() extends LinkedList[E] {
+		override def ofAtLeast(size: Int): Boolean = size <= 0
 		override def head = throw new NoSuchElementException("LinkedList.Empty.head")
 		override def tail = throw new UnsupportedOperationException("LinkedList.Empty.tail")
 //		override def ensureNonEmpty[U >: E](msg: String): NonEmpty[U] = throw new NoSuchElementException(msg)
@@ -426,7 +429,13 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 		override def tail = t
 		override def ::(elem :E) :NonEmpty[E] = new NonEmpty(elem, this)
 
-//		override def ensureNonEmpty[U >: E](msg: String): NonEmpty[U] = this
+		override def isEmpty = false
+		override def nonEmpty = true
+		override def ofAtLeast(size: Int): Boolean = {
+			@tailrec def count(l :LinkedList[E], left :Int) :Boolean =
+				left <= 0 || l.nonEmpty && count(l.tail, left-1)
+			size <= 1 || count(tail, size-1)
+		}
 	}
 
 

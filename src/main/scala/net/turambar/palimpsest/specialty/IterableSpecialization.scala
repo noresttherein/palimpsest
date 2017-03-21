@@ -5,7 +5,7 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 import scala.collection.{breakOut, GenIterable, GenTraversableOnce, IterableLike, mutable}
 
 import net.turambar.palimpsest.specialty.FitIterable.{FilterIterable, SpecializedFilter}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.Specialized.{Fun1Vals, Fun1Res, Fun2, Fun2Vals}
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitBuffer, FitList, FitSeq}
 
 
@@ -22,12 +22,12 @@ import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitBuffer, FitList, Fi
   * @tparam Repr specific type of the collection described by this interface, usually the self type of implementors,
   *              but it is not enforced here.
   * @see [[IterableSpecialization]] full version of this interface
-  * @see [[net.turambar.palimpsest.specialty.FitIterable.IterableFoundation]] - unspecialized base class implementing most methods
+  * @see [[net.turambar.palimpsest.specialty.iterables.IterableFoundation]] - unspecialized base class implementing most methods
   *      via its iterator and builder which should be extended wherever possible to minimize static forwarders
   */
 //we are not sealing this trait in order to allow similar templates for other collections to extend it without extending the 'specialized' interfaces.
 trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLike[E, Repr] {
-	this :IterableSpecialization[E, Repr] =>
+//	this :IterableSpecialization[E, Repr] =>
 
 //	override protected[this] def thisCollection :FitIterable[E] = this.asInstanceOf[FitIterable[E]]
 
@@ -53,11 +53,6 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 
 
-	/** Traverses this collection applying `f` to every element. Use [[IterableSpecialization#traverse]] instead to avoid
-	  * unnecessary boxing resulting from non-unit return types of `f`.
-      *
-	  * @tparam U return type of the computation, which should be `Unit` for `f` to be executed without boxing the argument.
-	  */
 	override def foreach[@specialized(Unit) U](f: (E) => U): Unit = iterator.foreach(f)
 
 	/** Applies the given function to the first element in this collection and returns the result.
@@ -70,9 +65,9 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  * @see [[net.turambar.palimpsest.specialty.iterables.SingletonSpecialization]]
 	  */
 	protected[this] def forHead[O](f :E=>O) :O = f(head)
+	protected[this] def forLast[O](f :E=>O) :O = f(last)
 
 
-	/** Traverses the whole collection in an order opposite to [[foreach]]. */
 	protected def reverseForeach(f :E=>Unit) :Unit
 
 	/** Equivalent - and usually implemented as - [[IterableSpecialization#foreach(f)]], but enforces `Unit` as
@@ -86,13 +81,9 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 	@inline final private[palimpsest] def reverseTraverse(f :E=>Unit) :Unit = reverseForeach(f)
 
-	/** A specialized version of `Iterator` allowing for efficient traversing of this collection
-	  * without boxing and unboxing. Most methods declared here or in [[IterableSpecialization]] delegate directly
-	  * to it, so should provide sensible implementations of most methods in its interface.
-	  */
-	override def iterator :FitIterator[E] = fitIterator
+	override def iterator :FitIterator[E] //= fitIterator
 
-	def fitIterator :FitIterator[E]
+	def fitIterator :FitIterator[E] = iterator
 
 
 	/** Delegates to iterator's specialized [[FitIterator#foldLeft]]. */
@@ -166,10 +157,24 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 
 	/** Subclasses should implement as efficiently as possible, taking advantage of specialization to boost [[ArrayView]] performance. */
-	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int) :Unit = iterator.copyToArray(xs, start, len)
+	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
+		if (mySpecialization.runType isAssignableFrom xs.getClass.getComponentType )
+			if (start<0)
+				throw new IllegalArgumentException(s"$stringPrefix.copyToArray([], $start, $len)")
+			else {
+				val count = math.min(xs.length-start, len)
+				if (count>0)
+					verifiedCopyTo(xs.asInstanceOf[Array[E]], start, count)
+			}
+		else iterator.copyToArray(xs, start, len)
+
+	protected[this] def verifiedCopyTo(xs: Array[E], start: Int, total: Int): Int =
+		if (isEmpty) 0
+		else { iterator.copyToArray(xs, start, total); math.min(total, size) }
 
 
 
+	//todo: make toSeq the real implementaion delegating to toFitSeq?
 	override def toSeq :Seq[E] = toFitSeq
 	def toFitSeq :FitSeq[E] = (FitSeq.fitBuilder(mySpecialization) ++= this).result()
 
@@ -181,7 +186,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  * If you want to preserve element type and possibly share the contents,
 	  * use [[IterableTemplate#toFitBuffer]] instead.
 	  */
-	override def toBuffer[B >: E]: mutable.Buffer[B] = toFitBuffer //todo: optimistic buffer for primitive collections
+	override def toBuffer[B >: E]: FitBuffer[B] = toFitBuffer //todo: optimistic buffer for primitive collections
 
 	def toFitBuffer[U >: E :Specialized] :FitBuffer[U] = FitBuffer.like[U] ++= this
 
@@ -240,16 +245,11 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 	
 	override def last :E
 	
-	
+	override protected[this] def forHead[@specialized(Fun1Res) O](f: (E) => O) = f(head)
 
-	
-	
-	
-	/** Default implementation traverses this collection and makes a copy of its prefix and suffix, as per spec.
-	  * Subclasses should generally override it with a more efficient implementation sharing the contents of this collection instead.
-	  * @param p predicate splitting this collection into two continuous parts
-	  * @return longest prefix satisfying the predicate and the remaining suffix of this collection
-	  */
+	override protected[this] def forLast[@specialized(Fun1Res) O](f: (E) => O) = f(last)
+
+
 	override def span(p: (E) => Boolean): (Repr, Repr) = {
 		val prefix = newBuilder; val suffix = newBuilder
 		var inPrefix = true; val it = iterator
@@ -264,7 +264,6 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 	
 
 	
-	/** Implemented using [[reverseForeach]]. */
 	override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O): O = {
 		var acc = z
 		reverseForeach { e => acc = op(e, acc) }
@@ -276,12 +275,6 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 	
 	override def withFilter(p: (E) => Boolean): FilterIterable[E, Repr] = new SpecializedFilter(this, p)
 
-	/** Implemented as explicit traversing of this collection using its iterator.
-	  * Both of the returned collections are completely new instances built using `this.newBuilder`.
-	  * @param p predicate dividing the elements of this collection into two groups
-	  * @return a collection containing all elements from this collection for which `p(e)` is true,
-	  *         and a collection containing all elements from this collection for which `p(e)` is false - in that order.
-	  */
 	override def partition(p: (E) => Boolean): (Repr, Repr) = {
 		val yes = newBuilder; val no = newBuilder
 		val i = iterator
@@ -307,7 +300,6 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 	}
 	
 	
-	/** Implemented using [[reverseForeach]]. */
 	override def scanRight[@specialized(Fun2) O, That](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[Repr, O, That]): That = {
 		val b = bf(repr)
 		val buff = FitList.newReverseBuilder[O]

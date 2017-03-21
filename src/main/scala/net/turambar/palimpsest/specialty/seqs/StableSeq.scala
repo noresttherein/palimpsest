@@ -4,7 +4,7 @@ import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{IndexedSeqLike, immutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 
 
@@ -61,6 +61,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 	}
 
 	object MakeStableIndexed extends InterfaceIterableFactory[MakeStableIndexed] {
+		final val Empty = ArrayPlus.Empty
 		override protected[this] type RealType[@specialized(Elements) X] = ArrayPlus[X]
 
 		override protected[this] def default: FitIterableFactory[ArrayPlus] = ArrayPlus

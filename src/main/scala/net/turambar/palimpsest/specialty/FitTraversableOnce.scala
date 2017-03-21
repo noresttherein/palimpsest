@@ -3,7 +3,8 @@ package net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.seqs.SharedArray
 
 import scala.annotation.unspecialized
-import scala.collection.{GenTraversableOnce, mutable}
+import scala.collection.immutable.ListSet
+import scala.collection.{BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike, mutable}
 
 /**
   * @author Marcin Mościcki
@@ -19,11 +20,15 @@ trait FitTraversableOnce[@specialized(Elements) +E] extends TraversableOnce[E] {
 	def specialization :Specialized[_<:E] //= mySpecialization
 
 	@unspecialized
-	def traverse(f :E=>Unit) :Unit = foreach(f)
+	def traverse(f :E=>Unit) :Unit //= foreach(f)
 
 //	override def foreach[@specialized(Unit) U](f :E=>U) :Unit
 
 	def hasFastSize :Boolean
+	def ofAtLeast(size :Int) :Boolean //= this.size >= size
+	override def nonEmpty = ofAtLeast(1)
+	override def isEmpty = !ofAtLeast(1)
+
 
 	@unspecialized
 	def fitIterator :FitIterator[E]
@@ -40,6 +45,23 @@ object FitTraversableOnce {
 			case _ => None
 		}
 
+	trait OfKnownSize extends TraversableOnce[Any] { this :FitTraversableOnce[Any] =>
+		override def hasFastSize = true
+		override def hasDefiniteSize = true
+		override def ofAtLeast(items :Int) = size >= items
+		override def isEmpty = size==0
+		override def nonEmpty = size > 0
+	}
+
+	@inline
+	private[palimpsest] final def ofKnownSize[T](col :GenTraversableOnce[T]) =  col match {
+		case fit :FitTraversableOnce[T] => fit.hasFastSize
+		case _ :IndexedSeqLike[_, _] => true
+		case _ :ListSet[_] => col.isEmpty
+		case _ :BitSetLike[_] => false
+		case _ :SetLike[_, _] => true
+		case _ => col.isEmpty
+	}
 
 }
 

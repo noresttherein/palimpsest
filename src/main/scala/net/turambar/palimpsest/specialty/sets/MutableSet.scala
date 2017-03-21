@@ -3,17 +3,33 @@ package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
-import net.turambar.palimpsest.specialty.sets.FitSet.{SetAdapter, Sorted}
+import net.turambar.palimpsest.specialty.sets.ValSet.{SetAdapter, Sorted}
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 
+import scala.annotation.unspecialized
 import scala.collection.generic.{CanBuildFrom, Shrinkable}
 import scala.collection.{GenSet, GenTraversableOnce, mutable}
 
 
 
-trait MutableSetLike[E, +This <: MutableSet[E] with MutableSetLike[E, This]]
-	extends mutable.SetLike[E, This] with SetSpecialization[E, This] with FitBuilder[E, This]
-{
+trait MutableSetLike[E, +This <: MutableSet[E] with MutableSetLike[E, This] with SetSpecialization[E, This]]
+	extends mutable.SetLike[E, This] with SetTemplate[E, This]/*with SetSpecialization[E, This]*/ with FitBuilder[E, This]
+{ self :SetSpecialization[E, This] =>
+
+	//todo: specialize these
+	override def +(elem1: E, elem2: E, elems: E*) :This = clone() += elem1 += elem2 ++= elems
+
+	override def -(elem1: E, elem2: E, elems: E*) :This = clone() -= elem1 -= elem2 --= elems
+
+	override def ++(xs: GenTraversableOnce[E]) :This = clone() ++= xs.seq
+
+	override def --(xs: GenTraversableOnce[E]) :This = clone() --= xs.seq
+
+	override def ++(elems: FitTraversableOnce[E]) :This = clone() ++= elems
+
+	override def --(elems: FitTraversableOnce[E]) :This = clone() --= elems
+
+
 	override def clone() :This = (this :SetSpecialization[E, This]).empty ++= this
 
 	override def newBuilder :FitBuilder[E, This] = (this :SetSpecialization[E, This]).empty
@@ -24,9 +40,8 @@ trait MutableSetLike[E, +This <: MutableSet[E] with MutableSetLike[E, This]]
   * @author Marcin Mościcki
   */
 trait MutableSet[@specialized(Elements) E]
-//	extends mutable.Set[E] with mutable.SetLike[E, MutableSet[E]] with FitSet[E] with FitBuilder[E, MutableSet[E]]
 	extends mutable.Set[E] with mutable.SetLike[E, MutableSet[E]]
-			with FitSet[E] with SpecializableSet[E, MutableSet] with MutableSetLike[E, MutableSet[E]] with FitBuilder[E, MutableSet[E]] //FitBuilder extended again for specialization
+			with ValSet[E] with FitBuilder[E, MutableSet[E]] with SpecializableSet[E, MutableSet] with MutableSetLike[E, MutableSet[E]] //FitBuilder extended again for specialization
 {
 
 	override def add(elem: E) = { val r = contains(elem); this += elem; !r }
@@ -45,14 +60,27 @@ trait MutableSet[@specialized(Elements) E]
 	override def -=(elem: E): this.type
 
 
+	override def --=(xs: TraversableOnce[E]) :this.type = xs match {
+		case vals :FitTraversableOnce[E] => this --= vals
+		case _ => xs foreach -=; this
+	}
 
-//	override def retain(p: (E) => Boolean) = super.retain(p)
+	def --=(xs :FitTraversableOnce[E]) :this.type = {
+		val it = xs.fitIterator
+		while (it.hasNext && nonEmpty) this -= it.next()
+		this
+	}
 
-	override def mutable = this
+
+
+	//	override def retain(p: (E) => Boolean) = super.retain(p)
+
+	@unspecialized
+	override def mutable :MutableSet[E] = this
+
+	override def stable :StableSet[E] = StableSet.empty[E] ++ this
 
 	override def companion = MutableSet
-
-//	override def newBuilder :FitBuilder[E, MutableSet[E]] = this
 
 	override def typeStringPrefix = "MutableSet"
 }
@@ -61,41 +89,43 @@ trait MutableSet[@specialized(Elements) E]
 
 
 object MutableSet extends ImplementationIterableFactory[MutableSet] {
-	type Sorted[@specialized(Elements) E] = MutableSortedSet[E]
+	type Ordered[@specialized(Elements) E] = MutableOrderedSet[E]
 
-	object Sorted {
-		def empty[@specialized E] :Sorted[E] = new MutableSortedSetAdapter[E](SortedFitSet.Mutable.empty[E])
-		def newBuilder[@specialized E] :FitBuilder[E, Sorted[E]] = empty[E]
-	}
+	final val Ordered = OrderedSet.Mutable
+//	object Ordered {
+//		def empty[@specialized E] :Sorted[E] = new MutableSortedSetAdapter[E](OrderedSet.Mutable.empty[E])
+//		def newBuilder[@specialized E] :FitBuilder[E, MutableOrderedSet[E]] = empty[E]
+//	}
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSet[_], E, MutableSet[E]]): CanBuildFrom[MutableSet[_], E, MutableSet[E]] =
 		fit.cbf
 
-	private[sets] def adapt[@specialized(Elements) E](immutable :FitSet[E]) :MutableSet[E] =
+
+	def from[@specialized(Elements) E](immutable :ValSet[E]) :MutableSet[E] =
 		new MutableSetAdapter(immutable)
 
-	private[sets] def adapt[@specialized(Elements) E](immutable :SortedFitSet[E]) :MutableSortedSet[E] =
+	def from[@specialized(Elements) E](immutable :OrderedSet[E]) :MutableOrderedSet[E] =
 		new MutableSortedSetAdapter(immutable)
 
-	override def empty[@specialized(Elements) E] :MutableSet[E] = adapt(FitSet.empty[E])
 
-	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, MutableSet[E]] = adapt(FitSet.empty[E])
+	override def empty[@specialized(Elements) E] :MutableSet[E] = from(ValSet.empty[E])
+
+	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, MutableSet[E]] = from(ValSet.empty[E])
 
 
 	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, MutableSet[E]] =
-		FitSet.specializedBuilder[E].mapResult(adapt[E](_))
+		ValSet.specializedBuilder[E].mapResult(from[E](_))
 
 
 
 
-	private[sets] abstract class AbstractMutableSetAdapter[
-		+Source <: FitSet[E] with SetSpecialization[E, Source],
-		E,
-		+This<:MutableSet[E] with SetSpecialization[E, This] with mutable.SetLike[E, This] with FitBuilder[E, This]]
-			(src :Source)
-//		extends IterableAdapter[Source, E, This] with MutableSet[E] with SetSpecialization[E, This]//with Shrinkable[E] with FitSet[E] with SetSpecialization[E, This] with FitBuilder[E, This]
-		extends SetAdapter[Source, E, This](src) with mutable.SetLike[E, This] with MutableSet[E] with SetSpecialization[E, This]
-	{
+	private[sets] abstract class MutableSetAdapterFoundation[
+				+Source <: ValSet[E] with SetSpecialization[E, Source],
+				E,
+				+This <: MutableSet[E] with SetSpecialization[E, This] with MutableSetLike[E, This] with FitBuilder[E, This]
+			](src :Source)
+		extends SetAdapter[Source, E, This](src) with MutableSetLike[E, This] //with MutableSet[E] with SetSpecialization[E, This]
+	{ this :MutableSet[E] with SetSpecialization[E, This] =>
 		override def stable = source.stable
 
 
@@ -131,10 +161,10 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 
 
 
-	private class MutableSetAdapter[@specialized(Elements) E](src :FitSet[E])
-		extends AbstractMutableSetAdapter[FitSet[E], E, MutableSet[E]](src) with MutableSet[E] //for specialization
+	private class MutableSetAdapter[@specialized(Elements) E](src :ValSet[E])
+		extends MutableSetAdapterFoundation[ValSet[E], E, MutableSet[E]](src) with MutableSet[E] //for specialization
 	{
-		type Source = FitSet[E]
+		type Source = ValSet[E]
 		type This = MutableSet[E]
 
 		override protected[this] def fromSource(other: Source): This = new MutableSetAdapter(other)
@@ -167,22 +197,23 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 		override def head = source.head
 		override def last = source.last
 
+		override def newBuilder :FitBuilder[E, This] = fromSource((source :SetSpecialization[E, Source]).empty)
 	}
 
 
 
-	private class MutableSortedSetAdapter[@specialized(Elements) E](src :FitSet.Sorted[E])
-		extends AbstractMutableSetAdapter[FitSet.Sorted[E], E, Sorted[E]](src) with Sorted[E]
+	private class MutableSortedSetAdapter[@specialized(Elements) E](src :ValSet.Sorted[E])
+		extends MutableSetAdapterFoundation[ValSet.Sorted[E], E, MutableOrderedSet[E]](src) with MutableOrderedSet[E]
 	{
-		override protected[this] def fromSource(other: FitSet.Sorted[E]): Sorted[E] =
+		override protected[this] def fromSource(other: ValSet.Sorted[E]): MutableOrderedSet[E] =
 			new MutableSortedSetAdapter(other)
 
 		override implicit def ordering: Ordering[E] = source.ordering
 
-		override def stable :FitSet.Sorted.Stable[E] = source.stable
-		override def mutable :FitSet.Sorted.Mutable[E] = fromSource(source)
+		override def stable :ValSet.Sorted.Stable[E] = source.stable
+		override def mutable :ValSet.Sorted.Mutable[E] = fromSource(source)
 
-		override def rangeImpl(from: Option[E], until: Option[E]): Sorted[E] =
+		override def rangeImpl(from: Option[E], until: Option[E]): MutableOrderedSet[E] =
 			fromSource(source.rangeImpl(from, until))
 
 		override def keysIteratorFrom(start: E): FitIterator[E] = source.keysIteratorFrom(start)
@@ -199,14 +230,14 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 		override def -=(elem1: E, elem2: E, elems: E*) :this.type =
 			{ source = source - (elem1, elem2, elems:_*); this }
 
-		override def +(elem: E) :Sorted[E] = fromSource(source + elem)
+		override def +(elem: E) :MutableOrderedSet[E] = fromSource(source + elem)
 
-		override def +(elem1: E, elem2: E, elems: E*) :Sorted[E] =
+		override def +(elem1: E, elem2: E, elems: E*) :MutableOrderedSet[E] =
 			fromSource(source + (elem1, elem2, elems:_*))
 
-		override def -(elem: E) :Sorted[E] = fromSource(source - elem)
+		override def -(elem: E) :MutableOrderedSet[E] = fromSource(source - elem)
 
-		override def -(elem1: E, elem2: E, elems: E*) :Sorted[E]  =
+		override def -(elem1: E, elem2: E, elems: E*) :MutableOrderedSet[E]  =
 			fromSource(source - (elem1, elem2, elems:_*))
 
 
@@ -216,7 +247,9 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 		override def head = source.head
 		override def last = source.last
 
-		override def origin = SortedFitSet //todo
+		override def newBuilder :FitBuilder[E, This] = fromSource((source :SetSpecialization[E, OrderedSet[E]]).empty)
+
+		override def origin = OrderedSet.Mutable
 	}
 
 }

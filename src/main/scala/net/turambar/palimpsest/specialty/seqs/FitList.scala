@@ -6,11 +6,11 @@ import scala.collection.immutable.LinearSeq
 import scala.collection.{GenSeq, LinearSeqLike, SeqLike, mutable}
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
 import net.turambar.palimpsest.specialty.seqs.FitList.{FitListBuilder, FitListIterator, FullLink, Link, Terminus}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterator, ImplementationIterableFactory, Specialize, Specialized, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterator, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialize, Specialized}
 
 /** Specialized linked list with O(1) `length` and O(1) `take` operations.
   * Random indexing and `drop` still take O(n), though.
@@ -24,13 +24,16 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 		override val length :Int,
 		start :Link[E]
 	) extends SeqFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
-			  with StableSeq[E] with SliceLike[E, FitList[E]] with SpecializableIterable[E, FitList]
+			  with IterableSpecialization[E, FitList[E]] with StableSeq[E] with SliceLike[E, FitList[E]] with SpecializableIterable[E, FitList]
 {
 	import Specialized.Fun2Vals
 
 	override def isEmpty = length == 0
 	override def nonEmpty = length > 0
 	override def hasFastSize = true
+
+
+	override def ofAtLeast(size: Int): Boolean = size<=0 || drop(size-1).nonEmpty
 
 	@tailrec private[this] final def dropped(n :Int, l :Link[E]=start) :Link[E] =
 		if (n<=0) l
@@ -229,13 +232,15 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 
-	protected[this] override def specializedCopy(xs: Array[E], start: Int, total: Int): Unit = {
-		var i = start; val e = start + math.min(total, length); var l = this.start
+	protected[this] override def verifiedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
+		var i = start; var l = this.start
+		val count = math.min(total, length); val e = start + count
 		while (i<e) {
 			xs(i) = l.head
 			l = l.tail
 			i+=1
 		}
+		count
 	}
 	
 	
@@ -265,6 +270,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 object FitList extends ImplementationIterableFactory[FitList] {
+	final val Empty = empty[Nothing]
 
 	override def empty[@specialized(Elements) E]: FitList[E] = new FitList(0, Terminus)
 	

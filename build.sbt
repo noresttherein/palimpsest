@@ -24,6 +24,8 @@ libraryDependencies ++= Seq(
 
 
 scalacOptions ++= Seq(
+	"-optimise",
+	"-Yinline-warnings",
 //	"-Ylog-classpath",
 //	"-Xlog-implicits",
 	"-Xexperimental",

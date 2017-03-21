@@ -1,11 +1,12 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.FitIterable.{IterableFoundation, IterableMapping}
+import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, SingletonFoundation, SingletonSpecialization}
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, IterableFoundation, SingletonFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2, Fun2Vals}
-import net.turambar.palimpsest.specialty.sets.FitSet.ImmutableSetBuilder
+import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
 import net.turambar.palimpsest.specialty.sets.LongSet.{Empty, LongTrieIterator, Singleton, StableBranch}
 
 import scala.annotation.tailrec
@@ -18,13 +19,13 @@ import scala.collection.generic.CanBuildFrom
   * to the nodes is the binary representation of elements in the subtree from most significant bit to the least significant bit.
   * @author Marcin Mościcki
   */
-sealed trait LongSet extends FitSet[Long] with SetSpecialization[Long, LongSet] {
+trait LongSet extends ValSet[Long] with SetSpecialization[Long, LongSet] {
 	override protected[this] def mySpecialization = Specialized.SpecializedLong
 	override def hasFastSize = true
 
 	override def empty :LongSet = LongSet.Empty
 
-	override def filter(p :Long=>Boolean, ourTruth :Boolean) :LongSet
+//	override protected def filter(p :Long=>Boolean, ourTruth :Boolean) :LongSet
 
 	/** Masked bits common to all elements in this set. For all values in this set `e`, `(e & mask) == path`.
 	  * It is also the lower bound of all values in this set.
@@ -70,11 +71,39 @@ object LongSet {
 
 	def newBuilder :FitBuilder[Long, StableSet[Long]] = new ImmutableSetBuilder[Long, StableLongTrie](Empty)
 
+	def singleton(value :Long) :StableSet[Long] = new Singleton(value)
+
+	def mutable :MutableSet[Long] = new MutableLongSet()
+
+
+	/** Returns a `Long` which in the highest bits contains the longest common prefix
+	  * of `path1` and `path2`, followed by a single set bit on the highest position
+	  * where the values differ.
+	  * If `path1==path2`, then their common value is returned.
+	  * If their lowest bit i `1`, then this result is indistinguishable
+	  * with the case where both values differ only on the lowest bit.
+	  * Fot this reason the caller should assertain that `path1!=path2` before
+	  * calling this method.
+	  */
+	private[sets] def delimitedPrefix(path1 :Long, path2 :Long) :Long = {
+		var diff = path1 ^ path2
+		diff |= (diff >>  1)
+		diff |= (diff >>  2)
+		diff |= (diff >>  4)
+		diff |= (diff >>  8)
+		diff |= (diff >> 16)
+		diff |= (diff >> 32)
+		val prefixMask = ~diff //mask for the longest prefix where s1 equals s2 (from the highest bit)
+		val firstDiffBit = diff - (diff >>> 1) //mask for the single first (highest) bit where s1 and s2 differ
+		path1 & prefixMask | firstDiffBit
+	}
+
+
 
 	/** Immutable implementation of a `Set[Long]` as a Trie following the binary format of its values from the highest bit. */
 	sealed trait StableLongTrie extends LongSet with StableSet[Long] with SetSpecialization[Long, StableLongTrie] {
 		override def empty :StableLongTrie = Empty
-		override def filter(p :Long=>Boolean, ourTruth :Boolean) :StableLongTrie
+//		override def filter(p :Long=>Boolean, ourTruth :Boolean) :StableLongTrie
 		/** Overriden due to linearization bug forwarding it to [[SpecializableSet]] instead of [[SetSpecialization]]. */
 		override def newBuilder = new ImmutableSetBuilder[Long, StableLongTrie](Empty)
 
@@ -116,7 +145,8 @@ object LongSet {
 
 
 	/** A set which doesn't contain any values, and in particular no `Long` values whatsoever. */
-	case object Empty extends EmptyIterable[Long, StableLongTrie] with StableLongTrie {
+	case object Empty extends EmptyIterable[Long, StableLongTrie] with StableLongTrie with EmptySetSpecialization[Long, StableLongTrie]
+	{
 		override def filter(p: (Long) => Boolean, ourTruth: Boolean) :this.type = this
 
 		override def contains(elem: Long): Boolean = false
@@ -142,6 +172,8 @@ object LongSet {
 		override def mask = 0L
 
 		override def mutable :MutableSet[Long] = new MutableLongSet
+
+		override protected def verifiedCopyTo(xs: Array[Long], start: Int, total: Int): Int = 0
 
 		override def toString = "Set[Long]()"
 
@@ -182,6 +214,11 @@ object LongSet {
 
 		override def mutable :MutableSet[Long] = new MutableLongSet(head)
 
+		override protected def verifiedCopyTo(xs: Array[Long], start: Int, total: Int): Int = {
+			xs(start) = path
+			1
+		}
+
 		override def toString = s"Set[Long]($head)"
 	}
 
@@ -194,7 +231,7 @@ object LongSet {
 
 	/** An inner node in the `LongSet` `Trie`.
 	  */
-	private abstract class BranchLike[+This<:LongSet with SetSpecialization[Long, This]]
+	private[sets] abstract class BranchLike[+This<:LongSet with SetSpecialization[Long, This]]
 		extends IterableFoundation[Long, This] //with SetSpecialization[Long, This]
 	{ this :LongSet =>
 		private[sets] def left :LongSet
@@ -266,12 +303,14 @@ object LongSet {
 			left.foldRight(right.foldRight(z)(op))(op)
 
 
-		override def copyToArray[U >: Long](xs: Array[U], start: Int, len: Int) = {
-			require(start >= 0, s"$stringPrefix.copyToArray: negative index $start")
-			val total = math.min(len, xs.length-start)
-			left.copyToArray(xs, start, total)
-			if (total>left.size)
-				right.copyToArray(xs, start+left.size, total-left.size)
+		protected[this] override def verifiedCopyTo(xs: Array[Long], start: Int, total: Int) = {
+			val lsize = left.size
+			if (total < lsize)
+				ValSet.friendCopy(left, xs, start, total)
+			else {
+				ValSet.friendCopy(left, xs, start, lsize)
+				lsize + ValSet.friendCopy(right, xs, start+lsize, total-lsize)
+			}
 		}
 
 		override def copyToBuffer[B >: Long](dest: collection.mutable.Buffer[B]) = {
@@ -303,7 +342,7 @@ object LongSet {
 	  * Left subtree contains all elements for which the value of the said bit is zero, and the right subtree
 	  * contains all elements for which the discriminator bit is set. Both left and right subtrees must be non-empty
 	  * (as otherwise this instance could be substituted by the non-empty child or [[LongSet.Empty]]).
-	  * This instance assumes the path to the leafs storing actual values follows their binary representation starting from
+	  * This instance assumes the path to the leaves storing actual values follows their binary representation starting from
 	  * the least significant bit, so `common` (and `path` and `mask` computed from it) must contain the common bits
 	  * in its lowest positions
 	  * @param common encoded path to this node. In highest positions, it contains the longest prefix common in the binary
@@ -312,8 +351,8 @@ object LongSet {
 	  * @param left all elements in this set with the discriminator bit clear, i.e. `(e & diffBit) == 0`.
 	  * @param right all elements in this set with the discriminator bit set, i.e. `(e & diffBit) == diffBit`.
 	  */
-	private final class StableBranch (common :Long, private[sets] val left :StableLongTrie, private[sets] val right :StableLongTrie)
-		extends BranchLike[StableLongTrie] with StableLongTrie
+	private[sets] final class StableBranch(common :Long, private[sets] val left :StableLongTrie, private[sets] val right :StableLongTrie)
+		extends BranchLike[StableLongTrie] with StableLongTrie with OfKnownSize
 	{
 		def this(sharedPrefix :Long, diffBit :Long, left :StableLongTrie, right :StableLongTrie) =
 			this(sharedPrefix | diffBit, left, right)
@@ -356,6 +395,112 @@ object LongSet {
 		}
 
 
+		override def ++(other :StableLongTrie) :StableLongTrie = other match {
+			case Empty => this
+			case s :Singleton => this + s.path
+			case b :StableBranch =>
+				val path1 = common; val path2 = b.delimitedPath
+				val diff = path1 ^ path2
+				if (diff==0L)
+					new StableBranch(common, left ++ b.left, right ++ b.right)
+				else {
+					val point1 = path1 & -path1; val mask1 = -point1 ^ point1
+					if ((diff & mask1) == 0L) //path1 is prefix of path2
+						if ((path2 & point1) == 0L)
+							new StableBranch(path1, left ++ b, right) //todo compare left++b with left for eq
+						else
+							new StableBranch(path1, left, right ++ b)
+					else {
+						val point2 = path2 & -path2; val mask2 = -point2 ^ point2
+						if ((diff & mask2)==0L) //path2 is prefix of path1
+							if ((path1 & point2) == 0L)
+								new StableBranch(path2, this ++ b.left, b.right)
+							else
+								new StableBranch(path2, b.left, this ++ b.right)
+						else //sets are disjoint, as they differ in the common span of path1 and path2
+							StableBranch(this, b)
+					}
+				}
+		}
+
+		override def --(other :StableLongTrie) :StableLongTrie = other match {
+			case Empty => this
+			case s :Singleton => this - s.path
+			case b :StableBranch =>
+				val path1 = common; val path2 = b.delimitedPath
+				val diff = path1 ^ path2
+				if (diff==0L)
+					new StableBranch(common, left -- b.left, right -- b.right)
+				else {
+					val point1 = path1 & -path1; val point2 = path2 & -path2
+					val mask1 = -point1 ^ point1; val mask2 = -point2 ^ point2
+					if ((diff & mask1) == 0L) //path1 is prefix of path2
+						if ((path2 & point1) == 0L) left -- b match {
+							case same if same eq left => this
+							case empty if empty.isEmpty => right
+							case l => new StableBranch(path1, l, right)
+						} else right -- b match {
+							case same if same eq right => this
+							case empty if empty.isEmpty => left
+							case r => new StableBranch(path1, left, r)
+						}
+					else {
+						val point2 = path2 & -path2; val mask2 = -point2 ^ point2
+						if ((diff & mask2) == 0L) //path2 is prefix of path1
+							if ((path1 & point2) == 0L)
+								this -- b.left
+							else
+								this -- b.right
+						else //sets are disjoint, as they differ in the common span of path1 and path2
+							this
+					}
+				}
+		}
+
+		override def &(other :StableLongTrie) :StableLongTrie = other match {
+			case Empty => this
+			case s :Singleton => if (contains(s.path)) s else empty
+			case b :StableBranch =>
+				val path1 = common; val path2 = b.delimitedPath
+				val diff = path1 ^ path2
+				if (diff==0L)
+					new StableBranch(common, left & b.left, right & b.right)
+				else {
+					val point1 = path1 & -path1; val mask1 = -point1 ^ point1
+					if ((diff & mask1) == 0L) //path1 is prefix of path2
+						if ((path2 & point1) == 0L)
+							left & b
+						else
+							right & b
+					else {
+						val point2 = path2 & -path2; val mask2 = -point2 ^ point2
+						if ((diff & mask2)==0L) //path2 is prefix of path1
+							if ((path1 & point2) == 0L)
+								this & b.left
+							else
+								this & b.right
+						else //sets are disjoint, as they differ in the common span of path1 and path2
+							empty
+					}
+				}
+		}
+
+		override def subsetOf(other :StableLongTrie) :Boolean = other match {
+			case Empty => false
+			case s: Singleton => false
+			case b: StableBranch =>
+				val path1 = common; val path2 = b.delimitedPath
+				val diff = path1 ^ path2
+				if (diff == 0L)
+					(left subsetOf b.left) && (right subsetOf b.right)
+				else {
+					val point1 = path1 & -path1
+					val point2 = path2 & -path2; val mask2 = -point2 ^ point2
+					((diff & mask2) == 0L) && subsetOf(if ((path1 & point2) == 0L) b.left else b.right)
+				}
+		}
+
+/*
 		override def ++(other: StableLongTrie): StableLongTrie = other match {
 			case Empty => this
 			case s :Singleton => this + s.path
@@ -368,14 +513,14 @@ object LongSet {
 					StableBranch(this, b)
 				else {
 					val commonOther = b.delimitedPath
-					val joint = StableBranch.delimitedPrefix(common, commonOther)
+					val joint = delimitedPrefix(common, commonOther)
 					val divergencePoint = joint & -joint //the highest bit where (delimited!) paths of s1 and s2 differ
 					//ordering of the below values is equivalent to ordering on the position of the set bit
 					val s1Rank = bit1 + MIN_VALUE
 					val s2Rank = bit2 + MIN_VALUE
 					val diffRank = divergencePoint + MIN_VALUE
 					if (diffRank > s1Rank && diffRank > s2Rank)
-						//divergence point bit value is constant the within s1 and s2, but different between them
+						//divergence point bit value is constant within s1 and s2, but different between them
 						if ((common & divergencePoint) == 0L)
 							new StableBranch(joint, this, b)
 						else
@@ -395,6 +540,7 @@ object LongSet {
 		}
 
 
+
 		override def --(other: StableLongTrie) :StableLongTrie = other match {
 			case Empty => this
 			case s :Singleton => this - s.head
@@ -406,7 +552,7 @@ object LongSet {
 					this
 				else {
 					val commonOther = b.delimitedPath
-					val joint = StableBranch.delimitedPrefix(common, commonOther)
+					val joint = delimitedPrefix(common, commonOther)
 					val divergencePoint = joint & -joint //the highest bit where (delimited!) paths of s1 and s2 differ
 					//ordering of the below values is equivalent to ordering on the position of the set bit
 					val s1Rank = bit1 + MIN_VALUE
@@ -443,7 +589,7 @@ object LongSet {
 					Empty
 				else {
 					val commonOther = b.delimitedPath
-					val joint = StableBranch.delimitedPrefix(common, commonOther)
+					val joint = delimitedPrefix(common, commonOther)
 					val divergencePoint = joint & -joint //the highest bit where (delimited!) paths of s1 and s2 differ
 					//ordering of the below values is equivalent to ordering on the position of the set bit
 					val s1Rank = bit1 + MIN_VALUE
@@ -479,7 +625,7 @@ object LongSet {
 					( if ((common & bit2) == 0L) subsetOf(b.left) else subsetOf(b.right) )
 
 		}
-
+*/
 
 
 		override protected[this] def dropTake(from: Int, until: Int) :StableLongTrie =
@@ -495,7 +641,10 @@ object LongSet {
 			}
 
 		override def filter(p: (Long) => Boolean, ourTruth: Boolean): StableLongTrie =
-			filtered(left.filter(p, ourTruth), right.filter(p, ourTruth))
+			if (ourTruth) filter(p) else filterNot(p)
+//			filtered(left.filter(p, ourTruth), right.filter(p, ourTruth))
+		override def filter(p: (Long) => Boolean) :StableLongTrie = filtered(left.filter(p), right.filter(p))
+		override def filterNot(p: (Long) => Boolean) = filtered(left.filterNot(p), right.filterNot(p))
 
 		def filtered(l :StableLongTrie, r :StableLongTrie): StableLongTrie =
 			if (l.isEmpty) r
@@ -522,27 +671,6 @@ object LongSet {
 //				new StableBranch(sharedSuffix, diffBit, s2, s1)
 //		}
 
-		/** Returns a `Long` which in the highest bits contains the longest common prefix
-		  * of `path1` and `path2`, followed by a single set bit on the highest position
-		  * where the values differ.
-		  * If `path1==path2`, then their common value is returned.
-		  * If their lowest bit i `1`, then this result is indistinguishable
-		  * with the case where both values differ only on the lowest bit.
-		  * Fot this reason the caller should assertain that `path1!=path2` before
-		  * calling this method.
-		  */
-		private[LongSet] def delimitedPrefix(path1 :Long, path2 :Long) :Long = {
-			var diff = path1 ^ path2
-			diff |= (diff >>  1)
-			diff |= (diff >>  2)
-			diff |= (diff >>  4)
-			diff |= (diff >>  8)
-			diff |= (diff >> 16)
-			diff |= (diff >> 32)
-			val prefixMask = ~diff //mask for the longest prefix where s1 equals s2 (from the highest bit)
-			val firstDiffBit = diff - (diff >>> 1) //mask for the single first (highest) bit where s1 and s2 differ
-			path1 & prefixMask | firstDiffBit
-		}
 
 		private[LongSet] def apply(s1 :StableLongTrie, s2 :StableLongTrie) :StableBranch = {
 			val path1 = s1.path
@@ -576,8 +704,8 @@ object LongSet {
 	  * @param right non-empty subset containing all elements which have a set bit on the position of `diffBit` (as obtained from `common`). Empty if `size`<=1.
 	  */
 	private final class MutableLongSet private[LongSet] (private[this] var _size :Int, private[this] var common :Long, private[sets] var left :LongSet, private[sets] var right :LongSet)
-		extends BranchLike[MutableLongSet]
-				with MutableSet[Long] with MutableSetLike[Long, MutableLongSet] with LongSet
+		extends BranchLike[MutableLongSet] with OfKnownSize
+				with MutableSet[Long] with SetSpecialization[Long, MutableLongSet] with MutableSetLike[Long, MutableLongSet] with LongSet
 	{
 
 		/** A singleton mutable set. */
@@ -633,6 +761,8 @@ object LongSet {
 			case 1 => common == elem
 			case _ => false
 		}
+
+
 
 		override def +(elem: Long) = _size match {
 			case 0 => new MutableLongSet(elem)
@@ -723,7 +853,11 @@ object LongSet {
 			}
 
 		override def filter(p: (Long) => Boolean, ourTruth: Boolean): MutableLongSet =
-			filtered(left.filter(p, ourTruth), right.filter(p, ourTruth))
+			if (ourTruth) filter(p) else filterNot(p)
+//			filtered(left.filter(p, ourTruth), right.filter(p, ourTruth))
+
+		override def filter(p: (Long) => Boolean) :MutableLongSet = filtered(left.filter(p), right.filter(p))
+		override def filterNot(p: (Long) => Boolean) :MutableLongSet = filtered(left.filterNot(p), right.filterNot(p))
 
 		override def retain(p: (Long) => Boolean) :Unit = _size match {
 			case 0 =>
@@ -813,7 +947,7 @@ object LongSet {
 
 		protected def become(x :MutableLongSet, y :MutableLongSet) :Unit = {
 			val xPath = x.path
-			common = StableBranch.delimitedPrefix(xPath, y.path)
+			common = delimitedPrefix(xPath, y.path)
 			if ((xPath & common & -common) == 0L) {
 				left = x; right = y
 			} else {
@@ -850,13 +984,13 @@ object LongSet {
 	object Mutable {
 		def empty :MutableSet[Long] = new MutableLongSet()
 		def newBuilder :FitBuilder[Long, MutableSet[Long]] = new MutableLongSet()
-		def Singleton(value :Long) :MutableSet[Long] = new MutableLongSet() += value
+		def singleton(value :Long) :MutableSet[Long] = new MutableLongSet() += value
 
 
 
 		private[LongSet] def join(x :MutableLongSet, y :MutableLongSet) :MutableLongSet = {
 			val xPath = x.path
-			val common = StableBranch.delimitedPrefix(xPath, y.path)
+			val common = delimitedPrefix(xPath, y.path)
 			if ((xPath & common & - common) == 0L)
 				new MutableLongSet(common, x, y)
 			else
@@ -879,7 +1013,7 @@ object LongSet {
 	  * @param right subset of `this` containing all non-negative elements
 	  */
 	private class SortedTrie private[LongSet] (private[sets] val left: StableLongTrie, private[sets] val right: StableLongTrie)
-		extends BranchLike[SortedTrie] with LongSet with StableSet[Long] with SetSpecialization[Long, SortedTrie] with SortedFitSet.Stable[Long]
+		extends BranchLike[SortedTrie] with LongSet with StableSet[Long] with SetSpecialization[Long, SortedTrie] with StableOrderedSet[Long] with OfKnownSize
 	{
 
 		override def newBuilder = new ImmutableSetBuilder(Sorted.Empty)
@@ -933,7 +1067,10 @@ object LongSet {
 			else new SortedTrie(left.drop(from), right.take(until-left.size))
 
 		override def filter(p: (Long) => Boolean, ourTruth: Boolean) =
-			new SortedTrie(left.filter(p, ourTruth), right.filter(p, ourTruth))
+			if (ourTruth)
+				new SortedTrie(left.filter(p), right.filter(p))
+			else
+				new SortedTrie(left.filterNot(p), right.filterNot(p))
 
 
 		override def keysIteratorFrom(start: Long): FitIterator[Long] =
@@ -944,7 +1081,7 @@ object LongSet {
 				//with the first/next element of the created iterator. Below it are all Branch nodes on the path leading to it,
 				//from which we descended into the left tree, and thus their whole right subtree remains to be iterated.
 				//advancing the iterator retreats on the stack to take most-recent possible right turn
-				//(removing the node to which we retrated from the stack, and advancing again with a preference for the left child.
+				//(removing the node to which we retreated from the stack, and advancing again with a preference for the left child.
 				var path = new Array[LongSet](64)
 				path(0) = this
 				@tailrec def first(stack :Array[LongSet] = path, top :Int=0) :Int =
@@ -981,7 +1118,7 @@ object LongSet {
 				new LongTrieIterator(path, first())
 			}
 
-		override def rangeImpl(from: Option[Long], until: Option[Long]): SortedFitSet[Long] =
+		override def rangeImpl(from: Option[Long], until: Option[Long]): StableOrderedSet[Long] =
 			if (until.isDefined) range(from getOrElse Long.MinValue, until.get)
 			else if (from.isDefined) this.from(from.get)
 			else this
@@ -1032,9 +1169,9 @@ object LongSet {
 
 	object Sorted {
 		private[LongSet] final val Empty = new SortedTrie(LongSet.Empty, LongSet.Empty)
-		final val empty :SortedFitSet.Stable[Long] = Empty
+		final val empty :StableOrderedSet[Long] = Empty
 
-		def newBuilder :FitBuilder[Long, SortedFitSet.Stable[Long]] = new ImmutableSetBuilder(empty)
+		def newBuilder :FitBuilder[Long, StableOrderedSet[Long]] = new ImmutableSetBuilder(empty)
 
 	}
 
