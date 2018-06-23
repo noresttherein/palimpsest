@@ -49,11 +49,11 @@ import net.turambar.palimpsest.specialty.Specialize.SpecializeFor
   * In particular, an instance of [[Specialized[Int] ]] (or any other inbuilt primitive)
   * may represent any possible runtime type of an expression evaluating to an `Int`:
   * `int`, `java.lang.Integer` or (erased) `java.lang.Object`. Instances representing different of these types
-  * are not considered equal, despite casting between them being usually safe or even automatic.
+  * are not considered equal, despite their corresponding types being almost functionally equivalent in the bytecode.
   * For primitives, this is largely transparent - the code operating on any of these will be generally interchangeable
-  * due to autoboxing. The situation is a more complex for reference types, as the type hierarchy is unlimited
+  * due to autoboxing. The situation is more complex for reference types, as the type hierarchy is unlimited
   * and there is no auto-conversion involved (other than identity conversion / downcasting).
-  * This means there is no homomorphism between `E` and `Specialized[E]`: both different instances of
+  * This means there is no homomorphism between `E` and `Specialized[E]` regarding equality: both different instances of
   * `Specialized[E]` may be unequal and incompatible, and equality between `Specialized[E]` and `Specialized[F]`
   * confirms only that types `E` and `F` have identical representation in referenced contexts, but little
   * about their actual relationship - in particular, both specializations may refer to `AnyRef`.
@@ -163,11 +163,20 @@ import net.turambar.palimpsest.specialty.Specialize.SpecializeFor
   */
 @implicitNotFound(msg = "Cannot determine specialization of type $E. This is most likely a result of introduction of a conflicting implicit value for Specialized[$E]")
 sealed trait Specialized[@specialized E] {
+
+	/** Type to which generic methods for `E` are specialized, i.e. representation of `E` inside a method `m[E]`,
+	  * after erasure and any specializations.
+	  */
 	type ErasedType
-	
-	/** Type to which `E` is specialized, i.e. representation in the byte code after erasure and any specializations. */
+
+	/** Closest information about type `E` as represented in byte code. This is different from [[Specialized#RunType]]
+	  * in that it doesn't necessarily represent erasure, but can be in particular any reference type.
+	  */
 	type RunType >: E
-	
+
+	/** Type to which values of `E` are boxed wherever a reference type is expected. For primitive types it is declared
+	  * as their corresponding wrappers, for a reference type `E <: AnyRef` it is simply `E`.
+	  */
 	type BoxType <: AnyRef
 
 	
@@ -198,6 +207,10 @@ sealed trait Specialized[@specialized E] {
 			res
 		}
 */
+	/** The default value for type `E` as defined by the java spec. For primitive types,
+	  * it would be some version of zero/`false`, for reference type the `null` value.
+	  * `Unit` is represented by its scala singleton value.
+	  */
 	def Null :E
 	
 	/** Empty array which element type is the class representing `E` as par this level of specialization.
@@ -207,17 +220,22 @@ sealed trait Specialized[@specialized E] {
 	  *        type corresponding to `E &lt:: AnyVal`, if `E` is known (either fully instantiated, or by being a specialized type parameter).
 	  */
 	def emptyArray :Array[RunType]
-	
+
+	/** An array storing `E` in its erased/specialized form.
+	  * @return `Array[AnyRef]` or one of java's primitive arrays.
+	  */
 	def emptyErasedArray :Array[ErasedType]
-	
+
+	/** An array which can store any value of `E` after autoboxing.
+	  * @return an array of some reference element type.
+	  */
 	def emptyBoxArray :Array[BoxType]
 
 	/** Create an array of the given length which can be used to store values of type `E`. If `E` is known to be a built-in
 	  * scala `AnyVal` instance (either because it's fully instantiated or a specialized type parameter in the context in which this instance was created),
 	  * it is a corresponding java primitive array. If 'E' is erased, it is simply Array[AnyRef].
-	  *
-	  * @param size
-	  * @return
+	  * In context where more type information is present (`E` is not fully erased), it may create an array for a specific,
+	  * non-erased representation of `E`.
 	  */
 	@inline final def newArray(size :Int) :Array[RunType] = Array.ofDim[RunType](size)(classTag)
 	
@@ -227,8 +245,6 @@ sealed trait Specialized[@specialized E] {
 	
 	/** Class representing type parameter `E` in a specialized context. Only possible values are synthetic java
 	  * classes for java primitives (i.e. `Integer.TYPE` and `Class[java.lang.Object]`.
-	  *
-	  * @return
 	  */
 	def runType :Class[RunType]
 	
@@ -262,28 +278,28 @@ sealed trait Specialized[@specialized E] {
 
 	/** Is this a specialization of inbuilt scala 'AnyVal' type (corresponding to a java primitive)? */
 	@inline final def isValueType = runType.isPrimitive
-	
+
+	/** Is `E` type  `AnyRef` itself (and not its subclass), i.e. is `E` assignable *from* `AnyRef`? */
 	@inline final def isAnyRef = runType eq Specialized.AnyRefClass
-	
+
+	/** Is `E` represented in this context by a reference type (subtype of `AnyRef`), either due to being a reference type
+	  * itself, or through autoboxing?
+	  */
 	@inline final def isRef = Specialized.AnyRefClass.isAssignableFrom(runType)
 
+	/** Does this instance represent a type scala `Function1`'s arguments are specialized for? */
 	@inline final def isFun1Arg = (this eq SpecializedInt) || (this eq SpecializedLong) || (this eq SpecializedFloat) || (this eq SpecializedDouble)
 
+	/** Does this instance represent a type scala `Function1`'s return types are specialized for? */
 	@inline final def isFun1Res =
 		(this eq SpecializedInt) || (this eq SpecializedLong) || (this eq SpecializedFloat) ||
 			(this eq SpecializedDouble) || (this eq SpecializedBoolean) || (this eq SpecializedUnit)
-
-//	@inline final private[specialty] def cast[T>:E] :E SpecializedAs T = this.asInstanceOf[E SpecializedAs T]
 
 
 	@inline private[specialty] def call[R[X]](callback: Specialize[R])(implicit enforceSpecialization :Specialized[E]) :R[E] =
 		callback.specialized(this)
 
 	private[specialty] def call[R[X]](callback :SpecializeFor[R])(implicit enforceSpecialization :Specialized[E]) :R[E]
-//	@inline private[specialty] final def invoke[R[@specialized X]](callback: Specialize.Result[R]) :R[E] =
-//		callback.specialized(this)
-//
-//	@inline private[specialty] final def invoke(callback: Specialize.ToValue) :E = callback.specialized(this)
 
 	@inline private[specialty] final def call[R[X], P[X]](callback: Specialize.With[R, P])(param :P[E])(implicit enforceSpecialization :Specialized[E]) :R[E] =
 		callback.specialized(param)(this)
@@ -294,7 +310,8 @@ sealed trait Specialized[@specialized E] {
 	  * As a result, if `Specialized[A] sameAs Specialized[B]`,
 	  * than it is safe to cast values of `A` and `B` in both directions. Additionally, in a context where both
 	  * `A` and `B` are directly specialized, such a cast shouldn't cause any autoboxing as both values should already
-	  * be represented by the same java primitive.
+	  * be represented by the same java primitive. Note that no two instances representing usages of reference types
+	  * are the same in this meaning, even a `Specialized[AnyRef]` with itself!
 	  * This relation is strictly stronger than equality on `Specialized[_]`.
 	  *
 	  * @see [[Specialized#equals]]
@@ -302,19 +319,26 @@ sealed trait Specialized[@specialized E] {
 	@inline final def sameAs(other :Specialized[_]) :Boolean = runType.isPrimitive && runType == other.runType
 	
 	@inline final def =:=(other :Specialized[_]) :Boolean = runType.isPrimitive && runType == other.runType
-	
+
+	/** Equates specialization of primitive types with their representations as autoboxed objects.
+	  * @return `true` if `other` boxes to the same type this instance boxes to.
+	  */
 	def =%=(other :Specialized[_]) :Boolean = runType==other.runType || boxType==other.runType || other.boxType==boxType
-	
+
+	/** True if all values represented by `other` can be safely assigned to a variable of type represented by this instance (after any necessary autoboxing). */
 	def <%<(other :Specialized[_]) :Boolean = other.runType.isAssignableFrom(runType) || other.boxType==runType || other.runType==boxType
-	
+
+	/** True if all values represented by `other` can be safely assigned to a variable of type represented by this instance. */
 	def <:<(other :Specialized[_]) :Boolean = other.runType.isAssignableFrom(runType)
-	
+
+	/** Returns `other &lt;%&lt; this`. */
 	def >%>(other :Specialized[_]) :Boolean = other <%< this
-	
+
+	/** Returns `other &lt;:&lt; this`. */
 	def >:>(other :Specialized[_]) :Boolean = other <:< this
 
 	/** Two instances are equal if and only if they represent same specialization of a generic method/class.
-	  * This is a weaker relation than equality of corresponding type arguments `E`!
+	  * This is a weaker relation than equality of corresponding type arguments E!
 	  * Specializations for all `E &lt:: AnyRef` will be equal, even if they represent completely unrelated
 	  * and disjoint types, thus comparing these instance doesn't give any type safety. On the other hand,
 	  * specialization of a value class and erased ref will never be equal, even if the latter represents
@@ -336,13 +360,17 @@ sealed trait Specialized[@specialized E] {
 	final override def toString = s"@specialized($classTag)"
 }
 
+
+
+
+
 /** Implict `Specialized` value of third order in precedence, verifying specialization context of the caller.
   * As it will always yield a value, but possibly representing erased one despite programmer's intentions, it's worse
   * than any sure source of type information, but still better than nothing.
   */
 abstract class FallbackSpecializedImplicit {
 
-	/** Specialization resolution in the context of the caller. Implemented by `[[#locally]]` in the subclass.
+	/** Specialization resolution in the context of the caller. Implemented by [[Specialized#locally]] in the subclass.
 	  * Returned instance reflects recognized runtime type of `E` in the reference point. If the call happens
 	  * from within code specialized for type argument `E` (or `E` is statically known to be a scala value type),
 	  * returned instance will carry information about the corresponding primitive. If `E` is erased, or known to be
@@ -451,15 +479,14 @@ object Specialized extends SecondarySpecializedImplicits {
 			case j.Short.TYPE => SpecializedShort
 			case j.Void.TYPE => SpecializedUnit
 			case _ => new SpecializedRef[AnyRef](tpe.asInstanceOf[Class[AnyRef]]) //this is a weird case ...
-		} else (tpe :Class[_]) match {
-//			case AnyRefClass => SpecializedAnyRef
-//			case NothingClass => SpecializedNothing
-//			case NullClass => SpecializedNull
-			case _ => new SpecializedRef[AnyRef](tpe.asInstanceOf[Class[AnyRef]])
-		}
+		} else
+			new SpecializedRef[AnyRef](tpe.asInstanceOf[Class[AnyRef]])
+
 	).asInstanceOf[Specialized[E]]
-	
-	
+
+	/** Usage of type `E` as a generic parameter in fully specialized context.
+	  * @return one of primitive specializations or an instance representing erasure to `AnyRef`.
+	  */
 	final def erasedClass[E](tpe :Class[E]) :Erased[E] = (
 		if (tpe.isPrimitive) tpe match {
 			case j.Integer.TYPE => SpecializedInt
@@ -474,12 +501,6 @@ object Specialized extends SecondarySpecializedImplicits {
 			case _ => SpecializedAnyRef
 		} else
 			SpecializedAnyRef
-//		} else tpe match {
-//			case AnyRefClass => SpecializedAnyRef
-//			case NothingClass => SpecializedNothing
-//			case NullClass => SpecializedNull
-//			case _ => new SpecializedRef(tpe)
-//		}
 	).asInstanceOf[Erased[E]]
 	
 	/** Return specialization type class instance specific to the given class, based on an implicit `ClassTag`.
@@ -491,53 +512,25 @@ object Specialized extends SecondarySpecializedImplicits {
 	  * @tparam E type for which specialization should be resolved.
 	  * @return an instance representing either one of java primitives or `java.lang.Object`.
 	  */
-	final def of[E](implicit tpe :ClassTag[E]) :Specialized[E] = {
-		//ByClass(tpe.runtimeClass).asInstanceOf[Specialized[E]]
-		val runClass = tpe.runtimeClass
-		if (runClass.isPrimitive) runClass match {
-			case j.Integer.TYPE => SpecializedInt
-			case j.Byte.TYPE => SpecializedByte
-			case j.Double.TYPE => SpecializedDouble
-			case j.Long.TYPE => SpecializedLong
-			case j.Character.TYPE => SpecializedChar
-			case j.Boolean.TYPE => SpecializedBoolean
-			case j.Float.TYPE => SpecializedFloat
-			case j.Short.TYPE => SpecializedShort
-			case j.Void.TYPE => SpecializedUnit
-			case _ => new SpecializedRef[AnyRef]()(tpe.asInstanceOf[ClassTag[AnyRef]]) //this is a weird case ...
-		} else runClass match {
-//			case AnyRefClass => SpecializedAnyRef
-//			case NothingClass => SpecializedNothing
-//			case NullClass => SpecializedNull
-			case _ => new SpecializedRef[AnyRef]()(tpe.asInstanceOf[ClassTag[AnyRef]])
-		}
-	}.asInstanceOf[Specialized[E]]
+	@inline final def of[E](implicit tpe :ClassTag[E]) :Specialized[E] =
+		ofClass(tpe.runtimeClass).asInstanceOf[Specialized[E]]
 
-	
-	def erased[E](implicit tpe :ClassTag[E]) :Erased[E] = {
-		val runClass = tpe.runtimeClass
-		if (runClass.isPrimitive) runClass match {
-			case j.Integer.TYPE => SpecializedInt
-			case j.Byte.TYPE => SpecializedByte
-			case j.Double.TYPE => SpecializedDouble
-			case j.Long.TYPE => SpecializedLong
-			case j.Character.TYPE => SpecializedChar
-			case j.Boolean.TYPE => SpecializedBoolean
-			case j.Float.TYPE => SpecializedFloat
-			case j.Short.TYPE => SpecializedShort
-			case j.Void.TYPE => SpecializedUnit
-			case _ => SpecializedAnyRef
-		} else
-			SpecializedAnyRef
-	}.asInstanceOf[Erased[E]]
+
+	/** Equivalent to [[Specialized#erasedClass]]`(clazz)` for runtime class as defined by an implicit `ClassTag`. */
+	def erased[E](implicit tpe :ClassTag[E]) :Erased[E] =
+		erasedClass(tpe.runtimeClass).asInstanceOf[Erased[E]]
 	
 	
-	
+	/** Representation of any type as its autoboxed, erased form without any specialization or upper type bounds. */
 	def generic[E] :Specialized[E] = SpecializedAnyRef.asInstanceOf[Specialized[E]]
-	
-	
-	
-	final def ofType[E](implicit tpe :TypeTag[E]) :Specialized[E] = {
+
+
+	/** The best representation of static type `E` based on implicit type information
+	  * once erasure is performed for reference types.
+	  * @return an instance representing either a java primitive (including `void`), synthetic `Null`
+	  *         or erasure/boxing (for custom value types) to `AnyRef`.
+	  */
+	final def ofType[E](implicit tpe :TypeTag[E]) :SpecializedExact[E] = {
 		if (tpe.tpe <:< typeOf[AnyVal])
 			if (tpe.tpe <:< typeOf[Int]) SpecializedInt
 			else if (tpe.tpe <:< typeOf[Byte]) SpecializedByte
@@ -548,14 +541,12 @@ object Specialized extends SecondarySpecializedImplicits {
 			else if (tpe.tpe <:< typeOf[Float]) SpecializedFloat
 			else if (tpe.tpe <:< typeOf[Short]) SpecializedShort
 			else if (tpe.tpe <:< typeOf[Unit]) SpecializedUnit
-//			else if (tpe.tpe <:< typeOf[Nothing]) SpecializedNothing
 			else SpecializedAnyRef //most likely custom value class which gets lifted to `AnyRef` anyway.
-//		else if (tpe.tpe <:< typeOf[Nothing]) SpecializedNothing
 		else if (tpe.tpe <:< typeOf[Null]) SpecializedNull
 		else SpecializedAnyRef
-	}.asInstanceOf[Specialized[E]]
+	}.asInstanceOf[SpecializedExact[E]]
 
-
+	/** Yields the representation of type `E` in the caller's context after erasure and specialization. */
 	@inline final def locally[@specialized E] :Erased[E] = {
 		new SpecializedKey[E] match {
 			case SpecializedAnyRef.key => SpecializedAnyRef
@@ -571,7 +562,6 @@ object Specialized extends SecondarySpecializedImplicits {
 			case _ => SpecializedAnyRef
 		}
 	}.asInstanceOf[Erased[E]]
-//		Lookup(new SpecializedKey[E]).asInstanceOf[Specialized[E]]
 
 
 
@@ -725,20 +715,8 @@ object Specialized extends SecondarySpecializedImplicits {
 		
 		override final val key = new SpecializedKey[AnyRef]
 	}
-//	implicit final val SpecializedAnyRef :SpecializedRoot[AnyRef] =
-//		new SpecializedRef[AnyRef] with SpecializedRoot[AnyRef] {
-//			override type RunType = AnyRef
-//			override type ErasedType = AnyRef
-//			override type BoxType = AnyRef
-//
-//			override final def erasedType :Class[AnyRef] = classOf[AnyRef]
-//		}
 
-//		new SpecializedRef[Nothing]() with SpecializedExact[Nothing] {
-//			override def Null = throw new NoSuchElementException("Specialized[Nothing].Null")
-//			override type RunType = Nothing
-//		}
-		
+	/** Represents the synthetic type `Null` of null values. */
 	implicit final val SpecializedNull :SpecializedExact[Null] =
 		new SpecializedRef[Null]() with SpecializedExact[Null] {
 			override type RunType = Null
@@ -748,7 +726,6 @@ object Specialized extends SecondarySpecializedImplicits {
 
 	/** Implicit specialization determined from an implicitly available `ClassTag[E]`. */
 	@inline implicit final def specializedClass[E](implicit tpe :ClassTag[E]) :Specialized[E] = of[E]
-//		ByClass(tpe.runtimeClass).asInstanceOf[Specialized[E]]
 
 
 
@@ -769,40 +746,51 @@ object Specialized extends SecondarySpecializedImplicits {
 	)
 
 
-
-
-//	protected[this] final val Lookup = Specializations.toSeq.map(
-//			spec => (spec.key :SpecializedKey[_]) -> (spec :Specialized[_])
-//		).toMap withDefaultValue SpecializedAnyRef
-//
-//	private[this] final val ByClass = Specializations.map(s => s.runType -> s).toMap withDefaultValue SpecializedAnyRef
-
-	
-	trait Erased[@specialized T] extends Specialized[T] {
+	/**  Base trait describing context where type `T` is used as a generic type argument after erasure and specialization.
+	  *  There will be an implicit value of `Erased[T]` for any type `T`, representing that upper bound.
+	  *  This in particular includes all types which erase/specialize to themselves as denoted by [[SpecializedRoot]],
+	  *  but also for example an `Erased[String]` denoting erased usage of `String`, while
+	  *  `String` is not a 'root type' - there is no value for `SpecializedRoot[String]`.
+	  */
+	sealed trait Erased[@specialized T] extends Specialized[T] {
 		type ErasedType = T
-		
 	}
-	
+
+	/** Provides access to representations of types after erasure and specialization. */
 	object Erased {
+
+		/** Fetches implicit value for [[Erased]]`[E]` representing the way it would be used
+		  * in context of a generic call, after erasure or specialization. There will always be a value
+		  * for every type, in the most generic scenario representing the complete erasure and boxing (for value types).
+		  */
 		@inline final def apply[E](implicit erasure :Erased[E]) :Erased[E] = erasure
-		
+
+		/** Represents erased usage of a reference type. */
 		@inline implicit final def ErasedRef[E<:AnyRef] :Erased[E] = SpecializedAnyRef.asInstanceOf[Erased[E]]
 		
 		@inline implicit final def erasedClass[E :ClassTag] :Erased[E] = Specialized.erased[E]
 	}
-	
 
+	/** Represents context in which type `T` erases/specializes to itself:
+	  * this includes all primitive types, root `AnyRef` itself and `Null`.
+	  * A more useful type in practice is its subtype [[SpecializedRoot]]
+	  * which includes all the above except for the synthetic `Null` type.
+	  */
 	trait SpecializedExact[T] extends Specialized[T] {
 		type RunType = T
 	}
-	
+
+	/** Base trait for all types `T` which erase/specialize in a generic context to themselves.
+	  * This includes all inbuilt value types when specialized as java primitives and the `AnyRef` type
+	  * for the `java.lang.Object` itself.
+	  */
 	trait SpecializedRoot[T] extends Erased[T] with SpecializedExact[T]
 
+	/** Base class for all instances representing a jvm` primitive type, including `void`. */
 	sealed abstract class SpecializedPrimitive[@specialized E, B<:AnyRef] private[Specialized]
 			(private[specialty] override final val key :SpecializedKey[E], val Null :E)
 			(implicit val classTag :ClassTag[E])
 		extends SpecializedExact[E] with SpecializedRoot[E] with Erased[E] with Specialized[E]//extends Specialized[E] explicitly for specialization
-//		extends SpecializedAs[E, E]
 	{
 		override type BoxType = B
 
@@ -817,10 +805,16 @@ object Specialized extends SecondarySpecializedImplicits {
 		override final def emptyErasedArray: Array[E] = emptyArray
 		override final val emptyBoxArray: Array[B] = Array.empty[B](boxClassTag)
 	}
-	
-	
-	
-	
+
+
+	/** Any representation of a reference type by a java/scala class specified by implicit `ClassTag[E]`.
+	  * This includes special values of [[SpecializedAnyRef]] for erased types, [[SpecializedNull]] for
+	  * the null value and any possible superclass of type `E`. In this sense, values with the same runtime type
+	  * may be represented by many different instances of [[SpecializedRef]] representing different levels
+	  * of erasure after taking type bounds into the equation, from full type information to `AnyRef`.
+	  * @param classTag the class representing the static type assignable from `E`.
+	  * @tparam E any scala type, usually itself a type parameter of a generic method/class; this is not the final erased/unboxed type.
+	  */
 	sealed class SpecializedRef[E >: Null <:AnyRef] private[Specialized] ()(implicit final val classTag :ClassTag[E])
 		extends Specialized[E]
 	{

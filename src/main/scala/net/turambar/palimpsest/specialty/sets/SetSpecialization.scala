@@ -10,20 +10,34 @@ import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenSet, GenTraversableOnce, SetLike, mutable}
 
+/** A generic, non-specialized analogue of `SetLike` serving as the common base class for all sets in this package.
+  * Provides declarations of common methods not needing public specialized variants. Subclasses may still
+  * provide specialized implementations, but they will generally be specialized only for the single type specific to
+  * a given implementation (i.e. an `IntSet` will implement the methods for `Int` elements and doesn't need to clutter
+  * the class with declarations of variants for other element types).
+  * Compare this with specialized declarations and implementations in [[SetSpecialization]], which create variants for all
+  * specializable element types which can be called directly for every [[ValSet]], no matter its element type.
+  * @tparam E element type of this set
+  * @tparam This complete static and public type of this set, including its element type.
+  * @see [[SetSpecialization]]
+  */
 trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	extends SetLike[E, This] with IterableTemplate[E, This] with mutable.Cloneable[This]
 {
-//	protected override def verifiedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
-//		if (isEmpty) 0
-//		else {
-//			iterator.copyToArray(xs, start, total); math.min(total, size)
-//		}
 
 	def ++(elems :FitTraversableOnce[E]) :This
 
 	def --(elems :FitTraversableOnce[E]) :This
 
+	/** An immutable set for the same element type and specialization as this set and containing the same elements.
+	  * @return `this` if this is an immutable set or a related, specialized snapshot for mutable sets.
+	  */
 	def stable :ValSet.Stable[E]
+
+	/** A mutable version of this set. For immutable sets this creates a new instance of a related class
+	  * initialized with elements of this set. For mutable sets, this will generally simply return `this` -
+	  * changes to either `this` or the returned set will be visible in the other!
+	  */
 	def mutable :ValSet.Mutable[E]
 
 	override def clone() :This = repr
@@ -31,12 +45,12 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	protected[this] override def newBuilder :FitBuilder[E, This] = empty.newBuilder
 }
 
-/**
+/** A specialized base class for sets providing default specialized implementation for common methods.
+  * It is a specialized analogue of `SetLike`.
   * @author Marcin Mościcki
   */
 trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, This] with ValSet[E]]
 	extends SetTemplate[E, This] with IterableSpecialization[E, This]
-//	extends SetLike[E, This] with IterableSpecialization[E, This] with mutable.Cloneable[This]
 {
 
 	override def specialization :Specialized[E] = mySpecialization

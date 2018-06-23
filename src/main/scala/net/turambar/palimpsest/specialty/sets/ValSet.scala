@@ -15,8 +15,10 @@ import scala.collection.generic.{CanBuildFrom, GenericCompanion, GenericSetTempl
 import scala.collection.{GenIterable, GenSet, GenTraversableOnce, SetLike, mutable}
 
 
-
-
+/** A generic type constructor of a higher kind shared by all specialized set implementations in this package.
+  * @tparam E element type
+  * @tparam S type constructor accepting element type and giving a specialized set type specific to concrete implementing class.
+  */
 trait SpecializableSet[@specialized(Elements) E, +S[@specialized(Elements) X]<:SpecializableSet[X, S] with ValSet[X]]
 	extends GenericSetTemplate[E, S] with SetLike[E, S[E]]
 			with SpecializableIterable[E, S] with SetSpecialization[E, S[E]]
@@ -25,18 +27,6 @@ trait SpecializableSet[@specialized(Elements) E, +S[@specialized(Elements) X]<:S
 	override def empty :S[E] = companion.empty
 }
 
-
-/*
-trait SetTemplate[E, +This <: ValSet[E] with SetTemplate[E, This]]
-	extends IterableTemplate[E, This] with SetLike[E, This] with mutable.Cloneable[This]
-{
-	override def specialization :Specialized[E] = mySpecialization
-
-	def stable :ValSet.Stable[E]
-	def mutable :ValSet.Mutable[E]
-
-}
-*/
 
 
 
@@ -69,25 +59,22 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 	type Mutable[@specialized(Elements) E] = MutableSet[E]
 	type Stable[@specialized(Elements) E] = StableSet[E]
 
+	/** Factory and companion for generic, specialized, mutable sets. */
 	final val Mutable = MutableSet
+
+	/** Factory and companion for generic, specialized and immutable sets. */
 	final val Stable = StableSet
 
+	/** Specialized ordered set types (using ordering default for the given element type). */
 	object Sorted {
+		/** Immutable specialized sets sorted by natural ordering for the given element type. */
 		type Stable[@specialized(Elements) E] = OrderedSet.Stable[E]
+
+		/** Mutable specialized sets sorted by natural ordering for the given element type. */
 		type Mutable[@specialized(Elements) E] = OrderedSet.Mutable[E]
 	}
 
 
-//	override final val Empty :ValSet[Nothing] = new EmptyIterable[Nothing, ValSet[Nothing]] with ValSet[Nothing] {
-//		override def stable: Stable[Nothing] = this
-//		override def mutable :Mutable[Nothing] = MutableSet.Empty
-//
-//		override def contains(elem: Nothing): Boolean = false
-//		override def +(elem: Nothing): ValSet[Nothing] =
-//			throw new UnsupportedOperationException(s"FitSet[Nothing] + $elem")
-//		override def -(elem: Nothing): ValSet[Nothing] = this
-//		override def toString = "FitSet.Empty"
-//	}
 
 	override def empty[@specialized(Elements) E] :ValSet[E] = EmptySet()
 
@@ -112,11 +99,12 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 	private type SetBuilder[E] = FitBuilder[E, ValSet[E]]
 
-//	final val builderFrom :Specialize.With[SetBuilder, ValSet] = new Specialize.With[SetBuilder, ValSet] {
-//		override def specialized[@specialized E: Specialized](empty: ValSet[E]): SetBuilder[E] =
-//			new ImmutableSetBuilder[E, ]()
-//	}
 
+
+	/**  Specialized factory for builders returning a new builder for a set implementation best fitting
+	  *  a given element type. Delegates via double dispatch to the set factory object associated with
+	  *  requested element type.
+ 	  */
 	final private val SetBuilder = new Specialize.For[SetBuilder] {
 		override def forBoolean: SetBuilder[Boolean] = BooleanSet.newBuilder
 		override def forByte: SetBuilder[Byte] = ByteSet.newBuilder
@@ -196,17 +184,18 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 
 	/** A `FitBuilder` building any type of set using it's own (copying) `+`/`++` methods, starting from an empty set.
-	  * This is the default builder for `FitSet`s.
+	  * This is the default builder for `ValSet`s.
 	  * @param set initial contents of this builder, usually an empty set of an appropriate type, determining also the final result type
 	  * @tparam E element type of the built set.
 	  * @tparam S built `To` set type.
 	  */
-	private[sets] class ImmutableSetBuilder[@specialized(Elements) E, +S<:ValSet[E] with SetSpecialization[E, S]](private[this] var set :S)
+	private[sets] class ImmutableSetBuilder[@specialized(Elements) E, +S<:ValSet[E] with SetSpecialization[E, S]]
+			(private[this] var set :S)
 		extends FitBuilder[E, S]
 	{
-		override def +=(elem1: E, elem2: E, elems: E*) = { set = set + (elem1, elem2, elems:_*); this }
+		override def +=(elem1: E, elem2: E, elems: E*) :this.type = { set = set + (elem1, elem2, elems:_*); this }
 
-		override def ++=(xs: FitTraversableOnce[E]) = { set = set ++ xs; this }
+		override def ++=(xs: FitTraversableOnce[E]) :this.type = { set = set ++ xs; this }
 
 		override def +=(elem: E): this.type = { set += elem; this }
 

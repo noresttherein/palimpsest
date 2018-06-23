@@ -18,7 +18,7 @@ import scala.collection.{AbstractIterator, BitSet, BitSetLike, GenTraversableOnc
 /**
   * @author Marcin Mościcki
   */
-@deprecated
+@deprecated("")
 class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val size :Int) extends StableSet[Int] with OfKnownSize {
 
 	private[IntSet] def this(negative :BitSet, positive :BitSet) = this(negative, positive, negative.size + positive.size)

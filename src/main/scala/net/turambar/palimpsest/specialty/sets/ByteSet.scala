@@ -9,18 +9,27 @@ import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversabl
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.sets.ValSet.Mutable
 
-/**
+/** Base class for mutable and immutable sets of `Byte` elements implemented as a bitmap.
+  * As with most implementations specialized for a concrete element type, it is not part
+  * of the public API but intended to be used via generic (but specialized) interfaces
+  * of [[ValSet]], [[MutableSet]], [[StableSet]].
+  * @see [[net.turambar.palimpsest.specialty.sets.ByteSet.MutableByteSet]]
+  * @see [[net.turambar.palimpsest.specialty.sets.ByteSet.StableByteSet]]
   * @author Marcin Mościcki
   */
-private[sets] abstract class ByteSet[This<:ByteSet[This]] private[ByteSet](bytes :ByteSetBitmap)
+private[sets] sealed abstract class ByteSet[This<:ByteSet[This]] private[ByteSet](bytes :ByteSetBitmap)
 	extends ValSet[Byte] with SetSpecialization[Byte, This] with OfKnownSize
 {
 	@inline final private[ByteSet] def bitmap :ByteSetBitmap = bytes
 
-	override protected[this] def mySpecialization = Specialized.SpecializedByte
+	override final protected[this] def mySpecialization = Specialized.SpecializedByte
 
 	override def empty :This = newByteSet(ByteSet.EmptyBitmap())
 
+	/** Factory method to be implemented by subclasses
+	  * @param bits bitmap carrying elements of the new set
+	  * @return a mutable or immutable instance depending on the actual type of `this`.
+	  */
 	protected[this] def newByteSet(bits :ByteSetBitmap) :This
 
 	override final def size: Int = bytes.size
@@ -152,7 +161,7 @@ private[sets] abstract class ByteSet[This<:ByteSet[This]] private[ByteSet](bytes
 
 
 
-
+/** Companion and factory of immutable and mutable sets of bytes, their builders and iterators. */
 private[sets] object ByteSet {
 	import java.lang.Long.{bitCount, numberOfTrailingZeros}
 	
@@ -180,10 +189,12 @@ private[sets] object ByteSet {
 
 		override def newBuilder = new ByteSetBuilder
 
-		override def mutable: Mutable[Byte] = new MutableByteSet(bits.copy)
+		override def mutable: Mutable[Byte] = new MutableByteSet(bitmap.copy)
 	}
 
-	final class MutableByteSet(bits :ByteSetBitmap) extends ByteSet[MutableByteSet](bits) with MutableSet[Byte] with MutableSetLike[Byte, MutableByteSet] {
+	final class MutableByteSet(bits :ByteSetBitmap)
+		extends ByteSet[MutableByteSet](bits) with MutableSet[Byte] with MutableSetLike[Byte, MutableByteSet]
+	{
 		override def empty = new MutableByteSet(EmptyBitmap())
 
 		override protected[this] def newByteSet(bits: ByteSetBitmap): MutableByteSet = new MutableByteSet(bits)
@@ -210,7 +221,10 @@ private[sets] object ByteSet {
 	}
 
 
-	
+	/** Bitmap set operations shared by set and iterator implementations.
+	  * @param bitmap an array of exactly four elements where byte `n`
+	  *               is present in the set if `bitmap(n/64)` has its `n % 64` (lowest) bit set.
+	  */
 	private[ByteSet] class ByteSetBitmap(val bitmap :Array[Long]) extends AnyVal {
 		
 		@inline def copy = new ByteSetBitmap(Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3)))
@@ -278,8 +292,6 @@ private[sets] object ByteSet {
 				if (third!=0) bitmap(2) = third & (third-1)
 				else {
 					val fourth = bitmap(3)
-//					if (fourth==0)
-//						throw new UnsupportedOperationException(s"ByteSet().tail")
 					bitmap(3) = fourth & (fourth-1)
 				}
 			}
