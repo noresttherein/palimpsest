@@ -117,7 +117,7 @@ object conditional {
 		
 		private def raise[E<:Exception :ClassTag] :Nothing=
 			throw (Try {
-				classTag[E].runtimeClass.newInstance().asInstanceOf[Exception]
+				classTag[E].runtimeClass.getDeclaredConstructor().newInstance().asInstanceOf[Exception]
 			} recover {
 				case ex :Exception => new IllegalArgumentException(s"Can't throw ${classTag[E].runtimeClass} as a result of guard failure on $self", ex)
 			}).get

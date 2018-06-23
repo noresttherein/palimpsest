@@ -100,7 +100,16 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSet[_], E, MutableSet[E]]): CanBuildFrom[MutableSet[_], E, MutableSet[E]] =
 		fit.cbf
 
-
+	/** Creates a mutable wrapper over another specialized set. This is especially useful if {{immutable}} is
+	  * an immutable set, but it isn't required. Result of concurrent modifications done to the argument and
+	  * returned instance is not determined.
+	  * Specialization of the returned set is static and determined solely based on caller specialization context
+	  * rather than the specialization of the argument.
+	  * @param immutable initial contents of the set
+	  * @return a [[MutableSet]] maintaining its state using a private variable
+	  *         and 'immutable' API provided by the wrapped instance
+	  *
+	  */
 	def from[@specialized(Elements) E](immutable :ValSet[E]) :MutableSet[E] =
 		new MutableSetAdapter(immutable)
 

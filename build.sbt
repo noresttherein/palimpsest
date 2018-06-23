@@ -13,7 +13,7 @@ javaOptions in Compile ++= Seq("-Xmx2G")
 
 testOptions in Test ++= Seq(Tests.Filter(s => !s.endsWith("Props")))
 
-Seq(bintrayResolverSettings:_*)
+//Seq(bintrayResolverSettings:_*)
 
 libraryDependencies ++= Seq(
 	"org.scala-lang" % "scala-reflect" % "2.11.8",
