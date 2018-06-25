@@ -256,7 +256,7 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 		override def head = source.head
 		override def last = source.last
 
-		override def newBuilder :FitBuilder[E, This] = fromSource((source :SetSpecialization[E, OrderedSet[E]]).empty)
+		override def newBuilder :FitBuilder[E, Self] = fromSource((source :SetSpecialization[E, OrderedSet[E]]).empty)
 
 		override def origin = OrderedSet.Mutable
 	}

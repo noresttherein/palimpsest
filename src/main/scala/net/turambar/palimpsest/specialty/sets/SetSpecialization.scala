@@ -40,6 +40,9 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	  */
 	def mutable :ValSet.Mutable[E]
 
+	//todo:
+	def mutate :ValSet.Mutable[E] = mutable
+
 	override def clone() :This = repr
 
 	protected[this] override def newBuilder :FitBuilder[E, This] = empty.newBuilder

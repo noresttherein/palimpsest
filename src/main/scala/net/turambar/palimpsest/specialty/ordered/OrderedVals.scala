@@ -84,7 +84,7 @@ object OrderedAs {
   */
 trait OrderedVals[@specialized(Elements) E] extends OrderedAs[E, OrderedVals[E]] with FitIterable[E] with IterableSpecialization[E, OrderedVals[E]] {
 //	type This <: OrderedVals[E]
-	type This = Self
+//	type This = Self
 
 	override def firstKey: E = head
 	override def lastKey: E = last
@@ -93,10 +93,10 @@ trait OrderedVals[@specialized(Elements) E] extends OrderedAs[E, OrderedVals[E]]
 	override def reverseKeyIterator = reverseIterator
 	def iteratorFrom(start :E) :FitIterator[E]
 
-	def +(elem :E) :This
-	def +(elem1 :E, elem2 :E, elems :E*) :This// = this + elem1 + elem2 ++ elems
+	def +(elem :E) :Self
+	def +(elem1 :E, elem2 :E, elems :E*) :Self// = this + elem1 + elem2 ++ elems
 
-	def ++(elems :GenTraversableOnce[E]) :This
+	def ++(elems :GenTraversableOnce[E]) :Self
 
 	override protected[this] def newBuilder :FitBuilder[E, OrderedVals[E]] = OrderedSeq.newBuilder
 }

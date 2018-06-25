@@ -7,7 +7,7 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.sets.ValSet.Mutable
+import net.turambar.palimpsest.specialty.sets.OrderedSet.Mutable
 
 /** Base class for mutable and immutable sets of `Byte` elements implemented as a bitmap.
   * As with most implementations specialized for a concrete element type, it is not part
@@ -17,12 +17,15 @@ import net.turambar.palimpsest.specialty.sets.ValSet.Mutable
   * @see [[net.turambar.palimpsest.specialty.sets.ByteSet.StableByteSet]]
   * @author Marcin Mościcki
   */
-private[sets] sealed abstract class ByteSet[This<:ByteSet[This]] private[ByteSet](bytes :ByteSetBitmap)
-	extends ValSet[Byte] with SetSpecialization[Byte, This] with OfKnownSize
+private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, This] with OrderedSet[Byte]] private[ByteSet](bytes :ByteSetBitmap)
+	extends OrderedSet[Byte] with OrderedSetTemplate[Byte, This] with SetSpecialization[Byte, This] with OfKnownSize
 {
 	@inline final private[ByteSet] def bitmap :ByteSetBitmap = bytes
 
 	override final protected[this] def mySpecialization = Specialized.SpecializedByte
+
+	override implicit def ordering: Ordering[Byte] = ByteSet.UnsignedOrdering
+
 
 	override def empty :This = newByteSet(ByteSet.EmptyBitmap())
 
@@ -138,9 +141,46 @@ private[sets] sealed abstract class ByteSet[This<:ByteSet[This]] private[ByteSet
 
 	//	override final def fitIterator: FitIterator[Byte] = new ByteSetIterator(bytes.copy)
 	override final def iterator :FitIterator[Byte] = new ByteSetIterator(bytes.copy)
-	
-//	override def newBuilder: FitBuilder[Byte, ByteSet[This]] = new ByteSetBuilder
-	
+
+	override def keysIteratorFrom(start: Byte): FitIterator[Byte] = {
+		val bits = bytes.copy
+		bits.clearUntil(start & 0xff)
+		new ByteSetIterator(bits)
+	}
+
+
+	override def from(from: Byte): This = {
+		val bits = bytes.copy
+		bits.clearUntil(from & 0xff)
+		newByteSet(bits)
+	}
+
+	override def until(until: Byte): This = {
+		val bits = bytes.copy
+		bits.clearFrom(until & 0xff)
+		newByteSet(bits)
+	}
+
+	override def range(from: Byte, until: Byte): This = {
+		val bits = bytes.copy
+		bits.clearUntil(from & 0xff)
+		bits.clearFrom(until & 0xff)
+		newByteSet(bits)
+	}
+
+	override def to(to: Byte): This = {
+		val bits = bytes.copy
+		bits.clearFrom((to & 0xff) + 1)
+		newByteSet(bits)
+	}
+
+	override def rangeImpl(from: Option[Byte], until: Option[Byte]): This =
+		if (until.isDefined) range(from getOrElse 0.toByte, until.get)
+		else if (from.isDefined) this.from(from.get)
+		else repr
+
+
+
 	override def equals(that: Any): Boolean = that match {
 		case bytes :ByteSet[_] => bitmap sameElements bytes.bitmap
 		case _ => super.equals(that)
@@ -167,19 +207,25 @@ private[sets] object ByteSet {
 	
 	final val Empty = new StableByteSet(EmptyBitmap())
 
-	@inline final def newBuilder :FitBuilder[Byte, StableSet[Byte]] = new ByteSetBuilder
+	@inline final def newBuilder :FitBuilder[Byte, StableOrderedSet[Byte]] = new ByteSetBuilder
 
-	def empty :StableSet[Byte] = Empty
+	def empty :StableOrderedSet[Byte] = Empty
 
-	def apply(bytes :Byte*) :StableSet[Byte] = (newBuilder ++= bytes).result()
+	def apply(bytes :Byte*) :StableOrderedSet[Byte] = (newBuilder ++= bytes).result()
 
-	def mutable :MutableSet[Byte] = new MutableByteSet(EmptyBitmap())
+	def mutable :MutableOrderedSet[Byte] = new MutableByteSet(EmptyBitmap())
 
 	private final val GarbageBitmap = EmptyBitmap()
 	@inline private def EmptyBitmap() = new ByteSetBitmap(Array[Long](0L, 0L, 0L, 0L))
-	
 
-	final class StableByteSet(bits :ByteSetBitmap) extends ByteSet[StableByteSet](bits) with StableSet[Byte] {
+	/** Order on bytes when treated as unsigned numbers in the `0..255` range.*/
+	object UnsignedOrdering extends Ordering[Byte] {
+		override def compare(x: Byte, y: Byte): Int = (x & 0xff) - (y & 0xff)
+	}
+
+	final class StableByteSet(bits :ByteSetBitmap)
+		extends ByteSet[StableOrderedSet[Byte]](bits) with StableOrderedSet[Byte]
+	{
 		override protected[this] def newByteSet(bits: ByteSetBitmap) = new StableByteSet(bits)
 		override def empty = Empty
 
@@ -193,11 +239,13 @@ private[sets] object ByteSet {
 	}
 
 	final class MutableByteSet(bits :ByteSetBitmap)
-		extends ByteSet[MutableByteSet](bits) with MutableSet[Byte] with MutableSetLike[Byte, MutableByteSet]
+		extends ByteSet[MutableOrderedSet[Byte]](bits) with MutableOrderedSet[Byte]
 	{
 		override def empty = new MutableByteSet(EmptyBitmap())
 
 		override protected[this] def newByteSet(bits: ByteSetBitmap): MutableByteSet = new MutableByteSet(bits)
+
+		override def clear() :Unit = bitmap.clear()
 
 		override def +=(elem: Byte): this.type = { bitmap += elem; this }
 
@@ -226,7 +274,7 @@ private[sets] object ByteSet {
 	  *               is present in the set if `bitmap(n/64)` has its `n % 64` (lowest) bit set.
 	  */
 	private[ByteSet] class ByteSetBitmap(val bitmap :Array[Long]) extends AnyVal {
-		
+
 		@inline def copy = new ByteSetBitmap(Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3)))
 		
 		@inline def size: Int =
@@ -282,21 +330,7 @@ private[sets] object ByteSet {
 			}
 		})
 		
-		@inline def removeFirst() :Unit = {
-			val first = bitmap(0); val second = bitmap(1)
-			if ((first | second) != 0)
-				if (first!=0) bitmap(0) = first & (first-1)
-				else bitmap(1) = second & (second-1)
-			else {
-				val third = bitmap(2)
-				if (third!=0) bitmap(2) = third & (third-1)
-				else {
-					val fourth = bitmap(3)
-					bitmap(3) = fourth & (fourth-1)
-				}
-			}
-		}
-		
+
 		@inline def contains(elem: Byte): Boolean = {
 			val i = elem & 0xff
 			((bitmap(i / 64) >> i) & 1L) != 0
@@ -357,6 +391,46 @@ private[sets] object ByteSet {
 			(bitmap(2) & bytes.bitmap(2)) == bitmap(2) &&
 			(bitmap(3) & bytes.bitmap(3)) == bitmap(3)
 
+
+		@inline def removeFirst() :Unit = {
+			val first = bitmap(0); val second = bitmap(1)
+			if ((first | second) != 0)
+				if (first!=0) bitmap(0) = first & (first-1)
+				else bitmap(1) = second & (second-1)
+			else {
+				val third = bitmap(2)
+				if (third!=0) bitmap(2) = third & (third-1)
+				else {
+					val fourth = bitmap(3)
+					bitmap(3) = fourth & (fourth-1)
+				}
+			}
+		}
+
+		@inline def clear() :Unit = {
+			bitmap(0) = 0L; bitmap(1) = 0L; bitmap(2) = 0L; bitmap(3) = 0L
+		}
+
+		@inline def clearUntil(first :Int) :Unit = {
+			var clearedWords = first >> 6
+			bitmap(clearedWords) &= (0xffffffffffffffffL >>> -first)
+			while(clearedWords > 0) {
+				bitmap(clearedWords) = 0L; clearedWords -= 1
+			}
+		}
+
+		@inline def clearFrom(until :Int) :Unit = {
+			var clearedWord = until >> 6
+			val clearedBits = until & 0x3f
+			if (clearedBits > 0) {
+				bitmap(clearedWord) &= ~(0x8000000000000000L >> clearedBits)
+				clearedWord += 1
+			}
+			while (clearedWord < 3) {
+				bitmap(clearedWord) = 0L
+				clearedWord += 1
+			}
+		}
 
 		@inline def +=(elem :Byte) :Unit = {
 			val i = elem & 0xff

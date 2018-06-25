@@ -46,7 +46,7 @@ trait OrderedSet[@specialized(Elements) E]
 
 trait MutableOrderedSet[@specialized(Elements) E]
 	extends MutableSet[E] with OrderedSet[E] with MutableSetLike[E, MutableOrderedSet[E]] with SortedSetLike[E, MutableOrderedSet[E]]
-			with OrderedAs[E, MutableOrderedSet[E]] with SetSpecialization[E, MutableOrderedSet[E]] with FitBuilder[E, MutableOrderedSet[E]]
+			with OrderedSetTemplate[E, MutableOrderedSet[E]] with SetSpecialization[E, MutableOrderedSet[E]] with FitBuilder[E, MutableOrderedSet[E]]
 {
 	override def mutable :Mutable[E] = this
 	override def stable :Stable[E] = (Stable.newBuilder[E] ++= this).result
@@ -57,7 +57,7 @@ trait MutableOrderedSet[@specialized(Elements) E]
 
 trait StableOrderedSet[@specialized(Elements) E]
 	extends SortedSetLike[E, StableOrderedSet[E]] with OrderedSet[E] with StableSet[E]
-			with OrderedAs[E, StableOrderedSet[E]] with SetSpecialization[E, StableOrderedSet[E]]
+			with OrderedSetTemplate[E, StableOrderedSet[E]] with SetSpecialization[E, StableOrderedSet[E]]
 {
 	override def empty :StableOrderedSet[E] = OrderedSet.Stable.empty
 	override def stable :Stable[E] = this
