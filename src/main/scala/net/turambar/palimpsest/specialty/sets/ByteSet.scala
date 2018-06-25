@@ -13,6 +13,13 @@ import net.turambar.palimpsest.specialty.sets.OrderedSet.Mutable
   * As with most implementations specialized for a concrete element type, it is not part
   * of the public API but intended to be used via generic (but specialized) interfaces
   * of [[ValSet]], [[MutableSet]], [[StableSet]].
+  *
+  * Note that while this is an [[OrderedSet]], it follows unsigned ordering of values as if promoted to `Int`
+  * without copying the sign bit: `x & 0xff`. In terms of natural promotion of `Byte` to `Int` range of `-128 .. 127`
+  * this translates to positioning all negative values after positive values. As bytes are more often used in terms
+  * of codes from the `0..255` range rather than 'tiny integer', this will usually be more convenient, even if it
+  * stands against the principle of least confusion.
+  *
   * @see [[net.turambar.palimpsest.specialty.sets.ByteSet.MutableByteSet]]
   * @see [[net.turambar.palimpsest.specialty.sets.ByteSet.StableByteSet]]
   * @author Marcin Mościcki
