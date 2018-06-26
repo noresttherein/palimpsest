@@ -199,6 +199,15 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	}
 
 
+	override def mkString(start: String, sep: String, end: String): String = {
+		val res = new StringBuilder(start)
+		bitmap.foreachInt { byte => res ++= byte.toHexString ++= sep}
+		val len = res.length
+		if (len > start.length)
+			res.delete(len - sep.length, len)
+		res ++= end
+		res.toString
+	}
 
 	override def stringPrefix = "Set[Byte]"
 
@@ -468,6 +477,17 @@ private[sets] object ByteSet {
 			bitmap(3) &= ~bytes.bitmap(3)
 		}
 
+		@inline def foreachInt[@specialized(Unit) U](f: Int => U): Unit = {
+			var cell = 0
+			do {
+				val base = cell*64; var i = 0; var word = bitmap(cell)
+				while (word != 0L) {
+					if ((word & 1L) != 0) f((base+i) & 0xff)
+					i += 1; word >>>= 1
+				}
+				cell += 1
+			}while(cell < 4)
+		}
 
 		@inline def foreach[@specialized(Unit) U](f: (Byte) => U): Unit = {
 			var cell = 0
