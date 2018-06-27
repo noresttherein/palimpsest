@@ -1,5 +1,6 @@
 package net.turambar.palimpsest.specialty.iterables
 
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.{FitIterator, IterableSpecialization, IterableTemplate, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
@@ -8,7 +9,7 @@ import scala.collection.{GenIterable, GenTraversableOnce}
 import scala.collection.generic.CanBuildFrom
 
 
-trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] {
+trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnownSize {
 	def empty :Repr = repr
 
 	override def size = 0

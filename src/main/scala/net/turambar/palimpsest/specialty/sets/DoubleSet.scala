@@ -15,31 +15,31 @@ object DoubleSet {
 	private[this] final val DoubleToLong :Double => Long = doubleToLongBits
 	private[this] final val LongToDouble :Long=>Double = longBitsToDouble
 
-	final val Empty :StableSet[Double] = new LongView(LongSet.Empty)
+	final val Empty :StableSet[Double] = new LongView(DirectLongSet.Empty)
 	
 	def empty :StableSet[Double] = Empty
 	
 	def newBuilder :FitBuilder[Double, StableSet[Double]] =
-		LongSet.newBuilder.mapInput(DoubleToLong).mapResult(ints => new LongView(ints))
+		DirectLongSet.newBuilder.mapInput(DoubleToLong).mapResult(ints => new LongView(ints))
 
-	def singleton(value :Double) :StableSet[Double] = new LongView(LongSet.singleton(doubleToLongBits(value)))
+	def singleton(value :Double) :StableSet[Double] = new LongView(DirectLongSet.singleton(doubleToLongBits(value)))
 
-	def mutable :MutableSet[Double] = new MutableLongView(LongSet.mutable)
+	def mutable :MutableSet[Double] = new MutableLongView(DirectLongSet.mutable)
 
 //	type Sorted = FitSet.Sorted[Double]
 //
 //	object Sorted {
-//		final val Empty :SortedFitSet[Double] = new LongSet.SortedViewAs[Double](LongToDouble, DoubleToLong)(LongSet.Sorted.Empty)
-//		def newBuilder :FitBuilder[Double, SortedFitSet[Double]] = LongSet.Sorted.newBuilder.mapInput(DoubleToLong).mapResult(
-//			ints => new LongSet.SortedViewAs[Double](LongToDouble, DoubleToLong)(ints)			
+//		final val Empty :SortedFitSet[Double] = new DirectLongSet.SortedViewAs[Double](LongToDouble, DoubleToLong)(DirectLongSet.Sorted.Empty)
+//		def newBuilder :FitBuilder[Double, SortedFitSet[Double]] = DirectLongSet.Sorted.newBuilder.mapInput(DoubleToLong).mapResult(
+//			ints => new DirectLongSet.SortedViewAs[Double](LongToDouble, DoubleToLong)(ints)
 //		)
-//		def Singleton(value :Double) :SortedFitSet[Double] = new LongSet.SortedViewAs[Double](LongToDouble, DoubleToLong)(LongSet.Sorted.Singleton(value))
+//		def Singleton(value :Double) :SortedFitSet[Double] = new DirectLongSet.SortedViewAs[Double](LongToDouble, DoubleToLong)(DirectLongSet.Sorted.Singleton(value))
 //	}
 
 	object Mutable {
-		def empty :MutableSet[Double] = new MutableLongView(LongSet.Mutable.empty)
-		def newBuilder :FitBuilder[Double, MutableSet[Double]] = new MutableLongView(LongSet.Mutable.empty)
-		def Singleton(value :Double) :MutableSet[Double] = new MutableLongView(LongSet.Mutable.singleton(doubleToLongBits(value)))
+		def empty :MutableSet[Double] = new MutableLongView(DirectLongSet.Mutable.empty)
+		def newBuilder :FitBuilder[Double, MutableSet[Double]] = new MutableLongView(DirectLongSet.Mutable.empty)
+		def Singleton(value :Double) :MutableSet[Double] = new MutableLongView(DirectLongSet.Mutable.singleton(doubleToLongBits(value)))
 	}
 
 	private trait DoubleAsLongSet[+S<:ValSet[Long] with SetSpecialization[Long, S], +Repr <: ValSet[Double] with SetSpecialization[Double, Repr]]

@@ -5,7 +5,7 @@ import java.util.Date
 
 import org.scalacheck.{Prop, Properties}
 import org.scalacheck.Prop._
-import net.turambar.palimpsest.specialty.Specialize.{Self, SpecializeFor}
+import net.turambar.palimpsest.specialty.Specialize.{Self, SpecializeDistinctly}
 import scala.reflect._
 import scala.runtime.BoxedUnit
 
@@ -228,7 +228,7 @@ object SpecializedSpec extends Properties("Specialized") {
 	property("Specialize[AnyRef](_:AnyRef)") = ParamCall[AnyRef](new Date(42L)) ?= new Spec[AnyRef](new Date(42L))
 	//	property("Specialize[String](_:String)") = (ParamCall[String]("42") :Any) ?= new Spec[AnyRef]("42")
 	
-	object AnyType extends SpecializeFor[Array] {
+	object AnyType extends SpecializeDistinctly[Array] {
 		override def forByte: Array[Byte] = new Array[Byte](1)
 		override def forShort: Array[Short] = new Array[Short](1)
 		override def forChar: Array[Char] = new Array[Char](1)
@@ -241,17 +241,17 @@ object SpecializedSpec extends Properties("Specialized") {
 		override def specialized[@specialized E: Specialized]: Array[E] = new Array[AnyRef](1).asInstanceOf[Array[E]]
 	}
 	
-	property("SpecializeFor[Byte]()") = AnyType[Byte]().getClass.getComponentType is classOf[Byte]
-	property("SpecializeFor[Short]()") = AnyType[Short]().getClass.getComponentType is classOf[Short]
-	property("SpecializeFor[Int]()") = AnyType[Int]().getClass.getComponentType is classOf[Int]
-	property("SpecializeFor[Long]()") = AnyType[Long]().getClass.getComponentType is classOf[Long]
-	property("SpecializeFor[Float]()") = AnyType[Float]().getClass.getComponentType is classOf[Float]
-	property("SpecializeFor[Double]()") = AnyType[Double]().getClass.getComponentType is classOf[Double]
-	property("SpecializeFor[Char]()") = AnyType[Char]().getClass.getComponentType is classOf[Char]
-	property("SpecializeFor[Boolean]()") = AnyType[Boolean]().getClass.getComponentType is classOf[Boolean]
-	property("SpecializeFor[Unit]()") = AnyType[Unit]().getClass.getComponentType is classOf[BoxedUnit]
-	property("SpecializeFor[AnyRef]()") = AnyType[AnyRef]().getClass.getComponentType is classOf[AnyRef]
-	property("SpecializeFor[Any]()") = AnyType[Any]().getClass.getComponentType is classOf[AnyRef]
-	property("SpecializeFor[String]()") = AnyType[String]().getClass.getComponentType is classOf[AnyRef]
+	property("SpecializeDistinctly[Byte]()") = AnyType[Byte]().getClass.getComponentType is classOf[Byte]
+	property("SpecializeDistinctly[Short]()") = AnyType[Short]().getClass.getComponentType is classOf[Short]
+	property("SpecializeDistinctly[Int]()") = AnyType[Int]().getClass.getComponentType is classOf[Int]
+	property("SpecializeDistinctly[Long]()") = AnyType[Long]().getClass.getComponentType is classOf[Long]
+	property("SpecializeDistinctly[Float]()") = AnyType[Float]().getClass.getComponentType is classOf[Float]
+	property("SpecializeDistinctly[Double]()") = AnyType[Double]().getClass.getComponentType is classOf[Double]
+	property("SpecializeDistinctly[Char]()") = AnyType[Char]().getClass.getComponentType is classOf[Char]
+	property("SpecializeDistinctly[Boolean]()") = AnyType[Boolean]().getClass.getComponentType is classOf[Boolean]
+	property("SpecializeDistinctly[Unit]()") = AnyType[Unit]().getClass.getComponentType is classOf[BoxedUnit]
+	property("SpecializeDistinctly[AnyRef]()") = AnyType[AnyRef]().getClass.getComponentType is classOf[AnyRef]
+	property("SpecializeDistinctly[Any]()") = AnyType[Any]().getClass.getComponentType is classOf[AnyRef]
+	property("SpecializeDistinctly[String]()") = AnyType[String]().getClass.getComponentType is classOf[AnyRef]
 	
 }

@@ -18,17 +18,17 @@ import scala.annotation.unspecialized
   * As such, its mainly a means for more convenient building of the final sequence without an intermediate
   * builder / linked list, rather than an implementation suited towards common concatenation,
   * as only the result of the concatenation is guaranteed to be expandable in amortized constant time per element.
-  * All intermediate valeus of the accumulator in the above case will cause buffer copying on following expansion.
+  * All intermediate values of the accumulator in the above case will cause buffer copying on subsequent expansion.
   *
   *
   * While neither the range, nor the array or its contents within the range of this sequence can be mutated
   * by either this instance or any external source, the contents of the array outside of the  given section
   * are not immutable. Whenever an element is appended/prepended or this instance is concatenated
   * with another sequence, if the backing array has enough space in the corresponding fragment
-  * (preceeding or succeeding this section) '''and''' this instance ''owns'' the corresponding section
+  * (preceding or succeeding this section) '''and''' this instance ''owns'' the corresponding section
   * of the array (that is, either its whole suffix or whole prefix), new content is simply copied to the
   * underlying array and a view over the whole, extended section is returned as the result sequence, now
-  * becoming the whole owner of the underyling section.
+  * becoming the whole owner of the underlying section.
   *
   * This class is both effectively immutable and thread safe; the only mutable state are ownership
   * flags which can only be changed from `true` to `false`.

@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.{TypeTag, typeOf}
 import scala.runtime.BoxedUnit
 
-import net.turambar.palimpsest.specialty.Specialize.SpecializeFor
+import net.turambar.palimpsest.specialty.Specialize.SpecializeDistinctly
 
 
 
@@ -299,7 +299,7 @@ sealed trait Specialized[@specialized E] {
 	@inline private[specialty] def call[R[X]](callback: Specialize[R])(implicit enforceSpecialization :Specialized[E]) :R[E] =
 		callback.specialized(this)
 
-	private[specialty] def call[R[X]](callback :SpecializeFor[R])(implicit enforceSpecialization :Specialized[E]) :R[E]
+	private[specialty] def call[R[X]](callback :SpecializeDistinctly[R])(implicit enforceSpecialization :Specialized[E]) :R[E]
 
 	@inline private[specialty] final def call[R[X], P[X]](callback: Specialize.With[R, P])(param :P[E])(implicit enforceSpecialization :Specialized[E]) :R[E] =
 		callback.specialized(param)(this)
@@ -644,63 +644,63 @@ object Specialized extends SecondarySpecializedImplicits {
 	/** Specialization for `Byte`. */
 	implicit final val SpecializedByte :SpecializedPrimitive[Byte, j.Byte] =
 		new SpecializedPrimitive[Byte, j.Byte](key[Byte], 0) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Byte])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Byte])  =
 				callback.forByte
 		}
 		
 	/** Specialization for `Short`. */
 	implicit final val SpecializedShort :SpecializedPrimitive[Short, j.Short]  =
 		new SpecializedPrimitive[Short, j.Short](key[Short], 0) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Short])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Short])  =
 				callback.forShort
 		}
 		
 	/** Specialization for `Int`. */
 	implicit final val SpecializedInt :SpecializedPrimitive[Int, j.Integer] =
 		new SpecializedPrimitive[Int, j.Integer](key[Int], 0) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Int])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Int])  =
 				callback.forInt
 		}
 		 
 	/** Specialization for `Long`. */
 	implicit final val SpecializedLong  :SpecializedPrimitive[Long, j.Long] =
 		new SpecializedPrimitive[Long, j.Long](key[Long], 0) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Long])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Long])  =
 				callback.forLong
 		}
 		
 	/** Specialization for `Char`. */
 	implicit final val SpecializedChar  :SpecializedPrimitive[Char, j.Character] =
 		new SpecializedPrimitive[Char, j.Character](key[Char], 0) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Char])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Char])  =
 				callback.forChar
 		}
 		
 	/** Specialization for `Float`. */
 	implicit final val SpecializedFloat  :SpecializedPrimitive[Float, j.Float] =
 		new SpecializedPrimitive[Float, j.Float](key[Float], 0) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Float])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Float])  =
 				callback.forFloat
 		}
 		
 	/** Specialization for `Double`. */
 	implicit final val SpecializedDouble  :SpecializedPrimitive[Double, j.Double] =
 		new SpecializedPrimitive[Double, j.Double](key[Double], 0) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Double])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Double])  =
 				callback.forDouble
 		}
 		
 	/** Specialization for `Boolean`. */
 	implicit final val SpecializedBoolean  :SpecializedPrimitive[Boolean, j.Boolean] =
 		new SpecializedPrimitive[Boolean, j.Boolean](key[Boolean], false) {
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Boolean])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Boolean])  =
 				callback.forBoolean
 		}
 		
 	/** Specialization for `Unit` as java `void`. */
 	implicit final val SpecializedUnit  :SpecializedPrimitive[Unit, BoxedUnit] =
 		new SpecializedPrimitive[Unit, BoxedUnit](key[Unit], ()) { //todo - this is not really a primitive:
-			override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[Unit])  =
+			override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[Unit])  =
 				callback.forUnit
 		}
 		
@@ -845,7 +845,7 @@ object Specialized extends SecondarySpecializedImplicits {
 		
 		override def emptyBoxArray: Array[E] = Array.empty[E]
 		
-		override private[specialty] def call[R[X]](callback: SpecializeFor[R])(implicit enforceSpecialization: Specialized[E]) =
+		override private[specialty] def call[R[X]](callback: SpecializeDistinctly[R])(implicit enforceSpecialization: Specialized[E]) =
 			callback.specialized[E](this)
 		
 		override private[specialty] def key = unspecializedKey.asInstanceOf[SpecializedKey[E]]

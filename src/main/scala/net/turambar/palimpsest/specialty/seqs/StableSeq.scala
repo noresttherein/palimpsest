@@ -50,6 +50,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableSeq[_], E, StableSeq[E]]): CanBuildFrom[StableSeq[_], E, StableSeq[E]] =
 		fit.cbf
 
+	//todo: IsStableIndexed?
 	trait MakeStableIndexed[+E] extends immutable.IndexedSeq[E] with IndexedSeqLike[E, MakeStableIndexed[E]]
 										with FitIndexedSeq[E] with IterableSpecialization[E, MakeStableIndexed[E]]
 										with StableSeq[E] with SliceLike[E, MakeStableIndexed[E]]

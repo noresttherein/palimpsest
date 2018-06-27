@@ -137,7 +137,11 @@ trait SingletonSpecialization[@specialized(Elements) +E, +Repr] extends Iterable
 }
 
 
-
+/** Base class for dedicated implementations of collections containing exactly one element.
+  * @tparam E element type
+  * @tparam Repr specific type of the collection described by this interface, usually the self type of implementors,
+  *              but it is not enforced here.
+  */
 abstract class SingletonFoundation[+E, +Repr] extends IterableTemplate[E, Repr] with SingletonTemplate[E, Repr] {
 	override def collectFirst[B](pf: PartialFunction[E, B]) :Option[B] = {
 		pf.runWith{ b: B => return Some(b) }(head)

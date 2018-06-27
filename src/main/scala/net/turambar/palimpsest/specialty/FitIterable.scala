@@ -92,7 +92,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		def apply(os :ObjectOutputStream, elem :E) :Unit
 	}
 
-	object ElementSerializer extends Specialize.For[ElementSerializer] {
+	object ElementSerializer extends Specialize.Distinct[ElementSerializer] {
 		type OOS = ObjectOutputStream
 		type S[E] = ElementSerializer[E]
 
@@ -114,7 +114,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		def apply(is :ObjectInputStream) :E
 	}
 
-	object ElementDeserializer extends Specialize.For[ElementDeserializer] {
+	object ElementDeserializer extends Specialize.Distinct[ElementDeserializer] {
 		type OIS = ObjectInputStream
 		type D[E] = ElementDeserializer[E]
 
