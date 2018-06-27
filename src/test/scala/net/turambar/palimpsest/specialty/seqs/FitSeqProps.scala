@@ -4,7 +4,6 @@ import scala.reflect.ClassTag
 
 import net.turambar.palimpsest.specialty.{Elements, FitCompanion, Specialized, SpecializableIterable}
 import net.turambar.palimpsest.testutil._
-import net.turambar.slang.conditional._
 import org.scalacheck.Prop._
 import org.scalacheck.Properties
 
@@ -54,7 +53,7 @@ object FitSeqProps extends App {
 			else seq.head ?= values(0)
 			) :| "head"
 		
-		property("headOption") = seq.headOption ?= values(0).onlyIf(size>0)
+		property("headOption") = seq.headOption ?= (if (size>0) Some(values(0)) else None)
 		
 		property("tail") = (
 			if (size==0) seq.tail.throws[UnsupportedOperationException]
@@ -67,7 +66,7 @@ object FitSeqProps extends App {
 			else seq.last ?= values(size-1)
 			) :| "last"
 		
-		property("lastOption") = seq.lastOption ?= values(size-1).onlyIf(size>0)
+		property("lastOption") = seq.lastOption ?= (if (size>0) Some(values(size-1)) else None)
 
 		property("init") = (
 			if (size==0) seq.init.throws[UnsupportedOperationException]
