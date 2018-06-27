@@ -227,7 +227,7 @@ object Specialize {
 		/** Invoked when `Singular[Nothing]()` is called (either statically resolved or the type information was otherwise available).
 		  * @return by default, result of [[Singular#unspecialized]]`[Nothing]`
 		  */
-		override def forNothing: R[Nothing] = unspecialized
+		override def forNothing: R[Nothing] = unspecialized[Nothing]
 
 		/** Invoked when `Singular[Null]()` is called (either statically resolved or the type information was otherwise available).
 		  * @return by default, result of [[Singular#unspecialized]]`[Null]`
