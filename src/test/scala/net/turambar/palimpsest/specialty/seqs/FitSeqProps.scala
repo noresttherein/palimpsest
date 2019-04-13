@@ -1,11 +1,13 @@
 package net.turambar.palimpsest.specialty.seqs
 
+
 import scala.reflect.ClassTag
 
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, Specialized, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{forceFit, Elements, FitCompanion, Specialized, SpecializableIterable}
 import net.turambar.palimpsest.testutil._
 import org.scalacheck.Prop._
 import org.scalacheck.Properties
+
 
 /**
   * @author Marcin Mościcki
@@ -47,7 +49,7 @@ object FitSeqProps extends App {
 		property("indexing") = seq.contents(values)
 		property("rangeChecked") = seq.checksRange
 		property("equals") = seq =?= valueSeq
-		
+
 		property("head") = (
 			if (size==0) seq.head.throws[NoSuchElementException]
 			else seq.head ?= values(0)
@@ -57,7 +59,7 @@ object FitSeqProps extends App {
 		
 		property("tail") = (
 			if (size==0) seq.tail.throws[UnsupportedOperationException]
-			else seq.tail.toSeq ?= (1 until size).map(values)
+			else seq.tail.toSeq ?= ((1 until size).map(values)(forceFit) :FitSeq[E])
 			) :| "tail"
 		
 		
@@ -78,7 +80,7 @@ object FitSeqProps extends App {
 		
 		property("copyToArray") = {
 //			val ints = new Array[Int](10); (0 until 10).foreach { i => ints(i) = -1 }
-			val buff = Specialized.erasedArray(10)
+			val buff = Specialized.arrayFor(10)
 			buff.indices foreach { buff(_) = dummy }
 			seq.copyToArray(buff, 1, 8)
 			val copied = seq.length min 8

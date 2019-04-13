@@ -1,5 +1,7 @@
 package net.turambar.palimpsest.specialty
 
+
+import java.lang.Math
 import scala.annotation.tailrec
 import scala.collection.{GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce, mutable}
 import Specialized.{Fun1, Fun1Vals}
@@ -36,7 +38,7 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 		this += elem1 += elem2 ++= elems
 
 	def ++=(xs :FitTraversableOnce[E]) :this.type = {
-		val it = xs.fitIterator
+		val it = xs.toIterator
 		while(it.hasNext) this += it.next()
 		this
 	}
@@ -95,7 +97,7 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 	def origin :Any = this
 	
 	
-	
+	@deprecated("to restricting with mutable sets", "")
 	def count :Int
 }
 
@@ -124,9 +126,9 @@ object FitBuilder {
 		{ x :X => b += f(x) }
 	
 	private def traversed[@specialized(Fun1) X](appender :X=>Unit) :TraversableOnce[X]=>Unit =
-		xs => xs match {
+		{
 			case fit :FitTraversableOnce[X] => fit traverse appender
-			case _ => xs foreach appender
+			case xs => xs foreach appender
 		}
 
 	
@@ -134,7 +136,9 @@ object FitBuilder {
 		new BuilderFilter(target)
 	
 	final class BuilderFilter[@specialized(Fun1) X, To](private val target :FitBuilder[X, To]) {
+		@deprecated("makes a false impression of a specialized method", "")
 		@inline def filterInput(p :X=>Boolean) :FitBuilder[X, To] = FitBuilder.filter(p, target)
+		@inline def filterInput(p :X=>Boolean, where :Boolean) :FitBuilder[X, To] = FitBuilder.filter(p, where, target)
 	}
 	
 
@@ -144,6 +148,10 @@ object FitBuilder {
 		new BuilderAdapter(builder, { x :X => if (p(x)) append(x) }, builder.build, true)
 	}
 
+	private def filter[@specialized(Fun1) X, To](p :X => Boolean, where :Boolean, builder :FitBuilder[X, To]) :FitBuilder[X, To] = {
+		val append = builder.addOne
+		new BuilderAdapter(builder, { x :X => if (p(x) == where) append(x) }, builder.build, true)
+	}
 
 	trait IgnoresHints extends mutable.Builder[Nothing, Any] {
 		override def sizeHint(size: Int) :Unit = ()
@@ -167,12 +175,12 @@ object FitBuilder {
 			new BuilderAdapter(vanilla, map, traversed(map), build, supressHints)
 		}
 		
-		override def flatMapInput[@specialized(Fun1) X](f: (X) => GenTraversableOnce[E]): FitBuilder[X, To] = {
+		override def flatMapInput[@specialized(Fun1) X](f: X => GenTraversableOnce[E]): FitBuilder[X, To] = {
 			val fmap :X=>Unit = { x :X => vanilla ++= f(x).seq }
 			new BuilderAdapter(vanilla, fmap, traversed(fmap), build, true)
 		}
 		
-		override def mapResult[NewTo](f: (To) => NewTo): FitBuilder[E, NewTo] =
+		override def mapResult[NewTo](f: To => NewTo): FitBuilder[E, NewTo] =
 			new BuilderWrapper[E, NewTo](vanilla, () => f(build()))
 		
 		override def ++=(xs: TraversableOnce[E]): this.type = { vanilla ++= xs; this }
@@ -209,7 +217,7 @@ object FitBuilder {
 		
 		def this(target :FitBuilder[X, To]) = this(target, target.addOne, target.addMany, target.build, false)
 		
-		override def mapInput[@specialized(Fun1) E](f: (E) => X): FitBuilder[E, To] = {
+		override def mapInput[@specialized(Fun1) E](f: E => X): FitBuilder[E, To] = {
 			val addE = { e :E => addOne(f(e)) }
 			new BuilderAdapter[E, To](target, addE, traversed(addE), build, supressHints)
 		}
@@ -238,13 +246,13 @@ object FitBuilder {
 		
 		override def sizeHintBounded(size: Int, boundingColl: TraversableLike[_, _]): Unit =
 			if (!supressHints && ofKnownSize(boundingColl))
-				target.sizeHint(math.min(size, boundingColl.size))
+				target.sizeHint(Math.min(size, boundingColl.size))
 		
-		override def sizeHint(size :Int) =
+		override def sizeHint(size :Int) :Unit =
 			if (!supressHints)
 				target.sizeHint(size)
 		
-		override def mapResult[NewTo](f: (To) => NewTo): FitBuilder[X, NewTo] =
+		override def mapResult[NewTo](f: To => NewTo): FitBuilder[X, NewTo] =
 			new BuilderAdapter(target, addOne, addMany, () => f(build()), supressHints)
 		
 		
@@ -326,8 +334,8 @@ object FitBuilder {
 		}
 		
 	}
-	
-	
+
+
 	class OptimisticFitBuilder[@specialized(Elements) E, To<:TraversableOnce[E]](fit :FitBuilder[E, To], unfit : =>FitBuilder[E, To])
 		extends FitBuilder[E, To]
 	{

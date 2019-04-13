@@ -30,8 +30,14 @@ class ReverseSeq[@specialized(Elements) +E](override val reverse :FitIndexedSeq[
 	@inline
 	final override protected def section(from: Int, until: Int): FitIndexedSeq[E] =
 		new ReverseSeq(sectionOf(reverse, orgIdx(until), orgIdx(from)))
-	
-	
+
+
+	override def filter(p :E => Boolean, where :Boolean) :FitIndexedSeq[E] = {
+		val builder = newBuilder
+		builder.sizeHint(reverse)
+		(builder.filterInput(p) ++= this).result()
+	}
+
 	override def reverseMap[@specialized(Fun2Vals) U, That](f: (E) => U)(implicit bf: CanBuildFrom[FitIndexedSeq[E], U, That]): That =
 		reverse.map(f)
 	

@@ -1,10 +1,11 @@
 package net.turambar.palimpsest.specialty.seqs
 
+import net.turambar.palimpsest.SerializationVersion
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListBuilder, LinkedListIterator, NonEmpty, SerializedLinkedList}
-import specialty.{Elements, FitBuilder, FitCompanion, FitIterator, IterableSpecialization, SpecializableIterable, Specialized}
+import specialty._
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
@@ -23,7 +24,7 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 /**
   * @author Marcin Mościcki
   */
-@SerialVersionUID(100)
+@SerialVersionUID(SerializationVersion)
 sealed trait LinkedList[@specialized(Elements) +E]
 	extends SeqFoundation[E, LinkedList[E]] with LinearSeq[E] with LinearSeqLike[E, LinkedList[E]] //with SliceLike[E, LinkedList[E]]
 			with FitSeq[E] with IterableSpecialization[E, LinkedList[E]] with SpecializableIterable[E, LinkedList] with Serializable
@@ -32,7 +33,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 //	override def nonEmpty = true
 
 
-	override def length = {
+	override def length :Int = {
 		var len = 0; var l = this
 		while(l.nonEmpty) { len += 1; l = l.tail }
 		len
@@ -56,11 +57,11 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	}
 
 
-	override def headOption =
-		if (isEmpty) None
-		else Some(head)
+//	override def headOption :Option[E] =
+//		if (isEmpty) None
+//		else Some(head)
 
-	override def last =
+	override def last :E =
 		if (isEmpty) throw new NoSuchElementException(s"LinkedList.Empty.last")
 		else {
 			var l = this; var next = tail
@@ -131,7 +132,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 
 
 	@unspecialized
-	override def takeRight(n: Int) = {
+	override def takeRight(n: Int) :LinkedList[E] = {
 		var terminator = drop(n); var next = this
 		while(terminator.nonEmpty) {
 			terminator = terminator.tail; next = next.tail
@@ -140,7 +141,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	}
 
 
-	override def dropRight(n :Int) ={
+	override def dropRight(n :Int) :LinkedList[E] ={
 		var terminator = drop(n)
 		if (terminator.isEmpty) terminator //handles also this.isEmpty
 		else {
@@ -157,12 +158,12 @@ sealed trait LinkedList[@specialized(Elements) +E]
 		}
 	}
 
-	@unspecialized override def init =
+	@unspecialized override def init :LinkedList[E] =
 		if (isEmpty) throw new UnsupportedOperationException(s"LinkedList.Empty.init")
 		else dropRight(1)
 
 
-	override def splitAt(n: Int) =
+	override def splitAt(n: Int) :(LinkedList[E], LinkedList[E]) =
 		if (n<=0 || isEmpty) (LinkedList.Empty, this)
 		else {
 			val prefix = new NonEmpty(head, tail); var end = prefix; var suffix = tail
@@ -187,17 +188,17 @@ sealed trait LinkedList[@specialized(Elements) +E]
 //	override protected def section(from: Int, until: Int): LinkedList[E] = slice(from, until)
 
 	@unspecialized
-	override def dropWhile(p: (E) => Boolean) :LinkedList[E] = {
+	override def dropWhile(p: E => Boolean) :LinkedList[E] = {
 		var l = this
 		while (l.nonEmpty && p(l.head)) l = l.tail
 		l
 	}
 
 	@unspecialized
-	override def takeWhile(p :E=>Boolean) = span(p)._1
+	override def takeWhile(p :E=>Boolean) :LinkedList[E] = span(p)._1
 
 
-	override def span(p: (E) => Boolean) :(LinkedList[E], LinkedList[E]) =
+	override def span(p: E => Boolean) :(LinkedList[E], LinkedList[E]) =
 		if (isEmpty || !p(head)) (LinkedList.Empty, this)
 		else {
 			val prefix = new NonEmpty(head, tail); var end = prefix; var suffix = tail
@@ -220,19 +221,19 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	}
 
 	@unspecialized
-	override def reverseForeach(f :E=>Unit) = inverse.foreach(f)
+	override def reverseForeach(f :E=>Unit) :Unit = inverse.foreach(f)
 
 	@unspecialized
-	override def forall(p: (E) => Boolean) = dropWhile(p).isEmpty
+	override def forall(p: E => Boolean) :Boolean = dropWhile(p).isEmpty
 
 
-	override def segmentLength(p: (E) => Boolean, from: Int) = {
+	override def segmentLength(p: E => Boolean, from: Int) :Int = {
 		var l = drop(from); var len = 0
 		while (l.nonEmpty && p(l.head)) { l = l.tail; len+=1 }
 		len
 	}
 
-	override def indexWhere(p: (E) => Boolean, from: Int) :Int = {
+	override def indexWhere(p: E => Boolean, from: Int) :Int = {
 		var i = math.max(from, 0); var l = drop(i)
 		while(l.nonEmpty) {
 			if (p(l.head)) return i
@@ -241,7 +242,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 		-1
 	}
 
-	override def lastIndexWhere(p: (E) => Boolean, end: Int) :Int = {
+	override def lastIndexWhere(p: E => Boolean, end: Int) :Int = {
 		var i = 0; var last = -1; var l = this
 		while(i<=end && l.nonEmpty) {
 			if (p(l.head)) last = i
@@ -268,7 +269,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 		last
 	}
 
-	override def find(p: (E) => Boolean) :Option[E] = {
+	override def find(p: E => Boolean) :Option[E] = {
 		var l = this
 		while(l.nonEmpty) {
 			val h = l.head
@@ -278,8 +279,17 @@ sealed trait LinkedList[@specialized(Elements) +E]
 		None
 	}
 
+	override def find_?(p :E => Boolean, where :Boolean) : ?[E] = {
+		var l = this
+		while (l.nonEmpty) {
+			val h = l.head
+			if (p(h) == where) return Sure(h)
+			l = l.tail
+		}
+		Blank
+	}
 
-	override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) = {
+	override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O = {
 		var res = z; var l = this
 		while(l.nonEmpty) {
 			res = op(res, l.head)
@@ -288,7 +298,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 		res
 	}
 
-	override protected[this] def filter(p: (E) => Boolean, ourTruth: Boolean): LinkedList[E] =
+	override def filter(p: E => Boolean, ourTruth: Boolean): LinkedList[E] =
 		if (isEmpty) this
 		else {
 			val hat = new NonEmpty(head)
@@ -305,7 +315,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 
 
 	@unspecialized
-	override def +:[B >: E, That](elem: B)(implicit bf: CanBuildFrom[LinkedList[E], B, That]) = bf(this) match {
+	override def +:[B >: E, That](elem: B)(implicit bf: CanBuildFrom[LinkedList[E], B, That]) :That = bf(this) match {
 		case b :LinkedListBuilder[_] => //todo: is it really what we want with mutable lists?
 			val h = (b += elem).result().asInstanceOf[NonEmpty[B]] //if bf is specialized it will give us a properly specialized link
 			h.t = this
@@ -328,10 +338,10 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	}
 
 	@unspecialized
-	override def inverse = reverse
+	override def inverse :LinkedList[E] = reverse
 
 
-	protected[this] override def verifiedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
+	protected[this] override def uncheckedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
 		var i = start; val e = start + total; var l = this
 		while (i<e && l.nonEmpty) {
 			xs(i) = l.head
@@ -374,7 +384,7 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedList[_], E, LinkedList[E]]): CanBuildFrom[LinkedList[_], E, LinkedList[E]] =
 		fit.cbf
 
-	/** An empty, unspecialized linked list which can serve as `LinkedList[E]` for any element type `E` thanks to covariance.
+	/** An empty, non-specialized linked list which can serve as `LinkedList[E]` for any element type `E` thanks to covariance.
 	  * Note that this is '''not''' the only instance of empty [[LinkedList[E]]], so check `list==Empty` will yield false negatives!
 	  * This is because in many circumstances it can be beneficial to preserve specialization of the list so it is not lost
 	  * with future append operations, and some classes may empose artificial limiting of list length.
@@ -382,18 +392,18 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 	  */
 	object Empty extends Empty[Nothing] {
 		def unapply[E](l :LinkedList[E]) :Boolean = l.isEmpty
-
-		override def equals(that :Any) = that match {
+		//todo: hashCode; implementation consistent with Seq.equals
+		override def equals(that :Any) :Boolean = that match {
 			case _ :Empty[_] => true
 			case _ => false
 		}
 
-		override def canEqual(that: Any) = that.isInstanceOf[Empty[_]]
+		override def canEqual(that: Any) :Boolean = that.isInstanceOf[Empty[_]]
 
 		override def toString = "LinkedList()"
 	}
 
-	@SerialVersionUID(100)
+	@SerialVersionUID(SerializationVersion)
 	sealed class Empty[@specialized(Elements) +E] private[seqs]() extends LinkedList[E] {
 		override def ofAtLeast(size: Int): Boolean = size <= 0
 		override def head = throw new NoSuchElementException("LinkedList.Empty.head")
@@ -421,7 +431,7 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 	/** Non empty link of a linked list; used both as the basic building block of [[LinkedList]] itself as well as the underlying buffer
 	  * for various other, higher level `Seq` implementations.
 	  */
-	@SerialVersionUID(100)
+	@SerialVersionUID(SerializationVersion)
 	private[seqs] final class NonEmpty[@specialized(Elements) E] (private[seqs] var x :E, private[seqs] var t :LinkedList[E]=LinkedList.Empty)
 		extends LinkedList[E]
 	{
@@ -460,9 +470,9 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 	private[seqs] class LinkedListIterator[@specialized(Elements) E](private[this] var hd :LinkedList[E])
 		extends BaseIterator[E] with FitIterator[E]
 	{
-		def head = hd.head
-		override def hasNext = hd.nonEmpty
-		override def next() = { val res = hd.head; hd=hd.tail; res }
+		def head :E = hd.head
+		override def hasNext :Boolean = hd.nonEmpty
+		override def next() :E = { val res = hd.head; hd=hd.tail; res }
 		override def skip() :Unit = { hd = hd.tail }
 
 	}
@@ -488,6 +498,7 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 			coccyx = hat.asInstanceOf[NonEmpty[E]]; hat.t = Empty
 		}
 
+		//todo: either remove this method or calculate size along the way
 		override def count: Int = ???
 	}
 

@@ -1,12 +1,14 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import java.lang.Math
 
 import scala.annotation.unspecialized
 import scala.reflect.ClassTag
-import scala.collection.{IndexedSeqLike, IndexedSeqOptimized, LinearSeqLike, immutable}
+import scala.collection.{immutable, IndexedSeqLike, IndexedSeqOptimized, LinearSeqLike}
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.Specialized.Fun2Vals
-import net.turambar.palimpsest.specialty.{ArrayIterator, Elements, FitBuilder, IterableSpecialization, ReverseArrayIterator, SpecializableIterable, Specialized, arrayCopy}
+import net.turambar.palimpsest.specialty._
 
 import scala.compat.Platform
 
@@ -29,8 +31,8 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 	@inline
 	final def storageClass: Class[_] = array.getClass.getComponentType
 
-	@inline
-	final protected[this] def storageType :Class[E] = array.getClass.getComponentType.asInstanceOf[Class[E]]
+//	@inline
+//	final protected[this] def storageType :Class[E] = array.getClass.getComponentType.asInstanceOf[Class[E]]
 
 	def boxClass: Class[_] = Specialized.BoxClass(storageClass)
 
@@ -40,41 +42,88 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 
 
 
-	override def head =
+	override def head :E =
 		if (nonEmpty) array(headIdx)
 		else throw new NoSuchElementException(s"$this.head")
 
-	override def headOption =
+	override def head_? : ?[E] =
+		if (nonEmpty) Sure(array(headIdx))
+		else Blank
+	
+	override def headOption :Option[E] =
 		if (nonEmpty) Some(array(headIdx))
 		else None
 
-	override def last =
+	override def last :E =
 		if (nonEmpty) array(length-1)
 		else throw new NoSuchElementException(s"$this.last")
 
-	override def lastOption =
+	override def last_? : ?[E] =
+		if (nonEmpty) Sure(array(length-1))
+		else Blank
+	
+	override def lastOption :Option[E] =
 		if (nonEmpty) Some(array(array.length-1))
 		else None
 
+	
+	
+	/************************** Sub-arrays ****************************/
+
+	override def filter(p: E => Boolean, value: Boolean): Repr = {
+		val b = newBuilder
+		b.sizeHint(length)
+		var i = headIdx; val e = i+length; val a = array
+		while(i<e) {
+			val e = a(i)
+			if (p(e)) b += e
+			i+=1
+		}
+		b.result()
+	}
+
+
+	@inline final override def foreach[@specialized(Unit) O](f: E => O): Unit = {
+		val a = array; var i = headIdx; val e = i + length
+		while(i<e) { f(a(i)); i+=1 }
+	}
+
+
+	@inline final override def reverseForeach(f: E => Unit): Unit = {
+		val a = array; val e = headIdx; var i = headIdx+length-1
+		while(i>=e) { f(a(i)); i-=1 }
+	}
+
+
+
+
 	/************** Searching for an element methods  ***************/
 
-	override def segmentLength(p: (E) => Boolean, from: Int): Int = {
-		val start = headIdx + math.max(from, 0); val end = headIdx+length; val a=array
+	override def find_?(f :E => Boolean, where :Boolean): ?[E] = {
+		var i = headIdx; val end = endIdx
+		val a = array
+		while (i < end && f(a(i)) != where) i += 1
+		if (i < end) Sure(a(i)) else Blank
+	}
+	
+	
+	override def segmentLength(p: E => Boolean, from: Int): Int = {
+		val start = headIdx + Math.max(from, 0); val end = headIdx+length; val a=array
 		var i = start
 		while(i<end && p(a(i))) i+=1
 		i-start
 	}
 
-	override def indexWhere(p: (E) => Boolean, from: Int): Int = {
-		val start = headIdx + math.max(from, 0); val end = headIdx+length; val a=array
+	override def indexWhere(p: E => Boolean, from: Int): Int = {
+		val start = headIdx + Math.max(from, 0); val end = headIdx+length; val a=array
 		var i = start
 		while(i>=end && !p(a(i))) i+=1
 		i-start
 	}
 
 
-	override def lastIndexWhere(p: (E) => Boolean, from: Int): Int = {
-		var i = headIdx + math.min(from, length-1); val end = headIdx; val a = array
+	override def lastIndexWhere(p: E => Boolean, from: Int): Int = {
+		var i = headIdx + Math.min(from, length-1); val end = headIdx; val a = array
 		while(i>=end && !p(a(i))) i-=1
 		i - end
 	}
@@ -82,39 +131,20 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 	override protected[this] def positionOf(elem: E, from: Int): Int =
 		if (from>=length) -1 //also guards against arithmetic overflow on indices
 		else {
-			var i = headIdx + math.max(from, 0); val e = headIdx+length
+			var i = headIdx + Math.max(from, 0); val e = headIdx+length
 			val a = array
 			while(i<e && a(i) != elem) i+=1
 			if (i==e) -1 else i-headIdx
 		}
 
 	override protected[this] def lastPositionOf(elem: E, end: Int): Int = {
-		var i = math.min(end, length-1) + headIdx
+		var i = Math.min(end, length-1) + headIdx; val hd = headIdx
 		val a = array
-		while(i>=headIdx && a(i) != elem) i-=1
-		if (i<headIdx) -1 else i-headIdx
+		while (i >= hd && a(i) != elem) i -= 1
+		if (i < hd) -1 else i - headIdx
 	}
 
 
-
-
-
-
-
-	/* Predicate testing and traversing methods */
-
-
-
-	@inline final override def foreach[@specialized(Unit) O](f: (E) => O): Unit = {
-		val a = array; var i = headIdx; val e = i + length
-		while(i<e) { f(a(i)); i+=1 }
-	}
-
-
-	@inline final override def reverseForeach(f: (E) => Unit): Unit = {
-		val a = array; val e = headIdx; var i = headIdx+length-1
-		while(i>=e) { f(a(i)); i-=1 }
-	}
 
 
 
@@ -133,20 +163,10 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 	}
 
 
-	/* ********** filtering and other self-typed collections ************** */
+	/* Predicate testing and traversing methods */
 
 
-	override protected[this] def filter(p: (E) => Boolean, value: Boolean): Repr = {
-		val b = newBuilder
-		b.sizeHint(length)
-		var i = headIdx; val e = i+length; val a = array
-		while(i<e) {
-			val e = a(i)
-			if (p(e)) b += e
-			i+=1
-		}
-		b.result()
-	}
+
 
 
 	//todo: optimistic specialization
@@ -163,25 +183,37 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 //		StableArray(array, headIdx, length)
 
 
-	@inline @unspecialized
-	final override def copyToArray[B >: E](xs: Array[B], start: Int, len: Int): Unit =
-		if (start < xs.length && len > 0)
-			if (start < 0)
-				Array.copy(array, headIdx, xs, 0, len min length)
-			else
-				Array.copy(array, headIdx, xs, start, len min length min (xs.length - start))
 
+	
 	@inline @unspecialized
-	override final protected[this] def verifiedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
-		val count = math.min(total, length)
+	override final protected[this] def uncheckedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+		val count = Math.min(total, length)
 		Platform.arraycopy(array, headIdx, xs, start, count)
 		count
 	}
+
+
+	override protected def manualCopyToArray[U >: E](xs :Array[U], start :Int, len :Int) :Unit =
+		if (start < 0)
+			throw new IndexOutOfBoundsException(s"$stringPrefix.copyToArray([${xs.length}], $start, $len)")
+		else if (start < xs.length && len > 0)
+			if (xs.getClass isAssignableFrom array.getClass)
+				Platform.arraycopy(array, headIdx, xs, start, Math.min(xs.length - start, Math.min(len, length)))
+			else {
+				val end = Math.min(xs.length, start + Math.min(len, length))
+				var into = start; var from = headIdx
+				val a = array
+				while (into < end) {
+					xs(into) = a(from)
+					into += 1; from += 1
+				}
+			}
 
 	override def iterator: ArrayIterator[E] = new ArrayIterator[E](array, headIdx, headIdx+length)
 
 	override def reverseIterator: ReverseArrayIterator[E] = new ReverseArrayIterator[E](array, headIdx+length-1, headIdx)
 
+	
 	@unspecialized
 	protected[this] def newBuffer :SharedArrayBuffer[E] = SharedArrayBuffer.like[E](mySpecialization)
 

@@ -1,16 +1,17 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, TypedIterableFactory}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, FitIterator, Sure, TypedIterableFactory}
 import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
 import net.turambar.palimpsest.specialty.FitIterator.MappedIterator
 import net.turambar.palimpsest.specialty.iterables.EmptyIterable
 import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun2}
 import net.turambar.palimpsest.specialty.sets.ValSet.{Mutable, Stable}
-
+/*
 /**
   * @author Marcin Mościcki
   */
-abstract class MappedSetFactory[@specialized(Int, Long) X, @specialized(Byte, Short, Char, Float, Double) Y](impl :TypedIterableFactory[X, ValSet[X]], From :X=>Y, To :Y=>X)(implicit order :Ordering[Y])
+abstract class MappedSetFactory[@specialized(Int, Long) X, @specialized(Byte, Short, Char, Float, Double) Y]
+		(impl :TypedIterableFactory[X, ValSet[X]], From :X=>Y, To :Y=>X)(implicit order :Ordering[Y])
 	extends TypedIterableFactory[Y, ValSet[Y]]
 {
 	type Sorted = OrderedSet[Y]
@@ -85,12 +86,12 @@ abstract class MappedSetFactory[@specialized(Int, Long) X, @specialized(Byte, Sh
 		@inline final private[this] def fromSorted(col :OrderedSet[X]) :StableOrderedSet[Y] =
 			new MappedSortedSet(col)
 
-		override def rangeImpl(from: Option[Y], until: Option[Y]): StableOrderedSet[Y] = fromSorted(
+		override def rangeImpl(from: ?[Y], until: ?[Y]): StableOrderedSet[Y] = fromSorted(
 			(from, until) match {
-				case (Some(f), Some(t)) => source.rangeImpl(Some(To(f)), Some(To(t)))
-				case (Some(f), _) => source.rangeImpl(Some(To(f)), None)
-				case (_, Some(t)) => source.rangeImpl(None, Some(To(t)))
-				case _ => source.rangeImpl(None, None)
+				case (f :Sure[Y], t :Sure[Y]) => source.rangeImpl(Sure(To(f.value)), Sure(To(t.value)))
+				case (f :Sure[Y], _) => source.rangeImpl(Sure(To(f.value)), Blank)
+				case (_, t :Sure[Y]) => source.rangeImpl(Blank, Sure(To(t.value)))
+				case _ => source.rangeImpl(Blank, Blank)
 			}
 		)
 
@@ -101,3 +102,4 @@ abstract class MappedSetFactory[@specialized(Int, Long) X, @specialized(Byte, Sh
 
 
 }
+*/

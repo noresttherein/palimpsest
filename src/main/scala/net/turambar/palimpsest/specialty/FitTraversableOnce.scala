@@ -13,7 +13,8 @@ import scala.collection.{BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike
   * It exists mainly to check
   * @tparam E
   */
-trait FitTraversableOnce[@specialized(Elements) +E] extends TraversableOnce[E] { //with FilterMonadic[E, FitTraversableOnce[E]] {
+//todo: rename to `Vals`
+trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[E] { //with FilterMonadic[E, FitTraversableOnce[E]] {
 //	protected[this] def mySpecialization :Specialized[E]
 	def specialization :Specialized[_<:E] //= mySpecialization
 
@@ -36,16 +37,16 @@ trait FitTraversableOnce[@specialized(Elements) +E] extends TraversableOnce[E] {
 	/**  Returns `true` if this collection contains at least one element. By default implemented via
 	  *  [[net.turambar.palimpsest.specialty.FitTraversableOnce#ofAtLeast]].
 	  */
-	override def nonEmpty = ofAtLeast(1)
+	override def nonEmpty :Boolean = ofAtLeast(1)
 
 	/** Returns `true` if this is an empty collection. May be faster than calculating its size. */
-	override def isEmpty = !ofAtLeast(1)
+	override def isEmpty :Boolean = !ofAtLeast(1)
 
 
 	@unspecialized
-	def fitIterator :FitIterator[E]
-
-	def head :E
+	def toIterator :FitIterator[E]
+	//todo: do we need it? its the only thing requireing specialization
+//	def head :E
 
 }
 
@@ -61,9 +62,9 @@ object FitTraversableOnce {
 	trait OfKnownSize extends TraversableOnce[Any] { this :FitTraversableOnce[Any] =>
 		override def hasFastSize = true
 		override def hasDefiniteSize = true
-		override def ofAtLeast(items :Int) = size >= items
-		override def isEmpty = size==0
-		override def nonEmpty = size > 0
+		override def ofAtLeast(items :Int) :Boolean = size >= items
+		override def isEmpty :Boolean = size==0
+		override def nonEmpty :Boolean = size > 0
 	}
 
 	@inline

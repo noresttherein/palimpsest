@@ -15,6 +15,9 @@ import scala.runtime.Nothing$
 
 
 
+
+//todo: rename this to AptIterable after cleanup
+
 /** Base trait of specialized collections mirroring scala [[Iterable]]. Overrides methods which can benefit
   * from specialization and delegates even more of them directly to their iterator counterparts.
   * @author Marcin Mościcki
@@ -51,22 +54,22 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 	abstract class FilterIterable[+E, +Repr] extends FilterMonadic[E, Repr] {
 
-		override def map[@specialized(Fun1Vals) O, That](f: (E) => O)(implicit bf: CanBuildFrom[Repr, O, That]): That =  {
+		override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]): That =  {
 			val b = FitBuilder(bf(from)).mapInput(f).filterInput(predicate)
 			b ++= iterable
 			b.result()
 		}
 
-		override def flatMap[O, That](f: (E) => GenTraversableOnce[O])(implicit bf: CanBuildFrom[Repr, O, That]): That = {
+		override def flatMap[O, That](f: E => GenTraversableOnce[O])(implicit bf: CanBuildFrom[Repr, O, That]): That = {
 			val b = FitBuilder(bf(from)).flatMapInput(f).filterInput(predicate)
 			b ++= iterable
 			b.result()
 		}
 
-		override def foreach[@specialized(Unit) U](f: (E) => U): Unit =
+		override def foreach[@specialized(Unit) U](f: E => U): Unit =
 			iterable.iterator.filter(predicate).foreach(f)
 
-		override def withFilter(f: (E) => Boolean): FilterIterable[E, Repr]
+		override def withFilter(f: E => Boolean): FilterIterable[E, Repr]
 
 		protected[this] def iterable :IterableSpecialization[E, Repr]
 		protected[this] def from :Repr = iterable.repr
@@ -75,11 +78,14 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 
 	class SpecializedFilter[@specialized(Elements) +E, +Repr](
-																 protected[this] val iterable :IterableSpecialization[E, Repr],
-																 protected[this] val predicate :E=>Boolean)
+			 protected[this] val iterable :IterableSpecialization[E, Repr],
+			 protected[this] val predicate :E=>Boolean)
 		extends FilterIterable[E, Repr]
 	{
-		override def withFilter(f: (E) => Boolean): SpecializedFilter[E, Repr] =
+		override def foreach[@specialized(Unit) U](f :E => U) :Unit =
+			iterable.foreach { e => if (predicate(e)) f(e) }
+
+		override def withFilter(f: E => Boolean): SpecializedFilter[E, Repr] =
 			new SpecializedFilter(iterable, (e :E) => predicate(e) && f(e))
 	}
 
@@ -92,7 +98,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		def apply(os :ObjectOutputStream, elem :E) :Unit
 	}
 
-	object ElementSerializer extends Specialize.Distinct[ElementSerializer] {
+	object ElementSerializer extends Specialize.Individually[ElementSerializer] {
 		type OOS = ObjectOutputStream
 		type S[E] = ElementSerializer[E]
 
@@ -106,15 +112,15 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		override def forBoolean :S[Boolean] = (os :OOS, elem :Boolean) => os.writeBoolean(elem)
 		override def forUnit :S[Unit] = (os :OOS, elem :Unit) => ()
 		override def forNothing :S[Nothing] = (os :OOS, elem :Nothing) => ()
-		override def forNull :S[Null] = (os :OOS, elem :Null) => os.writeObject(null)
-		override def specialized[@specialized E: Specialized]: S[E] = (os :OOS, elem :E) => os.writeObject(elem)
+//		override def forNull :S[Null] = (os :OOS, elem :Null) => ()//os.writeObject(null) //todo: what do
+		override def forRef[E: Specialized]: S[E] = (os :OOS, elem :E) => os.writeObject(elem)
 	}
 
 	abstract class ElementDeserializer[@specialized(Elements) E] {
 		def apply(is :ObjectInputStream) :E
 	}
 
-	object ElementDeserializer extends Specialize.Distinct[ElementDeserializer] {
+	object ElementDeserializer extends Specialize.Individually[ElementDeserializer] {
 		type OIS = ObjectInputStream
 		type D[E] = ElementDeserializer[E]
 
@@ -128,18 +134,57 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		override def forBoolean :D[Boolean] = (is :OIS) => is.readBoolean
 		override def forUnit :D[Unit] = (is :OIS) => ()
 		override def forNothing :D[Nothing] = (is :OIS) => throw new NoSuchElementException(s"Attempted to deserialize Nothing")
-		override def forNull :D[Null] = (is: OIS) => null
-		override def specialized[@specialized E: Specialized]: D[E] = (is :OIS) => is.readObject.asInstanceOf[E]
+//		override def forNull :D[Null] = (is: OIS) => null
+		override def forRef[@specialized E: Specialized]: D[E] = (is :OIS) => is.readObject.asInstanceOf[E]
 	}
 
 
 
+	/** Base trait for serializer proxies of specialized collections. Subclasses need to provide an appropriate builder
+	  * for deserialization and declare a `@transient` field holding the serialised iterable. Concrete `FitIterable`
+	  * implementations should declare a `writeReplace :AnyRef` method passing their self reference to a new instance
+	  * of this serializer and returning it.
+	  * @tparam E element type of the serialized collection
+	  */
+	trait IterableSerializer[@specialized(Elements) E] extends Serializable {
+		import java.io.{ObjectOutputStream=>OS, ObjectInputStream=>IS}
+		protected[this] var iterable :FitIterable[E]
+		protected[this] def builder :FitBuilder[E, FitIterable[E]]
 
+		private def writeObject(os :OS) :Unit = writeIterable(os, iterable)
 
+		protected[this] def writeIterable(os :OS, iterable :FitIterable[E]) :Unit = {
+			os.defaultWriteObject()
+			val serializer = ElementSerializer[E]()
+			var count = iterable.size
+			os.writeInt(count)
+			if (iterable.specialization.isFun1Arg) {
+				iterable foreach { serializer(os, _) }
+			} else {
+				val it = iterable.iterator
+				while(count > 0) {
+					serializer(os, it.next()); count -= 1
+				}
+			}
+		}
 
+		private def readObject(is :IS) :Unit = iterable = readIterable(is)
 
+		protected[this] def readIterable(is :IS) :FitIterable[E] = {
+			is.defaultReadObject()
+			val deserializer = ElementDeserializer[E]()
+			val b = builder
+			var size = is.readInt()
 
+			while(size > 0) {
+				builder += deserializer(is); size -= 1
+			}
 
+			b.result()
+		}
+
+		private def readResolve() :AnyRef = iterable
+	}
 
 
 
@@ -171,7 +216,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		protected[this] def fromSource(col :That) :This
 
 		/** Adapt a function working on this collection's element types to one accepting the element type of the backing collection.
-		  * Default implemetnation uses [[IterableMapping#my]], which isn't specialized! This is a prime candidate for being overriden.
+		  * Default implemetnation uses [[IterableMapping#my]], which isn't specialized! This is a prime candidate for being overridden.
 		  */
 		protected def forSource[@specialized(Fun1Res) O](f :E=>O) :X=>O = {x :X => f(my(x)) }
 
@@ -181,84 +226,86 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		/** Function mapping elements of the source collection to this collection's elements. Implemented as a `SAM` call to `my`. */
 		protected[this] def from :X=>E = my
 
-		override def size = source.size
-		override def hasFastSize = source.hasFastSize
+		override def size :Int = source.size
+		override def hasFastSize :Boolean = source.hasFastSize
 		override def hasDefiniteSize: Boolean = source.hasDefiniteSize
-		override def isEmpty = source.isEmpty
-		override def nonEmpty = source.nonEmpty
-		override def ofAtLeast(items :Int) = source.ofAtLeast(items)
+		override def isEmpty :Boolean = source.isEmpty
+		override def nonEmpty :Boolean = source.nonEmpty
+		override def ofAtLeast(items :Int) :Boolean = source.ofAtLeast(items)
 
 
 		override def foreach[@specialized(Unit) U](f: (E) => U) :Unit = source foreach forSource(f)
 
 		override protected def reverseForeach(f: (E) => Unit): Unit = source reverseTraverse forSource(f)
 
-		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) = source.foldLeft(z)((o :O, x :X) => op(o, my(x)))
-		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) = source.foldRight(z)((x :X, o :O) => op(my(x), o))
+		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O = source.foldLeft(z)((o :O, x :X) => op(o, my(x)))
+		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) :O = source.foldRight(z)((x :X, o :O) => op(my(x), o))
 
-		override def forall(p: (E) => Boolean) = source forall forSource(p)
-		override def exists(p: (E) => Boolean) = source exists forSource(p)
-		override def count(p: (E) => Boolean) = source count forSource(p)
+		override def forall(p: E => Boolean) :Boolean = source forall forSource(p)
+		override def exists(p: E => Boolean) :Boolean = source exists forSource(p)
+		override def count(p: E => Boolean) :Int = source count forSource(p)
 
-		override def find(p: (E) => Boolean) = source.find(forSource(p)).map(my)
+		override def find(p: E => Boolean) :Option[E] = source.find(forSource(p)).map(my)
+		override def find_?(p :E=>Boolean): ?[E] = source.find_?(forSource(p)).map(my)
+		override def find_?(p :E=>Boolean, where :Boolean): ?[E] = source.find_?(forSource(p), where).map(my)
 
-
-		override def scanLeft[@specialized(Fun2) O, C](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[This, O, C]) =
+		override def scanLeft[@specialized(Fun2) O, C](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
 			source.scanLeft(z)((o :O, x :X) => op(o, my(x)))(breakOut)
 
-		override def scanRight[@specialized(Fun2) O, C](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[This, O, C]) =
+		override def scanRight[@specialized(Fun2) O, C](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
 			source.scanRight(z)((x :X, o :O) => op(my(x), o))(breakOut)
 
 
-		override def tail = fromSource(source.tail)
-		override def init = fromSource(source.init)
+		override def tail :This = fromSource(source.tail)
+		override def init :This = fromSource(source.init)
 
-		override def slice(from: Int, until: Int) = fromSource(source.slice(from, until))
-		override def take(n: Int) = fromSource(source.take(n))
-		override def drop(n: Int) = fromSource(source.drop(n))
-		override def takeRight(n: Int) = fromSource(source.takeRight(n))
-		override def dropRight(n: Int) = fromSource(source.dropRight(n))
-		override def splitAt(n: Int) = {
+		override def slice(from: Int, until: Int) :This = fromSource(source.slice(from, until))
+		override def take(n: Int) :This = fromSource(source.take(n))
+		override def drop(n: Int) :This = fromSource(source.drop(n))
+		override def takeRight(n: Int) :This = fromSource(source.takeRight(n))
+		override def dropRight(n: Int) :This = fromSource(source.dropRight(n))
+
+		override def splitAt(n: Int) :(This, This) = {
 			val split = source.splitAt(n)
 			(fromSource(split._1), fromSource(split._2))
 		}
 
-		override def span(p: (E) => Boolean) = {
+		override def span(p: E => Boolean) :(This, This) = {
 			val split = source.span(forSource(p))
 			(fromSource(split._1), fromSource(split._2))
 		}
 
-		override def takeWhile(p: (E) => Boolean) = fromSource(source.takeWhile(forSource(p)))
-		override def dropWhile(p: (E) => Boolean) = fromSource(source.dropWhile(forSource(p)))
+		override def takeWhile(p: E => Boolean) :This = fromSource(source.takeWhile(forSource(p)))
+		override def dropWhile(p: E => Boolean) :This = fromSource(source.dropWhile(forSource(p)))
 
 
-		override def partition(p: (E) => Boolean) = {
+		override def partition(p: E => Boolean) :(This, This) = {
 			val split = source.partition(forSource(p))
 			(fromSource(split._1), fromSource(split._2))
 		}
 
-		override protected[this] def filter(p: (E) => Boolean, ourTruth: Boolean): This =
+		override def filter(p: E => Boolean, ourTruth: Boolean): This =
 			if (ourTruth) filter(p)
 			else filterNot(p)
 
-		override def filter(p: (E) => Boolean) :This = fromSource(source filter forSource(p))
-		override def filterNot(p: (E) => Boolean) = fromSource(source filterNot forSource(p))
+		override def filter(p: E => Boolean) :This = fromSource(source filter forSource(p))
+		override def filterNot(p: E => Boolean) :This = fromSource(source filterNot forSource(p))
 
-		override def map[@specialized(Fun1Vals) O, C](f: (E) => O)(implicit bf: CanBuildFrom[This, O, C]) :C = source.map(forSource(f))(breakOut)
+		override def map[@specialized(Fun1Vals) O, C](f: E => O)(implicit bf: CanBuildFrom[This, O, C]) :C = source.map(forSource(f))(breakOut)
 
-		override def flatMap[U, C](f: (E) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C = source.flatMap(forSource(f))(breakOut)
+		override def flatMap[U, C](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C = source.flatMap(forSource(f))(breakOut)
 
-		/** Unspecialized mapped iterator asking for being overriden. */
+		/** Unspecialized mapped iterator asking for being overridden. */
 //		override def iterator :FitIterator[E] = new MappedIterator(from)(source.iterator)
 
 		//	override protected[this] def newBuilder: FitBuilder[E, This] = source.fit
 
-		override def head = my(source.head)
-		override def last = my(source.last)
+		override def head :E = my(source.head)
+		override def last :E = my(source.last)
 
-		override def toFitSeq = source.toFitSeq.map(from)
+		override def toSeq :FitSeq[E] = source.toSeq.map(from)
 
-		override def toFitBuffer[U >: E : Specialized] =
+		override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] =
 			source.toFitBuffer[X](source.specialization.asInstanceOf[Specialized[X]]).map(from)
 	}
 
@@ -282,97 +329,96 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		protected[this] def fromSource(other :Source) :This
 
 
-		override def size = source.size
-		override def hasFastSize = source.hasFastSize
+		override def size :Int = source.size
+		override def hasFastSize :Boolean = source.hasFastSize
 		override def hasDefiniteSize: Boolean = source.hasDefiniteSize
-		override def isEmpty = source.isEmpty
-		override def nonEmpty = source.nonEmpty
-		override def ofAtLeast(items :Int) = source.ofAtLeast(items)
+		override def isEmpty :Boolean = source.isEmpty
+		override def nonEmpty :Boolean = source.nonEmpty
+		override def ofAtLeast(items :Int) :Boolean = source.ofAtLeast(items)
 
-		override def foreach[@specialized(Unit) U](f: (E) => U) :Unit = source foreach f
-		override protected def reverseForeach(f: (E) => Unit): Unit = source reverseTraverse f
+		override def foreach[@specialized(Unit) U](f: E => U) :Unit = source foreach f
+		override protected def reverseForeach(f: E => Unit): Unit = source reverseTraverse f
 
-		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) = source.foldLeft(z)(op)
-		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) = source.foldRight(z)(op)
-		override def fold[U >: E](z: U)(op: (U, U) => U) = source.fold(z)(op)
+		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O = source.foldLeft(z)(op)
+		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) :O = source.foldRight(z)(op)
+		override def fold[U >: E](z: U)(op: (U, U) => U) :U = source.fold(z)(op)
 
-		override def forall(p: (E) => Boolean) = source forall p
-		override def exists(p: (E) => Boolean) = source exists p
-		override def count(p: (E) => Boolean) = source count p
+		override def forall(p: E => Boolean) :Boolean = source forall p
+		override def exists(p: E => Boolean) :Boolean = source exists p
+		override def count(p: E => Boolean) :Int = source count p
 
-		override def find(p: (E) => Boolean) = source.find(p)
+		override def find(p: E => Boolean) :Option[E] = source.find(p)
+		override def find_?(p: E => Boolean, where :Boolean): ?[E] = source.find_?(p)
 
-
-		override def scanLeft[@specialized(Fun2) O, C](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[This, O, C]) =
+		override def scanLeft[@specialized(Fun2) O, C](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
 			source.scanLeft(z)(op)(breakOut)
 
-		override def scanRight[@specialized(Fun2) O, C](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[This, O, C]) =
+		override def scanRight[@specialized(Fun2) O, C](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
 			source.scanRight(z)(op)(breakOut)
 
 
-		override def tail = fromSource(source.tail)
-		override def init = fromSource(source.init)
+		override def tail :This = fromSource(source.tail)
+		override def init :This = fromSource(source.init)
 
-		override def slice(from: Int, until: Int) = fromSource(source.slice(from, until))
-		override def take(n: Int) = fromSource(source.take(n))
-		override def drop(n: Int) = fromSource(source.drop(n))
-		override def takeRight(n: Int) = fromSource(source.takeRight(n))
-		override def dropRight(n: Int) = fromSource(source.dropRight(n))
-		override def splitAt(n: Int) = {
+		override def slice(from: Int, until: Int) :This = fromSource(source.slice(from, until))
+		override def take(n: Int) :This = fromSource(source.take(n))
+		override def drop(n: Int) :This = fromSource(source.drop(n))
+		override def takeRight(n: Int) :This = fromSource(source.takeRight(n))
+		override def dropRight(n: Int) :This = fromSource(source.dropRight(n))
+		override def splitAt(n: Int) :(This, This) = {
 			val split = source.splitAt(n)
 			(fromSource(split._1), fromSource(split._2))
 		}
 
-		override def span(p: (E) => Boolean) = {
+		override def span(p: E => Boolean) :(This, This) = {
 			val split = source.span(p)
 			(fromSource(split._1), fromSource(split._2))
 		}
 
-		override def takeWhile(p: (E) => Boolean) = fromSource(source.takeWhile(p))
-		override def dropWhile(p: (E) => Boolean) = fromSource(source.dropWhile(p))
+		override def takeWhile(p: E => Boolean) :This = fromSource(source.takeWhile(p))
+		override def dropWhile(p: E => Boolean) :This = fromSource(source.dropWhile(p))
 
 
-		override def partition(p: (E) => Boolean) = {
+		override def partition(p: E => Boolean) :(This, This) = {
 			val split = source.partition(p)
 			(fromSource(split._1), fromSource(split._2))
 		}
 
-		override protected[this] def filter(p: (E) => Boolean, ourTruth: Boolean): This =
-			if (ourTruth) filter(p)
-			else filterNot(p)
+		override def filter(p: E => Boolean, ourTruth: Boolean): This = fromSource(source.filter(p, ourTruth))
+		override def filter(p: E => Boolean) :This = fromSource(source filter p)
+		override def filterNot(p: E => Boolean) :This = fromSource(source filterNot p)
 
-		override def filter(p: (E) => Boolean) :This = fromSource(source filter p)
-		override def filterNot(p: (E) => Boolean) = fromSource(source filterNot p)
-
-		override def map[@specialized(Fun1Vals) O, C](f: (E) => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
+		override def map[@specialized(Fun1Vals) O, C](f: E => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
 			source.map(f)(breakOut)
 
-		override def flatMap[U, C](f: (E) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C =
+		override def flatMap[U, C](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C =
 			source.flatMap(f)(breakOut)
 
-		override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[This, B, That]) =
+		override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[This, B, That]) :That =
 			(source ++ that)(breakOut)
 
-		override def ++:[B >: E, That](that: TraversableOnce[B])(implicit bf: CanBuildFrom[This, B, That]) =
+		override def ++:[B >: E, That](that: TraversableOnce[B])(implicit bf: CanBuildFrom[This, B, That]) :That =
 			(that ++: source)(breakOut)
 
-		override def sameElements[U >: E](that: GenIterable[U]) = source.sameElements(that)
+		override def sameElements[U >: E](that: GenIterable[U]) :Boolean = source.sameElements(that)
 
 		override def iterator :FitIterator[E] = source.iterator
 
-		override def head = source.head
-		override def last = source.last
-		override def headOption = source.headOption
-		override def lastOption = source.lastOption
+		override def head :E = source.head
+		override def last :E = source.last
+		override def head_? : ?[E] = source.head_?
+		override def last_? : ?[E] = source.last_?
+		override def headOption :Option[E] = source.headOption
+		override def lastOption :Option[E] = source.lastOption
 
 
 
-		override def toFitSeq = source.toFitSeq
+		override def toSeq :FitSeq[E] = source.toSeq
 
-		override def toFitBuffer[U >: E : Specialized] =
+		override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] =
 			source.toFitBuffer[U]
 
-		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int) = source.copyToArray(xs, start, len)
+		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int) :Unit = source.copyToArray(xs, start, len)
 
 
 	}

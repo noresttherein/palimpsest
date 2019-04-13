@@ -1,13 +1,19 @@
 package net.turambar.palimpsest.specialty.sets
 
+import java.lang.Long.highestOneBit
+
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenIterable, GenSet, GenTraversableOnce}
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, Specialized}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, Specialized, Sure}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.OrderedSet.Mutable
+
+import scala.annotation.tailrec
+import scala.math.Ordering.ByteOrdering
 
 /** Base class for mutable and immutable sets of `Byte` elements implemented as a bitmap.
   * As with most implementations specialized for a concrete element type, it is not part
@@ -25,13 +31,13 @@ import net.turambar.palimpsest.specialty.sets.OrderedSet.Mutable
   * @author Marcin Mościcki
   */
 private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, This] with OrderedSet[Byte]] private[ByteSet](bytes :ByteSetBitmap)
-	extends OrderedSet[Byte] with OrderedSetTemplate[Byte, This] with SetSpecialization[Byte, This] with OfKnownSize
+	extends OrderedSet[Byte] with OrderedSetTemplate[Byte, This] /*with SetSpecialization[Byte, This]*/ with OfKnownSize
 {
 	@inline final private[ByteSet] def bitmap :ByteSetBitmap = bytes
 
-	override final protected[this] def mySpecialization = Specialized.SpecializedByte
+	override final protected[this] def mySpecialization  :Specialized[Byte] = Specialized.SpecializedByte
 
-	override implicit def ordering: Ordering[Byte] = ByteSet.UnsignedOrdering
+	override implicit def ordering: ValOrdering[Byte] = ByteSet.UnsignedOrdering
 
 
 	override def empty :This = newByteSet(ByteSet.EmptyBitmap())
@@ -42,58 +48,56 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	  */
 	protected[this] def newByteSet(bits :ByteSetBitmap) :This
 
-	override final def size: Int = bytes.size
-	override def hasFastSize = true
-	override def hasDefiniteSize = true
-	
-	override final def nonEmpty = bytes.nonEmpty
-	
-	override final def isEmpty = bytes.isEmpty
-	
-	override final def head = bytes.head
-	
-	override final def headOption = bytes.headOption
-	
 
+
+	override final def size: Int = bytes.size
+//	override def hasFastSize = true
+//	override def hasDefiniteSize = true
 	
+	override final def nonEmpty :Boolean = bytes.nonEmpty
+
+	override final def isEmpty :Boolean = bytes.isEmpty
+
+
+
+	override final def head :Byte = bytes.head
+
+	override final def head_? : ?[Byte] = bytes.head_?
+
+	override final def headOption :Option[Byte] = bytes.headOption
+	
+	override final def last :Byte = bytes.last
+
+	override final def last_? : ?[Byte] = bytes.last_?
+
+	override final def lastOption :Option[Byte] = bytes.lastOption
+
+	override final def tail :This = newByteSet(bytes.tail)
+
+	override final def init :This = newByteSet(bytes.init)
+
+
 	override final def apply(elem: Byte): Boolean = bytes.contains(elem)
 	
 	override final def contains(elem: Byte): Boolean = bytes.contains(elem)
 
-	override final def tail :This = newByteSet(bytes.tail)
+
+	override def ^(elem :Byte) :This = newByteSet(bytes ^ elem)
+
+	override final def filterNot(p: Byte => Boolean): This = newByteSet(bytes.filterNot(p))
+
+	override final def filter(p: Byte => Boolean): This = newByteSet(bytes.filter(p))
+
+	override def filter(p: Byte => Boolean, ourTruth: Boolean): This = newByteSet(bytes.filter(p, ourTruth))
 
 
-	override def ++(elems: FitTraversableOnce[Byte]) = elems match {
-		case other :ByteSet[_] => newByteSet(bytes ++ other.bitmap)
-		case _ => super.++(elems)
-	}
-
-	override def --(elems: FitTraversableOnce[Byte]) = elems match {
-		case other :ByteSet[_] => newByteSet(bytes -- other.bitmap)
-		case _ => super.--(elems)
-	}
-
-	override def intersect(that: GenSet[Byte]) :This = that match {
-		case other :ByteSet[_] => newByteSet(bytes & other.bitmap)
-		case _ => super.intersect(that)
-	}
-
-	override def subsetOf(that :GenSet[Byte]) :Boolean = that match {
-		case other :ByteSet[_] => bytes subsetOf other.bitmap
-		case _ => super.subsetOf(that)
-	}
-
-	override final def foreach[@specialized(Unit) U](f: (Byte) => U): Unit = bytes.foreach(f)
-	override protected def reverseForeach(f: (Byte) => Unit): Unit = bytes.reverseForeach(f)
+	override final def foreach[@specialized(Unit) U](f: Byte => U): Unit = bytes.foreach(f)
+	override protected def reverseForeach(f: Byte => Unit): Unit = bytes.reverseForeach(f)
 
 
 
-	override final def filterNot(p: (Byte) => Boolean): This = newByteSet(bytes.filterNot(p))
-	
-	override final def filter(p: (Byte) => Boolean): This = newByteSet(bytes.filter(p))
-	override protected[this] def filter(p: (Byte) => Boolean, ourTruth: Boolean): This = newByteSet(bytes.filter(p, ourTruth))
 
-	override final def map[@specialized(Fun1Vals) B, That](f: (Byte) => B)(implicit bf: CanBuildFrom[This, B, That]): That = {
+	override final def map[@specialized(Fun1Vals) B, That](f: Byte => B)(implicit bf: CanBuildFrom[This, B, That]): That = {
 		val bu = bf(this.asInstanceOf[This])
 		if (nonEmpty) {
 			bu.sizeHint(size)
@@ -111,7 +115,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	}
 	
 	
-	override final def flatMap[B, That](f: (Byte) => GenTraversableOnce[B])(implicit bf: CanBuildFrom[This, B, That]): That = {
+	override final def flatMap[B, That](f: Byte => GenTraversableOnce[B])(implicit bf: CanBuildFrom[This, B, That]): That = {
 		val bu = bf(this.asInstanceOf[This]); val s = size
 		if (nonEmpty) {
 			var cell = 0
@@ -128,7 +132,58 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	}
 
 
-	override protected def verifiedCopyTo(xs: Array[Byte], start: Int, total: Int): Int = {
+	override def find_?(p :Byte => Boolean): ?[Byte] = bytes.find_?(p, true)
+
+	override def find_?(p :Byte => Boolean, where :Boolean): ?[Byte] = bytes.find_?(p, where)
+
+
+	override def ++(elems: FitTraversableOnce[Byte]) :This = elems match {
+		case other :ByteSet[_] => newByteSet(bytes ++ other.bitmap)
+		case _ => super.++(elems)
+	}
+
+	override def --(elems: FitTraversableOnce[Byte]) :This = elems match {
+		case other :ByteSet[_] => newByteSet(bytes -- other.bitmap)
+		case _ => super.--(elems)
+	}
+
+
+	override def ^(that :ValSet[Byte]) :This = that match {
+		case other :ByteSet[_] => newByteSet(bytes ^ other.bitmap)
+		case _ =>
+			val copy = bitmap.copy
+			that foreach { byte :Byte => if (copy contains byte) copy -= byte else copy += byte }
+			newByteSet(copy)
+	}
+
+	override def &(that :ValSet[Byte]) :This = that match {
+		case other :ByteSet[_] => newByteSet(bytes & other.bitmap)
+		case _ => filter(that)
+	}
+
+	override def intersect(that: GenSet[Byte]) :This = that match {
+		case other :ByteSet[_] => newByteSet(bytes & other.bitmap)
+		case _ => filter(that)
+	}
+
+
+	override def diff(that :GenSet[Byte]) :This = that match {
+		case other :ByteSet[_] => newByteSet(bytes -- other.bitmap)
+		case _ =>
+			val copy = bitmap.copy
+			bitmap foreachInt { i => if (that(i.toByte)) copy -= i.toByte }
+			newByteSet(copy)
+	}
+
+
+
+	override def subsetOf(that :GenSet[Byte]) :Boolean = that match {
+		case other :ByteSet[_] => bytes subsetOf other.bitmap
+		case _ => super.subsetOf(that)
+	}
+
+
+	override protected def uncheckedCopyTo(xs: Array[Byte], start: Int, total: Int): Int = {
 		var copied = 0; var i = 0
 		var cell = 0
 		while(cell < 4 && copied < total) {
@@ -146,8 +201,12 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	}
 
 
-	//	override final def fitIterator: FitIterator[Byte] = new ByteSetIterator(bytes.copy)
+	//	override final def toIterator: FitIterator[Byte] = new ByteSetIterator(bytes.copy)
 	override final def iterator :FitIterator[Byte] = new ByteSetIterator(bytes.copy)
+
+
+	override def keyAt(idx :Int) :Byte = bytes.keyAt(idx)
+
 
 	override def keysIteratorFrom(start: Byte): FitIterator[Byte] = {
 		val bits = bytes.copy
@@ -181,7 +240,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 		newByteSet(bits)
 	}
 
-	override def rangeImpl(from: Option[Byte], until: Option[Byte]): This =
+	override def rangeImpl(from: ?[Byte], until: ?[Byte]): This =
 		if (until.isDefined) range(from getOrElse 0.toByte, until.get)
 		else if (from.isDefined) this.from(from.get)
 		else repr
@@ -219,7 +278,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 
 /** Companion and factory of immutable and mutable sets of bytes, their builders and iterators. */
 private[sets] object ByteSet {
-	import java.lang.Long.{bitCount, numberOfTrailingZeros}
+	import java.lang.Long.{bitCount, numberOfTrailingZeros, numberOfLeadingZeros}
 	
 	final val Empty = new StableByteSet(EmptyBitmap())
 
@@ -232,27 +291,66 @@ private[sets] object ByteSet {
 	def mutable :MutableOrderedSet[Byte] = new MutableByteSet(EmptyBitmap())
 
 	private final val GarbageBitmap = EmptyBitmap()
-	@inline private def EmptyBitmap() = new ByteSetBitmap(Array[Long](0L, 0L, 0L, 0L))
+	@inline private def EmptyBitmap() = ByteSetBitmap(0L, 0L, 0L, 0L)
+
 
 	/** Order on bytes when treated as unsigned numbers in the `0..255` range.*/
-	object UnsignedOrdering extends Ordering[Byte] {
+	object UnsignedOrdering extends ValOrdering[Byte] {
 		override def compare(x: Byte, y: Byte): Int = (x & 0xff) - (y & 0xff)
 	}
+
+
 
 	final class StableByteSet(bits :ByteSetBitmap)
 		extends ByteSet[StableOrderedSet[Byte]](bits) with StableOrderedSet[Byte]
 	{
 		override protected[this] def newByteSet(bits: ByteSetBitmap) = new StableByteSet(bits)
-		override def empty = Empty
+		override def empty :StableByteSet = Empty
 
 		override def +(elem: Byte) = new StableByteSet(bitmap + elem)
 
+		override def +(elem1 :Byte, elem2 :Byte, elems :Byte*) :StableByteSet = {
+			val copy = bitmap.copy
+			copy += elem1; copy += elem2
+			elems match {
+				case list :List[Byte] =>
+					@tailrec def rec(l :List[Byte]) :Unit = l match {
+						case hd::tail => copy += hd; rec(tail)
+						case _ => ()
+					}
+					rec(list)
+				case _ => elems.foreach { copy += _ }
+			}
+			new StableByteSet(copy)
+		}
+
+
 		override def -(elem: Byte) = new StableByteSet(bitmap - elem)
+
+		override def -(elem1: Byte, elem2: Byte, elems: Byte*) :StableByteSet = {
+			val copy = bitmap.copy
+			copy -= elem1; copy -= elem2
+			elems match {
+				case list :List[Byte] =>
+					@tailrec def rec(l :List[Byte]) :Unit = l match {
+						case hd::tail => copy -= hd; rec(tail)
+						case _ => ()
+					}
+					rec(list)
+				case _ => elems.foreach { copy -= _ }
+			}
+			new StableByteSet(copy)
+		}
+
+
+		override def ^(elem :Byte) :StableByteSet = new StableByteSet(bitmap ^ elem)
 
 		override def newBuilder = new ByteSetBuilder
 
 		override def mutable: Mutable[Byte] = new MutableByteSet(bitmap.copy)
 	}
+
+
 
 	final class MutableByteSet(bits :ByteSetBitmap)
 		extends ByteSet[MutableOrderedSet[Byte]](bits) with MutableOrderedSet[Byte]
@@ -267,15 +365,41 @@ private[sets] object ByteSet {
 
 		override def -=(elem: Byte): this.type = { bitmap -= elem; this }
 
-		override def --=(xs: FitTraversableOnce[Byte]) = xs match {
+		override def ^=(elem :Byte): this.type = { bitmap ^= elem; this }
+
+		override def --=(xs: FitTraversableOnce[Byte]) :this.type = xs match {
 			case other :ByteSet[_] => bitmap --= other.bitmap; this
 			case _ => super.--=(xs)
 		}
 
-		override def ++=(xs: FitTraversableOnce[Byte]) = xs match {
+		override def ++=(xs: FitTraversableOnce[Byte]) :this.type = xs match {
 			case other :ByteSet[_] => bitmap ++= other.bitmap; this
 			case _ => super.++=(xs)
 		}
+
+		override def &=(xs :ValSet[Byte]) :this.type = xs match {
+			case other :ByteSet[_] =>
+				bitmap &= other.bitmap; this
+			case _ if xs.isEmpty =>
+				bitmap.clear(); this
+			case _ =>
+				val res = EmptyBitmap()
+				val it = xs.iterator
+				do {
+					val e = it.next()
+					if (contains(e))
+						bitmap += e
+				} while (it.hasNext)
+				bitmap := res
+				this
+		}
+
+		override def ^=(xs :ValSet[Byte]) :this.type = xs match {
+			case other :ByteSet[_] => bitmap ^= other.bitmap; this
+			case _ => super.^=(xs)
+		}
+
+
 
 		override def stable = new StableByteSet(bitmap.copy)
 
@@ -291,66 +415,195 @@ private[sets] object ByteSet {
 	  */
 	private[ByteSet] class ByteSetBitmap(val bitmap :Array[Long]) extends AnyVal {
 
-		@inline def copy = new ByteSetBitmap(Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3)))
-		
+
+		@inline def copy = new ByteSetBitmap({
+			val array = new Array[Long](4)
+			array(0) = bitmap(0); array(1) = bitmap(1); array(2) = bitmap(2); array(3) = bitmap(3)
+			array
+		})
+
+
+
 		@inline def size: Int =
 			bitCount(bitmap(0)) + bitCount(bitmap(1)) + bitCount(bitmap(2)) + bitCount(bitmap(3))
 		
-		@inline def nonEmpty =
-			(bitmap(3) | bitmap(2) | bitmap(1) | bitmap(0)) > 0
+		@inline def nonEmpty :Boolean =
+			(bitmap(3) | bitmap(2) | bitmap(1) | bitmap(0)) != 0L
 		
-		@inline def isEmpty =
-			(bitmap(3) | bitmap(2) | bitmap(1) | bitmap(0)) == 0
-		
-		@inline def head = {
+		@inline def isEmpty :Boolean =
+			(bitmap(3) | bitmap(2) | bitmap(1) | bitmap(0)) == 0L
+
+
+		@inline def head :Byte = {
 			val first = bitmap(0); val second = bitmap(1)
 			if ((first | second) != 0L)
-				if (first!=0L) numberOfTrailingZeros(first).toByte
-				else (64 + numberOfTrailingZeros(second)).toByte
-			else if (bitmap(2) != 0) (128 + numberOfTrailingZeros(bitmap(2))).toByte
-			else if (bitmap(3) != 0) (172 + numberOfTrailingZeros(bitmap(3))).toByte
-			else throw new NoSuchElementException("Set[Byte]().head")
-		}
-		
-		@inline def headInt = {
-			val first = bitmap(0); val second = bitmap(1)
-			if ((first | second) != 0L)
-				if (first!=0L) numberOfTrailingZeros(first)
-				else 64 + numberOfTrailingZeros(second)
-			else if (bitmap(2) != 0) 128 + numberOfTrailingZeros(bitmap(2))
-			else if (bitmap(3) != 0) 172 + numberOfTrailingZeros(bitmap(3))
-			else -1
+				if (first!=0L)
+					return numberOfTrailingZeros(first).toByte
+				else
+	                return (64 + numberOfTrailingZeros(second)).toByte
+			val third = bitmap(2)
+			if (third != 0L)
+				return (128 + numberOfTrailingZeros(third)).toByte
+			val fourth = bitmap(3)
+			if (fourth != 0L)
+				(192 + numberOfTrailingZeros(fourth)).toByte
+			else
+	            throw new NoSuchElementException("Set[Byte]().head")
 		}
 
-		
-		@inline def headOption = headInt match {
+
+		/** Returns the index of the first set bit in this bitmap. This represents the first byte in this set with
+		  * the caveat that all negative values `&lt;-128..-1&gt;` preceed all positive values `&lt;0..127&gt;`
+		  * @return lowest byte in this set (when all elements are interpreted as unsigned values) or -1 if empty
+		  */
+		@inline def headInt :Int = {
+			val first = bitmap(0); val second = bitmap(1)
+			if ((first | second) != 0L)
+				if (first!=0L)
+					return numberOfTrailingZeros(first)
+				else
+	                return 64 + numberOfTrailingZeros(second)
+			val third = bitmap(2)
+			if (third != 0)
+				return 128 + numberOfTrailingZeros(third)
+			val fourth = bitmap(3)
+			if (fourth != 0)
+				192 + numberOfTrailingZeros(fourth)
+			else
+	            -1
+		}
+
+		@inline def head_? : ?[Byte] = headInt match {
+			case -1 => Blank
+			case n => Sure(n.toByte)
+		}
+
+		@inline def headOption :Option[Byte] = headInt match {
 			case -1 => None
 			case n => Some(n.toByte)
 		}
 		
-		
-		@inline def tail = new ByteSetBitmap({
+
+		@inline def lastInt :Int = {
+			val third = bitmap(2); val fourth = bitmap(4)
+			if ((third | fourth) != 0L)
+				if (fourth != 0L)
+					return 255 - numberOfLeadingZeros(fourth)
+				else
+                    return 191 - numberOfLeadingZeros(third)
+			val second = bitmap(1)
+			if (second != 0L)
+				return 127 - numberOfLeadingZeros(second)
+			val first = bitmap(0)
+			if (first != 0L)
+				63 - numberOfLeadingZeros(first)
+			else
+				-1
+		}
+
+		@inline def last :Byte = lastInt match {
+			case -1 => throw new NoSuchElementException("Set[Byte]().last")
+			case x => x.toByte
+		}
+
+		@inline def last_? : ?[Byte] = lastInt match {
+			case -1 => Blank
+			case x => Sure(x.toByte)
+		}
+
+		@inline def lastOption :Option[Byte] = lastInt match {
+			case -1 => None
+			case x => Some(x.toByte)
+		}
+
+
+		def tail :ByteSetBitmap = {
 			val first = bitmap(0); val second = bitmap(1)
-			if ((first | second) != 0)
-				if (first != 0) Array[Long](first & (first-1), second, bitmap(2), bitmap(3))
-				else Array[Long](0L, second & (second-1), bitmap(2), bitmap(3))
+			if ((first | second) != 0L)
+				if (first != 0L) ByteSetBitmap(first & (first-1), second, bitmap(2), bitmap(3))
+				else ByteSetBitmap(0L, second & (second-1), bitmap(2), bitmap(3))
 			else {
 				val third = bitmap(2)
-				if (third!=0) Array[Long](0L, 0L, third & (third-1), bitmap(3))
+				if (third != 0L) ByteSetBitmap(0L, 0L, third & (third-1), bitmap(3))
 				else {
 					val fourth=bitmap(3)
-					if (fourth==0)
+					if (fourth == 0L)
 						throw new UnsupportedOperationException(s"ByteSet().tail")
-					Array[Long](0L, 0L, 0L, fourth & (fourth-1))
+					ByteSetBitmap(0L, 0L, 0L, fourth & (fourth-1))
 				}
 			}
-		})
+		}
+
+		def init :ByteSetBitmap = {
+			val third = bitmap(2); val fourth = bitmap(3)
+			if ((third | fourth) != 0L)
+				if (fourth != 0L) ByteSetBitmap(bitmap(0), bitmap(1), third, fourth ^ highestOneBit(fourth))
+				else ByteSetBitmap(bitmap(0), bitmap(1), third ^ highestOneBit(third), 0L)
+			else {
+				val second = bitmap(1)
+				if (second != 0L) ByteSetBitmap(bitmap(0), second ^ highestOneBit(second), 0L, 0L)
+				else {
+					val first = bitmap(0)
+					if (first == 0L)
+						throw new UnsupportedOperationException("ByteSet().init")
+					ByteSetBitmap(first ^ highestOneBit(first), 0L, 0L, 0L)
+				}
+			}
+		}
 		
+
+		def find_?(p :Byte => Boolean, where :Boolean): ?[Byte] = {
+			var cell = 0
+			do {
+				val base = cell*64; var i = 0; var word = bitmap(cell)
+				while (word != 0L) {
+					if ((word & 1L) != 0) {
+						val e =(base+i).toByte
+						if (p(e) == where)
+							return Sure(e)
+					}
+					i += 1; word >>>= 1
+				}
+				cell += 1
+			} while(cell < 4)
+			Blank
+		}
+
 
 		@inline def contains(elem: Byte): Boolean = {
 			val i = elem & 0xff
 			((bitmap(i / 64) >> i) & 1L) != 0
 		}
+
+		def keyAt(idx :Int) :Byte =
+			if (idx < 0)
+				throw new IndexOutOfBoundsException(s"ByteSet.keyAt($idx)")
+			else {
+				var cell = 0
+				var left = idx
+				while(cell < 4) {
+					var chunk = bitmap(cell)
+					while (chunk != 0L) {
+						val bit = chunk & -chunk //lowest one bit
+						if (left == 0) {
+							var lo = 0; var hi = 63 //use bin search to find the index of the lowest one bit
+							do {
+								val mid = (lo + hi + 1) / 2 //if lo+1 == hi then mid = hi
+								if ((bit >>> mid) == 0L)
+									hi = mid - 1
+								else
+									lo = mid
+							} while (lo < hi)
+
+							return (cell * 64 + lo).toByte //caution: function return
+						}
+						chunk ^= bit //clear lowest bit and continue
+						left -= 1
+					}
+					cell += 1
+				}
+				throw new IndexOutOfBoundsException(s"ByteSet.keyAt($idx)")
+			}
 		
 		@inline def +(elem: Byte): ByteSetBitmap = {
 			val i = elem & 0xff
@@ -358,9 +611,9 @@ private[sets] object ByteSet {
 			val mask = 1L << i
 			if ((bitmap(cell) & mask) != 0) this
 			else {
-				val bits = Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3))
-				bits(cell) = bitmap(cell) | mask
-				new ByteSetBitmap(bits)
+				val bits = copy//(bitmap(0), bitmap(1), bitmap(2), bitmap(3))
+				bits.bitmap(cell) = bitmap(cell) | mask
+				bits
 			}
 		}
 		
@@ -370,36 +623,56 @@ private[sets] object ByteSet {
 			val mask = 1L << i
 			if ((bitmap(cell) & mask)==0) this
 			else {
-				val bits = Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3))
-				bits(cell) = bitmap(cell) ^ mask
-				new ByteSetBitmap(bits)
+				val bits = copy
+				bits.bitmap(cell) = bitmap(cell) ^ mask
+				bits
 			}
 		}
 
-		@inline def ++(bytes :ByteSetBitmap) :ByteSetBitmap = {
-			new ByteSetBitmap(Array[Long](
+		@inline def ^(elem :Byte) :ByteSetBitmap = {
+			val i = elem & 0xff
+			val cell = i/64
+			val mask = 1L << i
+			val bits = copy
+			bits.bitmap(cell) = bitmap(cell) ^ mask
+			bits
+		}
+
+
+
+		@inline def ++(bytes :ByteSetBitmap) :ByteSetBitmap =
+			ByteSetBitmap(
 				bitmap(0) | bytes.bitmap(0),
 				bitmap(1) | bytes.bitmap(1),
 				bitmap(2) | bytes.bitmap(2),
 				bitmap(3) | bytes.bitmap(3)
-			))
-		}
+			)
 
 		@inline def --(bytes :ByteSetBitmap) :ByteSetBitmap =
-			new ByteSetBitmap(Array[Long](
+			ByteSetBitmap(
 				bitmap(0) & ~bytes.bitmap(0),
 				bitmap(1) & ~bytes.bitmap(1),
 				bitmap(2) & ~bytes.bitmap(2),
 				bitmap(3) & ~bytes.bitmap(3)
-			))
+			)
 
 		@inline def &(bytes :ByteSetBitmap) :ByteSetBitmap =
-			new ByteSetBitmap(Array[Long](
+			ByteSetBitmap(
 				bitmap(0) & bytes.bitmap(0),
 				bitmap(1) & bytes.bitmap(1),
 				bitmap(2) & bytes.bitmap(2),
 				bitmap(3) & bytes.bitmap(3)
-			))
+			)
+
+
+
+		@inline def ^(bytes :ByteSetBitmap) :ByteSetBitmap =
+			ByteSetBitmap(
+				bitmap(0) ^ bytes.bitmap(0),
+				bitmap(1) ^ bytes.bitmap(1),
+				bitmap(2) ^ bytes.bitmap(2),
+				bitmap(3) ^ bytes.bitmap(3)
+            )
 
 		@inline def subsetOf(bytes :ByteSetBitmap) :Boolean =
 			(bitmap(0) & bytes.bitmap(0)) == bitmap(0) &&
@@ -448,6 +721,8 @@ private[sets] object ByteSet {
 			}
 		}
 
+
+
 		@inline def +=(elem :Byte) :Unit = {
 			val i = elem & 0xff
 			val cell = i /64
@@ -455,13 +730,20 @@ private[sets] object ByteSet {
 			bitmap(cell) = bitmap(cell) | mask
 		}
 
-
 		@inline def -=(elem :Byte) :Unit = {
 			val i = elem & 0xff
 			val cell = i/64
 			val mask = 1L << i
 			bitmap(cell) = bitmap(cell) ^ mask
 		}
+
+		@inline def ^=(elem :Byte) :Unit = {
+			val i = elem & 0xff
+			val cell = i/64
+			val mask = 1L << i
+			bitmap(cell) ^= mask
+		}
+
 
 		@inline def ++=(bytes :ByteSetBitmap) :Unit = {
 			bitmap(0) |= bytes.bitmap(0)
@@ -477,6 +759,28 @@ private[sets] object ByteSet {
 			bitmap(3) &= ~bytes.bitmap(3)
 		}
 
+		@inline def ^=(bytes :ByteSetBitmap) :Unit = {
+			bitmap(0) ^= bytes.bitmap(0)
+			bitmap(1) ^= bytes.bitmap(1)
+			bitmap(2) ^= bytes.bitmap(2)
+			bitmap(3) ^= bytes.bitmap(3)
+		}
+
+		@inline def &=(bytes :ByteSetBitmap) :Unit = {
+			bitmap(0) = bitmap(0) & bytes.bitmap(0)
+			bitmap(1) = bitmap(1) & bytes.bitmap(1)
+			bitmap(2) = bitmap(2) & bytes.bitmap(2)
+			bitmap(3) = bitmap(3) & bytes.bitmap(3)
+		}
+
+		@inline def :=(bytes :ByteSetBitmap) :Unit = {
+			bitmap(0) = bytes.bitmap(0)
+			bitmap(1) = bytes.bitmap(1)
+			bitmap(2) = bytes.bitmap(2)
+			bitmap(3) = bytes.bitmap(3)
+		}
+
+
 		@inline def foreachInt[@specialized(Unit) U](f: Int => U): Unit = {
 			var cell = 0
 			do {
@@ -489,7 +793,7 @@ private[sets] object ByteSet {
 			}while(cell < 4)
 		}
 
-		@inline def foreach[@specialized(Unit) U](f: (Byte) => U): Unit = {
+		@inline def foreach[@specialized(Unit) U](f: Byte => U): Unit = {
 			var cell = 0
 			do {
 				val base = cell*64; var i = 0; var word = bitmap(cell)
@@ -518,18 +822,18 @@ private[sets] object ByteSet {
 		@inline final def filter(p :Byte=>Boolean) :ByteSetBitmap = filter(p, ourTruth = true)
 
 		def filter(p :Byte=>Boolean, ourTruth :Boolean) :ByteSetBitmap = {
-			val copy = Array[Long](bitmap(0), bitmap(1), bitmap(2), bitmap(3))
+			val copy = this.copy
 			var cell = 0
 			do {
 				val base = cell*64; var i = 0; var word = bitmap(cell)
 				while (word != 0L) {
 					if ((word & 1L) != 0 && p((base+i).toByte)!=ourTruth)
-						copy(cell) ^ (1L << i)
+						copy.bitmap(cell) ^ (1L << i)
 					i += 1; word >>>= 1
 				}
 				cell += 1
 			}while(cell < 4)
-			new ByteSetBitmap(copy)
+			copy
 		}
 
 		
@@ -538,9 +842,15 @@ private[sets] object ByteSet {
 		
 		def sameElements(other :ByteSetBitmap) :Boolean = bitmap sameElements other.bitmap
 	}
-	
-	
-	
+
+
+	@inline private def ByteSetBitmap(first :Long, second :Long, third :Long, fourth :Long) :ByteSetBitmap = {
+		val array = new Array[Long](4)
+		array(0) = first; array(1) = second; array(2) = third; array(3) = fourth
+		new ByteSetBitmap(array)
+	}
+
+
 	
 	
 	class ByteSetIterator private[ByteSet](bitmap :ByteSetBitmap)
@@ -549,27 +859,27 @@ private[sets] object ByteSet {
 		
 		private[this] var hd: Int = bitmap.headInt
 		
-		override def head = hd.toByte
+		override def head :Byte = hd.toByte
 		
-		override def hasNext = hd>=0
+		override def hasNext :Boolean = hd>=0
 		
-		override def skip() = { bitmap -= hd.toByte; hd = bitmap.head }
+		override def skip() :Unit = { bitmap -= hd.toByte; hd = bitmap.head }
 		
-		override def next() = { val res = hd.toByte; bitmap -= res; hd = bitmap.headInt; res }
+		override def next() :Byte = { val res = hd.toByte; bitmap -= res; hd = bitmap.headInt; res }
 	}
 	
 	
 	
 	class ByteSetBuilder private[ByteSet] extends FitBuilder[Byte, StableByteSet] {
-		protected[this] final var bits = EmptyBitmap()
+		protected[this] final var bits :ByteSetBitmap = EmptyBitmap()
 		
 		override def addOne :Byte => Unit = b => bits += b
 
-		override def ++=(xs: FitTraversableOnce[Byte]) = xs match {
+		override def ++=(xs: FitTraversableOnce[Byte]) :ByteSetBuilder.this.type = xs match {
 			case _ if xs.isEmpty => this
 			case bytes :ByteSet[_] => bits ++= bytes.bitmap; this
 			case _ =>
-				val it = xs.fitIterator
+				val it = xs.toIterator
 				while(it.hasNext) this += it.next()
 				this
 		}
@@ -580,7 +890,7 @@ private[sets] object ByteSet {
 		
 		override def clear(): Unit = { bits = EmptyBitmap() }
 		
-		def count = bits.size
+		def count :Int = bits.size
 		
 	}
 }

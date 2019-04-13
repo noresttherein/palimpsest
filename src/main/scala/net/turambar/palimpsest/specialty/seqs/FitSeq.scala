@@ -2,10 +2,10 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{GenTraversableOnce, SeqLike, immutable, mutable}
+import scala.collection.{immutable, mutable, GenTraversableOnce, SeqLike}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, IterableFoundation, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.seqs.StableSeq.MakeStableIndexed
+import net.turambar.palimpsest.specialty.seqs.StableSeq.{MakeStableIndexed, Seq1, Seq2}
 import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 
 
@@ -86,9 +86,9 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	
 	
 
-	def single[@specialized(Elements) E](elem :E) :FitSeq[E] = new Seq1[E](elem)
+	def single[@specialized(Elements) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
 	
-	def pair[@specialized(Elements) E](first :E, second :E) :FitSeq[E] = new Seq2(first, second)
+	def pair[@specialized(Elements) E](first :E, second :E) :StableSeq[E] = new Seq2(first, second)
 
 //	/** Adapt any sequence to a specialized interface. This is an unspecialized method creating
 //	  * an unspecialized (erased) instance.
@@ -99,199 +99,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 //	}
 
 	
-	
-	/** Specialized singleton sequence (small wrapper over a single element). */
-	private[seqs] class Seq1[@specialized(Elements) +E](override val head :E)
-		extends SeqFoundation[E, MakeStableIndexed[E]] //with immutable.IndexedSeq[E] with FitIndexedSeq[E, ConstSeq[E]] with ConstSeq[E]
-				with MakeStableIndexed[E] with FitIndexedSeq[E] with StableSeq[E] with SingletonSpecialization[E, MakeStableIndexed[E]]
-	{
-		override def empty = MakeStableIndexed.Empty
-		
-		override final def length: Int = 1
 
-
-		override def apply(idx: Int): E =
-			if (idx!=0) throw new IndexOutOfBoundsException(s"$this($idx)")
-			else head
-		
-		override protected[this] def at(idx: Int): E = head
-		
-		@unspecialized
-		override protected def section(from: Int, until: Int): MakeStableIndexed[E] =
-			if (from==0 && until==1) this
-			else MakeStableIndexed.Empty
-		
-		
-		override def segmentLength(p: (E) => Boolean, from: Int): Int =
-			if (from==0 && p(head)) 1 else 0
-		
-		override def indexWhere(p: (E) => Boolean, from: Int): Int =
-			if (from==0 && !p(head)) 1 else 0
-
-		@unspecialized
-		override def lastIndexWhere(p: (E) => Boolean, from: Int): Int = indexWhere(p, from)
-		
-		override def indexOf[U >: E](elem: U, from: Int): Int =
-			if (from==0 && elem==head) 0 else -1
-		
-		override def lastIndexOf[U>:E](elem :U, from :Int) :Int = indexOf(elem, from)
-		
-//		override def find(p: (E) => Boolean): Option[E] = if (p(head)) Some(head) else None
-		
-		
-		
-/*
-		override def foreach[@specialized(Unit) U](f: (E) => U): Unit = f(head)
-
-		override def filter(f :E=>Boolean) :MakeStableIndexed[E] =
-			if (f(head)) this
-			else MakeStableIndexed.Empty
-		
-		override def filterNot(f :E=>Boolean) :MakeStableIndexed[E] =
-			if (f(head)) MakeStableIndexed.Empty
-			else this
-		
-		override def map[@specialized(Fun1Vals) U, That](f: (E) => U)(implicit bf: CanBuildFrom[MakeStableIndexed[E], U, That]): That = bf match {
-			case fit :CanFitFrom[_, _, _] if fit.companion == FitSeq || fit.companion == StableSeq =>
-				new Seq1(head).asInstanceOf[That]
-			case _ => (bf(this) += f(head)).result()
-		}
-		
-		//todo: check if the builder can't just return mapped sequence
-		override def flatMap[U, That](f: (E) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[MakeStableIndexed[E], U, That]): That =
-			(bf(this) ++= f(head).seq).result()
-		
-		
-		override def iterator: FitIterator[E] = FitIterator(head)
-*/
-		@unspecialized
-		final override def reverseIterator :FitIterator[E] = iterator
-
-		@unspecialized override def toFitSeq = this
-		@unspecialized override def reverse = this
-		@unspecialized override def inverse = this
-		
-//		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
-//			if (len>0 && start<xs.length)
-//				xs(start) = head
-//
-//		override def copyToBuffer[B >: E](dest: mutable.Buffer[B]): Unit = dest += head
-		
-		override def typeStringPrefix = "Seq1"
-	}
-	
-	
-	
-	
-	
-	/** Specialized two-element sequence. */
-	private[seqs] class Seq2[@specialized(Elements) +E](override val head :E, override val last :E)
-		extends SeqFoundation[E, MakeStableIndexed[E]] //with immutable.IndexedSeq[E]
-				with MakeStableIndexed[E] with FitIndexedSeq[E] with DoubletonSpecialization[E, MakeStableIndexed[E]]
-	{
-		override def headOption = Some(head)
-		override def lastOption = Some(last)
-		
-		override def length: Int = 2
-
-		override def empty = MakeStableIndexed.Empty
-		override def tail = new Seq1(last)
-		override def init = new Seq1(head)
-		
-		
-		override def apply(idx: Int): E = idx match {
-			case 0 => head
-			case 1 => last
-			case n => throw new IndexOutOfBoundsException(s"$this($idx)")
-		}
-			
-		
-		override protected[this] def at(idx: Int): E = idx match {
-			case 0 => head
-			case 1 => last
-			case _ => throw new IndexOutOfBoundsException(s"$this")
-		}
-		
-		
-		override protected def section(from: Int, until: Int): MakeStableIndexed[E] =
-			until - from match {
-				case 0 => MakeStableIndexed.Empty
-				case 2 => this
-				case 1 if from==0 => new Seq1(head)
-				case 1 => new Seq1(last)
-			}
-				
-		
-		override def segmentLength(p: (E) => Boolean, from: Int): Int =
-			if (from<=0)
-				if (p(head))
-					if (p(last)) 2 else 1
-				else 0
-			else if (from==1 && p(last)) 1
-			else 0
-		
-		override def indexWhere(p: (E) => Boolean, from: Int): Int =
-			if (from<=0)
-				if (p(head)) 0
-				else if (p(last)) 1 else 2
-			else if (from==1 && p(head)) 1
-			else 0
-
-
-
-		override def reverseIterator = FitIterator(last, head)
-		override def reverse = new Seq2(last, head)
-		@unspecialized override def inverse = reverse
-		@unspecialized override def toFitSeq = this
-		
-/*		override def foreach[@specialized(Unit) U](f: (E) => U): Unit = { f(head); f(last) }
-		
-		override def filter(p: (E) => Boolean): MakeStableIndexed[E] =
-			if (p(head))
-				if (p(last)) this
-				else new Seq1(head)
-			else if (p(last)) new Seq1(last)
-			else MakeStableIndexed.Empty
-		
-		
-		override def filterNot(p: (E) => Boolean): MakeStableIndexed[E] =
-			if (p(head))
-				if (p(last)) MakeStableIndexed.Empty
-				else new Seq1(last)
-			else if (p(last)) new Seq1(head)
-			else this
-		
-		
-		
-		override def map[@specialized(Fun1Vals) O, That](f: (E) => O)(implicit bf: CanBuildFrom[MakeStableIndexed[E], O, That]): That = bf match {
-			case fit :CanFitFrom[_, _, _] if fit.companion==FitSeq || fit.companion == StableSeq =>
-				new Seq2(f(head), f(last)).asInstanceOf[That]
-			case _ =>
-				(bf(this) += f(head) += f(last)).result()
-		}
-		
-		override def flatMap[U, That](f: (E) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[MakeStableIndexed[E], U, That]): That =
-			(bf(this) ++= f(head).seq ++= f(last).seq).result()
-		
-		
-		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit = {
-			val space = xs.length-start
-			if (len>0 && space > 0) {
-				xs(start) = head
-				if (len>1 && space > 1)
-					xs(start+1) = last
-			}
-		}
-			
-		
-		override def copyToBuffer[B >: E](dest: mutable.Buffer[B]): Unit = {
-			dest += head
-			dest += last
-		}
-		*/
-		override def typeStringPrefix = "Seq2"
-	}
-	
 	
 /*
 	class ErasedFitSeq[E](private val backing :Seq[E], private val offset :Int, val length :Int)

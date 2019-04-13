@@ -6,7 +6,7 @@ import org.scalacheck.Prop._
 /**
   * @author Marcin Mościcki
   */
-object LongSetSpec extends Properties("LongSet") {
+object LongSetSpec extends Properties("DirectLongSet") {
 	import java.lang.Long.compareUnsigned
 
 	property("SortedLongSet.ordering") = forAll { (l1 :Long, l2 :Long) =>

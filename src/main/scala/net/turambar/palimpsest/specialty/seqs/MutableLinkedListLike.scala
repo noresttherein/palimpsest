@@ -38,7 +38,7 @@ trait MutableLinkedListLike[@specialized(Elements) E, +Repr<:MutableLinkedListLi
 
 /*
 	@unspecialized @inline
-	final protected[this] def node(n :Int) :NonEmpty[E] =
+	final protected[this] def keyNode(n :Int) :NonEmpty[E] =
 		if (n<0 || n>=length)
 			throw new IndexOutOfBoundsException(s"$stringPrefix<$length>($n)")
 		else hat.blindDrop(n+1) match {
@@ -144,7 +144,7 @@ trait MutableLinkedListLike[@specialized(Elements) E, +Repr<:MutableLinkedListLi
 				coccyx.x = elems.head
 			else {
 				var i = idx; var n = hat.blindDrop(i+1); val limit = len
-				val it = elems.fitIterator
+				val it = elems.toIterator
 				while (it.hasNext && i < limit) {
 					n.asInstanceOf[NonEmpty[E]].x = it.next()
 					n = n.tail
@@ -171,7 +171,7 @@ trait MutableLinkedListLike[@specialized(Elements) E, +Repr<:MutableLinkedListLi
 
 
 
-	override protected[this] def filter(p: (E) => Boolean, ourTruth: Boolean): Repr = {
+	override def filter(p: E => Boolean, ourTruth: Boolean): Repr = {
 		val res = new NonEmpty(hat.x); var last = res; var count = 0
 		var cur = hat.tail; var left = len
 		while(left > 0) {

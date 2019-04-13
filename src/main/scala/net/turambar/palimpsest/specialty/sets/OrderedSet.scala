@@ -4,31 +4,57 @@ import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{SortedSet, SortedSetLike, mutable}
+import scala.collection.{mutable, GenTraversableOnce, SortedSet, SortedSetLike}
 import OrderedSet.{Mutable, Stable}
 import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals}
 
-
+/** A counterpart of `SortedSetLike`, it brings together the declarations from the latter and [[OrderedAs]]. As this
+  * trait lacks specialization, its sole purpose is  to resolve conflicts from inheriting identical method declarations
+  * from `OrderedAs` and `SortedSetLike`.
+  *
+  * '''Ugly''': this trait is not specialized but mixes in specialized [[SetSpecialization]]. In order not to split the synthetic
+  * generic parent and specialized child of `SetSpecialization`, any descending class/trait must mix it in before this trait.
+  * Fortunately, the convention is to always extend the collection class first: `extends OrderedSet[E] with OrderedSetTemplate[E, Repr]`
+  * and it already includes the specialized interface in its linearization, so all is well in the end.
+  */
 trait OrderedSetTemplate[E, +This<:OrderedSetTemplate[E, This] with OrderedSet[E]]
 	extends SortedSetLike[E, This] with OrderedAs[E, This] with SetSpecialization[E, This]
 {
-	//override me, I'm not specialized
+	//redeclarations to quiet conflicts from identical signatures in OrderedAs and SortedSetLike
+
 	override def iteratorFrom(start: E) :FitIterator[E] = keysIteratorFrom(start)
+
+
+	def +(elem :E) :This
+
+	def +(elem1 :E, elem2 :E, elems :E*) :This
+
+	def ++(elems :GenTraversableOnce[E]) :This
+
+	def -(elem :E) :This
+
+	def -(elem1 :E, elem2 :E, elems :E*) :This
+
+	def --(elems :GenTraversableOnce[E]) :This
+
+	override def contains(key :E) :Boolean
 }
 
+
+//todo: make this not specialized. Needs not implement specialized methods and as long as specialized OrderedVals and ValSet
+//todo: are mixed in before this trait, all should be well (but check it to make sure)
 /**
   * @author Marcin Mościcki
   */
-trait OrderedSet[@specialized(Elements) E]
-	extends SortedSet[E] with OrderedVals[E] with ValSet[E] with SetSpecialization[E, OrderedSet[E]] with OrderedAs[E, OrderedSet[E]] with OrderedSetTemplate[E, OrderedSet[E]]
+trait OrderedSet[@specialized(Elements) E] //todo: mix-in order of OrderedVals and ValSet
+	extends SortedSet[E] with OrderedVals[E] with ValSet[E]
+	   with SetSpecialization[E, OrderedSet[E]] with OrderedAs[E, OrderedSet[E]] with OrderedSetTemplate[E, OrderedSet[E]]
 {
 //	override def compare(e1 :E, e2 :E) = ordering.compare(e1, e2) //todo: specialization
 
 
-	//todo
-	override def keyAt(idx: Int): E = drop(idx).head
 
-	//todo
+
 	override def reverseIterator: FitIterator[E] = inverse.iterator
 
 	override def stable :Stable[E] //= (Stable.newBuilder[E] ++= this).result
@@ -36,17 +62,17 @@ trait OrderedSet[@specialized(Elements) E]
 
 	override def empty :OrderedSet[E] = OrderedSet.empty[E]
 
-	@inline final override def iteratorFrom(start: E) = keysIteratorFrom(start)
+	/** Overriden due to inheriting double declarations: from `SortedSetLike` and `OrderedAs`. */
+	@inline final override def iteratorFrom(start: E) :FitIterator[E] = keysIteratorFrom(start)
 
 
 	override def typeStringPrefix = "OrderedSet"
 }
 
 
-
-trait MutableOrderedSet[@specialized(Elements) E]
-	extends MutableSet[E] with OrderedSet[E] with MutableSetLike[E, MutableOrderedSet[E]] with SortedSetLike[E, MutableOrderedSet[E]]
-			with OrderedSetTemplate[E, MutableOrderedSet[E]] with SetSpecialization[E, MutableOrderedSet[E]] with FitBuilder[E, MutableOrderedSet[E]]
+//todo: possibly doesn't need specialization
+trait MutableOrderedSet[@specialized(Elements) E] extends MutableSet[E] with OrderedSet[E]
+	with MutableSetSpecialization[E, MutableOrderedSet[E]] with OrderedSetTemplate[E, MutableOrderedSet[E]]
 {
 	override def mutable :Mutable[E] = this
 	override def stable :Stable[E] = (Stable.newBuilder[E] ++= this).result
@@ -54,14 +80,12 @@ trait MutableOrderedSet[@specialized(Elements) E]
 	override def newBuilder :FitBuilder[E, MutableOrderedSet[E]] = empty //SortedFitSet.Mutable.newBuilder
 }
 
-
-trait StableOrderedSet[@specialized(Elements) E]
-	extends SortedSetLike[E, StableOrderedSet[E]] with OrderedSet[E] with StableSet[E]
-			with OrderedSetTemplate[E, StableOrderedSet[E]] with SetSpecialization[E, StableOrderedSet[E]]
+//todo: possibly doesn't need specialization
+trait StableOrderedSet[@specialized(Elements) E] extends StableSet[E] with OrderedSet[E]
+			with SetSpecialization[E, StableOrderedSet[E]] with OrderedSetTemplate[E, StableOrderedSet[E]]
 {
 	override def empty :StableOrderedSet[E] = OrderedSet.Stable.empty
 	override def stable :Stable[E] = this
-
 
 }
 
@@ -87,8 +111,12 @@ object OrderedSet  {
 	//todo: infinite loops here with empty set ++
 	def apply[@specialized(Elements) E](elems :E*)(implicit ordering :Ordering[E]) :OrderedSet[E] =
 		(newBuilder[E] ++= elems).result()
+
 	//todo: infinite loops here with empty set ++
 	def empty[@specialized(Elements) E](implicit ord :Ordering[E]) :OrderedSet[E] = newBuilder[E].result()
+
+	def singleton[@specialized(Elements) E](elem :E)(implicit ord :Ordering[E]) :OrderedSet[E] =
+		(newBuilder[E] += elem).result()
 
 	def newBuilder[@specialized(Elements) E](implicit ord :Ordering[E]): FitBuilder[E, OrderedSet[E]] = ???
 

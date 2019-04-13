@@ -1,16 +1,17 @@
 package net.turambar.palimpsest.specialty.sets
 
+/*
 import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, Specialized}
+import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator, FitTraversableOnce, Specialized}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.ordered.OrderedAs
+import net.turambar.palimpsest.specialty.ordered.{OrderedAs, ValOrdering}
 import net.turambar.palimpsest.specialty.seqs.FitBuffer
 import net.turambar.palimpsest.specialty.Specialized.Fun2
-import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, TrieCombinator, TriePatch}
-import net.turambar.palimpsest.specialty.tries.{Trie, TrieLeaf, TrieKeys}
+import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, TrieCombinator, AbstractTriePatch}
+import net.turambar.palimpsest.specialty.tries.{Trie, TrieKeys, TrieLeaf}
 
 import scala.annotation.unspecialized
-import scala.collection.{GenSet, breakOut}
+import scala.collection.{breakOut, GenSet}
 import scala.collection.generic.CanBuildFrom
 
 
@@ -30,13 +31,13 @@ abstract class MutableTrieValueSetFoundation[
 			K, 
 			V, 
 			T <: StableSet[V] with TrieKeys[K, V, T] with TrieSetValues[K, V, T],
-			+This <: MutableSet[V] with MutableSetLike[V, This] with SetSpecialization[V, This]
+			+This <: MutableSet[V] with MutableSetSpecialization[V, This] with SetSpecialization[V, This]
 		] private[sets] (
 			private[this] var root :T, 
 			private[this] var leaves :Int
 		)
 	extends IterableAdapter[T, V, This] with collection.mutable.Set[V] with collection.mutable.SetLike[V, This]
-			with MutableTrieRoot[T] with TriePatch[K, V, T] with TrieCombinator[T] with OfKnownSize //with MutableSetLike[V, This]
+			with MutableTrieRoot[T] with AbstractTriePatch[K, V, T] with TrieCombinator[T] with OfKnownSize //with MutableSetSpecialization[V, This]
 { //this :This =>
 	def this(contents :T) = this(contents, contents.size)
 
@@ -122,10 +123,10 @@ abstract class MutableTrieValueSetFoundation[
 
 
 	/** Callback from [[remove]]/ [[-=]] when the key being deleted is not present in this trie. */
-	override def notFound[S >: T](key: K, sibling: Trie[K, V, S]): S = sibling.empty
+	override def patchMissing[S >: T](key: K, sibling: Trie[K, V, S]): S = sibling.empty
 
 	/** Callback from [[remove]]/ [[-=]] deleting the leaf for the requested key/element. */
-	override def updateLeaf[S >: T](oldLeaf: TrieLeaf[K, V, S]): S = oldLeaf.empty
+	override def patchLeaf[S >: T](oldLeaf: TrieLeaf[K, V, S]): S = oldLeaf.empty
 
 
 
@@ -141,7 +142,7 @@ abstract class MutableTrieValueSetFoundation[
 		root.disjoint(first, second.editableCopy)
 	}
 
-	override def reduce(res1: T, res2: T): T = root.reduce(res1, res2)
+	override def reduced(res1: T, res2: T): T = root.reduced(res1, res2)
 
 	override def reduced(original: T)(left: T, right: T) = root.reduced(original)(left, right)
 
@@ -157,8 +158,8 @@ trait SpecializedMutableTrieSet[
 		K,
 		@specialized(Elements) V,
 		T <: StableSet[V] with TrieKeys[K, V, T] with TrieSetValues[K, V, T],
-		+This <: MutableSet[V] with MutableSetLike[V, This] with SetSpecialization[V, This]
-	] extends MutableTrieValueSetFoundation[K, V, T, This] with MutableSet[V] with MutableSetLike[V, This] with SetSpecialization[V, This]
+		+This <: MutableSet[V] with MutableSetSpecialization[V, This] with SetSpecialization[V, This]
+	] extends MutableTrieValueSetFoundation[K, V, T, This] with MutableSet[V] with MutableSetSpecialization[V, This] with SetSpecialization[V, This]
 { //this :MutableTrieValueSetFoundation[K, V, T, This] =>
 
 	@unspecialized
@@ -255,7 +256,7 @@ trait SpecializedMutableTrieSet[
 					size = size - right.size
 					Empty
 				}
-				override def reduce(res1: T, res2: T): T = SpecializedMutableTrieSet.this.reduce(res1, res2)
+				override def reduced(res1: T, res2: T): T = SpecializedMutableTrieSet.this.reduced(res1, res2)
 				override def reduced(original: T)(left: T, right: T) = SpecializedMutableTrieSet.this.reduced(original)(left, right)
 			}))
 			this
@@ -270,7 +271,7 @@ trait SpecializedMutableTrieSet[
 	}
 
 	protected[this] def removeAll(xs: FitTraversableOnce[V]): Unit = {
-		val i = xs.fitIterator
+		val i = xs.toIterator
 		while (size>0 && i.hasNext) trie.update(this, i.next(), this)
 	}
 
@@ -285,12 +286,12 @@ trait SpecializedMutableTrieSet[
 
 
 	protected[this] def addAll(xs: FitTraversableOnce[V]): Unit = {
-		val i = xs.fitIterator
+		val i = xs.toIterator
 		while (i.hasNext) trie.update(this, i.next(), trie)
 	}
 
 
-	protected override def verifiedCopyTo(xs: Array[V], start: Int, total: Int) =
+	protected override def uncheckedCopyTo(xs: Array[V], start: Int, total: Int) =
 		ValSet.friendCopy(trie, xs, start, total)
 
 	override def stringPrefix = trie.stringPrefix
@@ -327,8 +328,7 @@ class MutableTrieSet[K, @specialized(Elements) V, T <: StableSet[V] with TrieKey
 
 
 class MutableOrderedTrieSet[
-		K,
-		@specialized(Elements) V,
+		K, @specialized(Elements) V,
 		T <: StableOrderedSet[V] with OrderedAs[V, T] with TrieKeys[K, V, T] with TrieSetValues[K, V, T]
 	] private[sets]
 		(contents :T, leaves :Int)
@@ -337,11 +337,11 @@ class MutableOrderedTrieSet[
 {
 	def this(contents: T) = this(contents, contents.size)
 
-	override implicit def ordering: Ordering[V] = source.ordering
+	override implicit def ordering: ValOrdering[V] = source.ordering
 
 	override def keysIteratorFrom(start: V): FitIterator[V] = source.keysIteratorFrom(start)
 
-	override def rangeImpl(from: Option[V], until: Option[V]): MutableOrderedSet[V] =
+	override def rangeImpl(from: ?[V], until: ?[V]): MutableOrderedSet[V] =
 		new MutableOrderedTrieSet[K, V, T]((source :OrderedAs[V, T]).rangeImpl(from, until))
 
 	override def from(from: V) = new MutableOrderedTrieSet[K, V, T](source.from(from))
@@ -368,13 +368,14 @@ class MutableOrderedTrieSet[
 
 
 
+*/
 
 
 /*
 class MutableTrieValueSet[K, @specialized(Elements) V, T <: StableSet[V] with TrieSetKeys[K, V, T] with TrieSetValues[K, V, T]] private[sets]
 		(private[this] var root :T, private[this] var leaves :Int)
 	extends IterableAdapter[T, V, MutableSet[V]] with MutableSet[V]
-			with MutableTrieRoot[T] with TriePatch[K, V, T] with TrieCombinator[T] with OfKnownSize
+			with MutableTrieRoot[T] with AbstractTriePatch[K, V, T] with TrieCombinator[T] with OfKnownSize
 {
 	type This = MutableSet[V] //MutableTrieValueSet[K, V, T]
 
@@ -504,10 +505,10 @@ class MutableTrieValueSet[K, @specialized(Elements) V, T <: StableSet[V] with Tr
 
 
 	/** Callback from [[remove]]/ [[-=]] when the key being deleted is not present in this trie. */
-	override def notFound[S >: T](key: K, sibling: Trie[K, V, S]): S = sibling.empty
+	override def patchMissing[S >: T](key: K, sibling: Trie[K, V, S]): S = sibling.empty
 
 	/** Callback from [[remove]]/ [[-=]] deleting the leaf for the requested key/element. */
-	override def updateLeaf[S >: T](oldLeaf: TrieLeaf[K, V, S]): S = oldLeaf.empty
+	override def reducePath[S >: T](oldLeaf: TrieLeaf[K, V, S]): S = oldLeaf.empty
 
 
 	override def +=(elem: V): this.type = {

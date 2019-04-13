@@ -1,15 +1,83 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator}
+import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
 import net.turambar.palimpsest.specialty.FitIterator.MappedIterator
 import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun2}
+import net.turambar.palimpsest.specialty.tries.{BinaryTrie, IterableTriePotFoundation, LongTrie, MutableLongTrie}
+import net.turambar.palimpsest.specialty.tries.BinaryTrie.BinaryTriePatch
+
+import scala.collection.GenTraversableOnce
+import java.lang.Double.{doubleToRawLongBits => doubleToKey, longBitsToDouble => keyToDouble}
+
+
+
+//todo: alias 0.0 and -0.0 to 0; consider semantics of NaN
+
+/*
+class DoubleSet(contents :LongTrie, keyCount :Int)
+	extends IterableTriePotFoundation[Long, LongTrie, Double, DoubleSet](contents, keyCount)
+	   with StableSet[Double] with SetSpecialization[Double, DoubleSet]
+	   with TrieKeySetSpecialization[Long, LongTrie, LongTrie, Double, DoubleSet]
+//	   with TraversableTrieKeySet[Long, LongTrie, LongTrie, Double, DoubleSet]
+	   with LongTrieSet[Double, DoubleSet]
+	   with ElementOf[Double, LongTrie]
+{
+	override protected def plant(trie :LongTrie, trieSize :Int) :DoubleSet = new DoubleSet(trie, trieSize)
+
+	override protected def elements :ElementOf[Double, LongTrie] = this
+
+	override protected def countingElements :ElementCounter[Double, LongTrie] = new DoubleElementCounter
+
+	@inline final override def elementOf(leaf :LongTrie) :Double = keyToDouble(leaf.key)
+
+	override protected def friendTrie(elems :GenTraversableOnce[_]) :Option[LongTrie] = elems match {
+		case set :DoubleSet => Some(set.trie)
+		case _ => None
+	}
+
+	override protected def patchTrie(t :LongTrie, element :Double)(patch :BinaryTriePatch[Long, LongTrie, LongTrie]) :LongTrie =
+		t.patchKey(patch)(doubleToKey(element))
+
+	override protected def patchTrie(t :LongTrie, elems :FitTraversableOnce[Double])(patch :BinaryTriePatch[Long, LongTrie, LongTrie]) :LongTrie = {
+		var res = t
+		elems foreach { elem => res = t.patchKey(patch)(doubleToKey(elem)) }
+		res
+	}
+
+	override def empty :DoubleSet = DoubleSet.Empty
+
+
+	override def apply(elem :Double) :Boolean = trie.hasKey(doubleToKey(elem))
+
+	override def contains(elem :Double) :Boolean = trie.hasKey(doubleToKey(elem))
+
+	//todo
+	override def mutable :ValSet.Mutable[Double] = ???
+
+
+	override def stringPrefix = "Set[Double]"
+	override def typeStringPrefix = "DoubleSet"
+}
+
+
 
 
 /**
   * @author Marcin Mościcki
   */
 object DoubleSet {
+
+	final val Empty :DoubleSet = new DoubleSet(MutableLongTrie.EmptyLongTrie, 0)
+
+	class DoubleElementCounter extends ElementOf[Double, LongTrie] with ElementCounter[Double, LongTrie] {
+		private[this] var invocations = 0
+
+		override def elementOf(keyNode :LongTrie) :Double = { invocations+= 1; keyToDouble(keyNode.key) }
+
+		override def count :Int = invocations
+	}
+/*
 	import java.lang.Double.{doubleToLongBits, longBitsToDouble}
 
 	private[this] final val DoubleToLong :Double => Long = doubleToLongBits
@@ -25,6 +93,7 @@ object DoubleSet {
 	def singleton(value :Double) :StableSet[Double] = new LongView(DirectLongSet.singleton(doubleToLongBits(value)))
 
 	def mutable :MutableSet[Double] = new MutableLongView(DirectLongSet.mutable)
+
 
 //	type Sorted = FitSet.Sorted[Double]
 //
@@ -85,8 +154,8 @@ object DoubleSet {
 
 	private trait DoubleAsLongMutableSet[
 			+S<:MutableSet[Long] with SetSpecialization[Long, S],
-			+Repr<:MutableSet[Double] with MutableSetLike[Double, Repr] with SetSpecialization[Double, Repr]
-		] extends IterableMapping[Long, S, Double, Repr] with MutableSet[Double] with MutableSetLike[Double, Repr] with DoubleAsLongSet[S, Repr]
+			+Repr<:MutableSet[Double] with MutableSetSpecialization[Double, Repr] with SetSpecialization[Double, Repr]
+		] extends IterableMapping[Long, S, Double, Repr] with MutableSet[Double] with MutableSetSpecialization[Double, Repr] with DoubleAsLongSet[S, Repr]
 	{
 		override def stable :ValSet.Stable[Double] = new LongView(source.stable)
 
@@ -124,6 +193,7 @@ object DoubleSet {
 	{
 		override protected[this] def fromSource(col: MutableSet[Long]): MutableSet[Double] = new MutableLongView(col)
 	}
-
+*/
 
 }
+*/

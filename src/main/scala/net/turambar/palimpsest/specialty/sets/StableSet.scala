@@ -49,29 +49,34 @@ object StableSet extends ImplementationIterableFactory[StableSet] {
 
 	type SetBuilder[@specialized(Elements) E] = FitBuilder[E, StableSet[E]]
 
-	final private val SetBuilder = new Specialize.Distinct[SetBuilder] {
+	final private val SetBuilder = new Specialize.Individually[SetBuilder] {
 		override def forBoolean: SetBuilder[Boolean] = BooleanSet.newBuilder
 		override def forByte: SetBuilder[Byte] = ByteSet.newBuilder
-		override def forShort :SetBuilder[Short] = ShortSet.newBuilder
-		override def forInt: SetBuilder[Int] = IntSet.newBuilder
-		override def forLong :SetBuilder[Long] = DirectLongSet.newBuilder
-		override def forFloat :SetBuilder[Float] = FloatSet.newBuilder
-		override def forDouble :SetBuilder[Double] = DoubleSet.newBuilder
-		override def forChar :SetBuilder[Char] = CharSet.newBuilder
+		override def forShort :SetBuilder[Short] = ??? //ShortSet.newBuilder
+		override def forInt: SetBuilder[Int] = ??? //IntSet.newBuilder
+		override def forLong :SetBuilder[Long] = ??? //DirectLongSet.newBuilder
+		override def forFloat :SetBuilder[Float] = ??? //FloatSet.newBuilder
+		override def forDouble :SetBuilder[Double] = ??? //DoubleSet.newBuilder
+		override def forChar :SetBuilder[Char] = ??? //CharSet.newBuilder
+		override def forUnit :SetBuilder[Unit] = ???
 
-		override def specialized[@specialized E : Specialized]: SetBuilder[E] = ???
+		override def forRef[E :Specialized] :SetBuilder[E] = ???
+
 	}
 
-	final private val EmptySet = new Specialize.Distinct[StableSet] {
+	final private val EmptySet = new Specialize.Individually[StableSet] {
 		override def forBoolean = BooleanSet.Empty
 		override def forByte = ByteSet.Empty
-		override def forShort = ShortSet.Empty
-		override def forInt = IntSet.Empty
-		override def forLong = DirectLongSet.Empty
-		override def forChar = CharSet.Empty
-		override def forFloat = FloatSet.Empty
-		override def forDouble = DoubleSet.Empty
-		override def specialized[@specialized E : Specialized]: StableSet[E] = ???
+		override def forShort = ??? //ShortSet.Empty
+		override def forInt = ??? //IntSet.Empty
+		override def forLong = ??? //DirectLongSet.Empty
+		override def forChar = ??? //CharSet.Empty
+		override def forFloat = ??? //FloatSet.Empty
+		override def forDouble = ??? //DoubleSet.Empty
+
+		override def forUnit = ???
+
+		override def forRef[E :Specialized] = ???
 	}
 
 

@@ -12,13 +12,13 @@ trait SharedArrayLike[@specialized(Elements) E, +Repr[X]<:SharedArrayLike[X, Rep
 			with ValSeqLike[E, Repr[E]] with ArrayViewLike[E, Repr[E]]
 			with SpecializableIterable[E, Repr]
 {
-	protected[this] override def toCollection(repr: Repr[E]) = repr
-	protected[this] override def thisCollection = this.asInstanceOf[Repr[E]]
-	override def seq = this.asInstanceOf[Repr[E]]
+	protected[this] override def toCollection(repr: Repr[E]) :Repr[E] = repr
+	protected[this] override def thisCollection :Repr[E] = this.asInstanceOf[Repr[E]]
+	override def seq :Repr[E] = this.asInstanceOf[Repr[E]]
 
-	override protected[this] def empty = companion.empty[E]
+	override protected[this] def empty :Repr[E] = companion.empty[E]
 
-	override def transform(f: (E) => E) = {
+	override def transform(f: E => E) :this.type = {
 		var i = headIdx; val lim = i + length; val a = array
 		while(i<lim) {
 			a(i) = f(a(i)); i+=1
@@ -31,18 +31,18 @@ trait SharedArrayLike[@specialized(Elements) E, +Repr[X]<:SharedArrayLike[X, Rep
 //	override def lastPositionOf(elem: E, end: Int) = super.lastPositionOf(elem, end)
 
 	//todo: these are straight copy&paste from ArrayViewLike, but we need to make them public; think of a place to extract them to.
-
+	//todo: remember that super is broken!
 	override def positionOf(elem: E, from: Int): Int =
 		if (from>=length) -1 //also guards against arithmetic overflow on indices
 		else {
-			var i = headIdx + math.max(from, 0); val e = headIdx+length
+			var i = headIdx + Math.max(from, 0); val e = headIdx+length
 			val a = array
 			while(i<e && a(i) != elem) i+=1
 			if (i==e) -1 else i-headIdx
 		}
 
 	override def lastPositionOf(elem: E, end: Int): Int = {
-		var i = math.min(end, length-1) + headIdx
+		var i = Math.min(end, length-1) + headIdx
 		val a = array
 		while(i>=headIdx && a(i) != elem) i-=1
 		if (i<headIdx) -1 else i-headIdx

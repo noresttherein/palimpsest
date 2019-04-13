@@ -12,7 +12,7 @@ public class Java {
     final static Class<?> Double = java.lang.Double.TYPE;
     final static Class<?> Char = Character.TYPE;
     final static Class<?> Boolean = java.lang.Boolean.TYPE;
-    final static Class<?> Unit = Void.TYPE;
+    final static Class<?> Unit = java.lang.Void.TYPE;
     final static Class<?> Any = Object.class;
 
 }

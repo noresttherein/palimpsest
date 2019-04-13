@@ -8,7 +8,7 @@ import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, Singleto
 import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun2, Fun2Res}
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitSeq, SharedArray, SharedArrayBuffer}
-import net.turambar.palimpsest.specialty.sets.{MutableSet, MutableSetLike, SetSpecialization, SpecializableSet, StableSet, ValSet}
+import net.turambar.palimpsest.specialty.sets.{MutableSet, MutableSetSpecialization, SetSpecialization, SpecializableSet, StableSet, ValSet}
 
 import scala.annotation.unspecialized
 import scala.collection.{GenIterable, GenSet, GenTraversableOnce, Set}
@@ -29,9 +29,9 @@ trait MultiSetSpecialization[@specialized(Elements) E, +Repr<:MultiSetSpecializa
 //	override def toSet[B >: E]
 
 	def uniqueItems :Int
-	override def isEmpty = size==0
-	override def nonEmpty = size > 0
-	override def ofAtLeast(elems :Int) = size >= elems
+	override def isEmpty :Boolean = size==0
+	override def nonEmpty :Boolean = size > 0
+	override def ofAtLeast(elems :Int) :Boolean = size >= elems
 
 	def copiesOf(elem :E) :Int
 
@@ -63,7 +63,7 @@ trait MultiSetSpecialization[@specialized(Elements) E, +Repr<:MultiSetSpecializa
 	}
 
 	def ++(elems :FitTraversableOnce[E]) :Repr = {
-		val it = elems.fitIterator
+		val it = elems.toIterator
 		var res = repr
 		while (it.hasNext) res += it.next()
 		res
@@ -81,7 +81,7 @@ trait MultiSetSpecialization[@specialized(Elements) E, +Repr<:MultiSetSpecializa
 	}
 
 	def --(elems :FitTraversableOnce[E]) :Repr = {
-		val it = elems.fitIterator
+		val it = elems.toIterator
 		var res = repr
 		while (it.hasNext && res.nonEmpty) res -= it.next()
 		res
@@ -98,7 +98,7 @@ trait MultiSetSpecialization[@specialized(Elements) E, +Repr<:MultiSetSpecializa
 	}
 
 	def --*(elems :FitTraversableOnce[E]) :Repr = {
-		val it = elems.fitIterator
+		val it = elems.toIterator
 		var res = repr
 		while(it.hasNext && res.nonEmpty) res -*= it.next()
 		res
@@ -249,7 +249,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 	class Singleton[@specialized(Elements) E](item :E)
 		extends SingletonFoundation[E, StableMultiSet[E]] with StableMultiSet[E] with SingletonSpecialization[E, StableMultiSet[E]]
 	{
-		 @inline final override def head = item
+		@inline final override def head :E = item
 		override def uniqueItems: Int = 1
 
 		override def unique: StableSet[E] = StableSet.single(item)
@@ -276,17 +276,20 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 
 
-	private class MultiSet1[@specialized(Elements) E](item :E, copies :Int) extends IterableFoundation[E, StableMultiSet[E]] with StableMultiSet[E] {
-		override def head = item
-		override def last = item
-		override def headOption = Some(item)
-		override def lastOption = Some(item)
+	private class MultiSet1[@specialized(Elements) E](item :E, copies :Int) //extends IterableFoundation[E, StableMultiSet[E]] with StableMultiSet[E] {
+		extends SingletonFoundation[E, StableMultiSet[E]] with StableMultiSet[E] with SingletonSpecialization[E, StableMultiSet[E]]
+	{
+		override def head :E = item
+		override def last :E = item
+//		override def headOption = Some(item)
+//		override def lastOption = Some(item)
 
-		override def size = copies
-		override def isEmpty = size==0
-		override def nonEmpty = size!=0
+		override def size :Int = copies
+		override def ofAtLeast(n :Int) :Boolean = n <= copies
+//		override def isEmpty :Boolean = size==0
+//		override def nonEmpty :Boolean = size!=0
 		override def uniqueItems = 1
-		override def hasFastSize = true
+//		override def hasFastSize = true
 
 		override def copiesOf(elem: E): Int = if (elem==item) copies else 0
 
@@ -333,7 +336,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 		override def --(elems: FitTraversableOnce[E]) :StableMultiSet[E] = {
 			var left = copies
-			val it = elems.fitIterator
+			val it = elems.toIterator
 			while(it.hasNext)
 				if (it.next()==item) {
 					left -= 1
@@ -345,7 +348,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 		override def -*(elem: E): StableMultiSet[E] = if (elem==item) StableMultiSet.empty[E] else this
 
 		override def --*(elems: FitTraversableOnce[E]): StableMultiSet[E] = {
-			val it = elems.fitIterator
+			val it = elems.toIterator
 			while(it.hasNext)
 				if (it.next()==item) return StableMultiSet.empty
 			this
@@ -359,7 +362,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 			StableMultiSet.empty[E]
 		}
 
-		override def --*(elems: GenTraversableOnce[E]) = elems match {
+		override def --*(elems: GenTraversableOnce[E]) :StableMultiSet[E] = elems match {
 			case fit :FitTraversableOnce[E] => this --* fit
 			case _ => if (elems.exists(item == _)) StableMultiSet.empty[E] else this
 		}
@@ -383,12 +386,12 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 		override def forall(p :(E, Int) => Boolean) = p(item, copies)
 		@unspecialized
-		override def forall(p: (E) => Boolean) = exists(p)
-		override def exists(p: (E) => Boolean) = p(item)
-		override def find(p: (E) => Boolean) = if (p(item)) Some(item) else None
-		override def count(p: (E) => Boolean) = if (p(item)) copies else 0
+		override def forall(p: E => Boolean) :Boolean = exists(p)
+		override def exists(p: E => Boolean) :Boolean = p(item)
+		override def find(p: E => Boolean) :Option[E] = if (p(item)) Some(item) else None
+		override def count(p: E => Boolean) :Int = if (p(item)) copies else 0
 
-		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) = {
+		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O = {
 			var res = z; var left = copies
 			do {
 				res = op(res, item)
@@ -396,7 +399,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 			} while(left>=0)
 			res
 		}
-		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) = {
+		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) :O = {
 			var res = z; var left = copies
 			do {
 				res = op(item, res)
@@ -405,69 +408,70 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 			res
 		}
 
-		override def tail = if (copies==1) StableMultiSet.empty[E] else new MultiSet1(item, copies-1)
+		override def tail :StableMultiSet[E] = if (copies==1) StableMultiSet.empty[E] else new MultiSet1(item, copies-1)
 		@unspecialized
-		override def init = tail
+		override def init :StableMultiSet[E] = tail
 
 
-		override protected[this] def dropTake(from: Int, until: Int) =
-			if (from>=copies || until<=from) StableMultiSet.empty[E]
-			else if (until>=copies)
-				if (from==0) this else new MultiSet1(item, copies-from)
-			else new MultiSet1(item, until-from)
+//		override protected[this] def dropTake(from: Int, until: Int) =
+//			if (from>=copies || until<=from) StableMultiSet.empty[E]
+//			else if (until>=copies)
+//				if (from==0) this else new MultiSet1(item, copies-from)
+//			else new MultiSet1(item, until-from)
 
-		override def takeRight(n: Int) =
+		override def takeRight(n: Int) :StableMultiSet[E] =
 			if (n<=0) StableMultiSet.empty[E]
 			else if (n>=copies) this
 			else new MultiSet1(item, n)
 
-		override def dropRight(n: Int) =
+		override def dropRight(n: Int) :StableMultiSet[E] =
 			if (n<=0) this
 			else if (n>=copies) StableMultiSet.empty[E]
 			else new MultiSet1(item, copies-n)
 
-		override def splitAt(n: Int) =
+		override def splitAt(n: Int) :(StableMultiSet[E], StableMultiSet[E]) =
 			if (n<=0) (empty, this)
 			else if (n>=copies) (this, empty)
 			else (new MultiSet1(item, n), new MultiSet1(item, copies-n))
 
 
 
-		override def takeWhile(p: (E) => Boolean) = if (p(item)) this else StableMultiSet.empty[E]
+		override def takeWhile(p: E => Boolean) :StableMultiSet[E] = if (p(item)) this else StableMultiSet.empty[E]
 
-		override def dropWhile(p: (E) => Boolean) = if (p(item)) StableMultiSet.empty[E] else this
+		override def dropWhile(p: E => Boolean) :StableMultiSet[E] = if (p(item)) StableMultiSet.empty[E] else this
 
-		override def span(p: (E) => Boolean) =
+		override def span(p: E => Boolean) :(StableMultiSet[E], StableMultiSet[E]) =
 			if (p(item)) (this, StableMultiSet.empty[E]) else (StableMultiSet.empty[E], this)
 
 		@unspecialized
-		override def partition(p: (E) => Boolean) = span(p)
+		override def partition(p: E => Boolean) :(StableMultiSet[E], StableMultiSet[E]) = span(p)
 
 
-		override protected[this] def filter(p: (E) => Boolean, ourTruth: Boolean): StableMultiSet[E] =
+		override def filter(p: E => Boolean, ourTruth: Boolean): StableMultiSet[E] =
 			if (p(item) == ourTruth) this else StableMultiSet.empty[E]
 
-		override def filter(p: (E) => Boolean) = if (p(item)) this else StableMultiSet.empty[E]
+		override def filter(p: E => Boolean) :StableMultiSet[E] = if (p(item)) this else StableMultiSet.empty[E]
 
-		override def filterNot(p: (E) => Boolean) = if (p(item)) StableMultiSet.empty[E] else this
+		override def filterNot(p: E => Boolean) :StableMultiSet[E] = if (p(item)) StableMultiSet.empty[E] else this
 
 
 
-		protected override def verifiedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+		protected override def uncheckedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
 			val count = math.min(copies, total)
 			specialty.arrayFill(xs, item, start, count)
 			count
 		}
 
 
-		override def unique = StableSet.single(item)
+		override def unique :StableSet[E] = StableSet.single(item)
 
-		override def counts = FitSeq.single((item, copies))
+		override def counts :FitSeq[(E, Int)] = FitSeq.single((item, copies))
 
-		override def inverse = this
+		override def inverse :MultiSet1[E] = this
 
-		override def toSet[B >: E] = StableSet.single(item)
-		override def toFitSeq = {
+		override def toSet[B >: E] :StableSet[B] = StableSet.single(item)
+
+		override def toFitSeq :SharedArray[E] = {
 			val a = mySpecialization.newArray(copies).asInstanceOf[Array[E]]
 			specialty.arrayFill(a, item)
 			SharedArray(a)

@@ -1,5 +1,7 @@
 package net.turambar.palimpsest.specialty.seqs
 
+import java.lang.Math
+
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized, ofKnownSize}
 
@@ -19,7 +21,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 
 	@inline override final def specialization :Specialized[E] = Specialized[E]
 
-	//this could use specialization, but it isn't necessary
+
 	override def -(elem: E): Repr = {
 		val i = indexOf(elem)
 		if (i<0)
@@ -40,7 +42,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	@inline
 	final override def --(xs: GenTraversableOnce[E]): Repr = diff(FitSeq.Empty, xs)
 
-	/** Equivalent to `this -- elems1 -- elems2`, and is the common delegate implementation for
+	/** Equals to `this -- elems1 -- elems2`, and is the common delegate implementation for
 	  * public subtraction methods. Default implementation slices this collection at
 	  * the appropriate indexes and appends them sequentially to a builder for the final result.
 	  */
@@ -51,7 +53,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 			val b = newBuilder
 			if (ofKnownSize(removedIndices))
 				b.sizeHint(this, -removedIndices.size)
-			var next = removedIndices.toList.sorted
+			var next = removedIndices.toList.sorted //todo: toValList
 			var dropped = next.head
 			var (prefix, suffix) = splitAt(dropped)
 			b ++= prefix
@@ -70,8 +72,8 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 
 
 	protected[seqs] def indicesOf(elems1 :FitSeq[E], elems2 :GenTraversableOnce[E]) :Iterable[Int] = {
-		var result = mutable.Set[Int]()
-		var searchOffsets = mutable.Map[E, Int]().withDefaultValue(0)
+		var result = mutable.Set[Int]() //todo: ValSet
+		var searchOffsets = mutable.Map[E, Int]().withDefaultValue(0) //todo: AptMap
 		def collect(e :E) :Unit = {
 			val i = indexOf(e, searchOffsets(e))
 			if (i>=0) {
@@ -95,14 +97,14 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	  * which actually is of our element type. Used by [[SeqTemplate#indexOf]] if the argument
 	  * can be cast to `E`.
 	  */
-	override def positionOf(elem: E, from: Int) = superIndexOf(elem, from)
+	override def positionOf(elem: E, from: Int) :Int = superIndexOf(elem, from)
 
 	/** Specialized variant of [[SeqTemplate#lastIndexOf]] searching for a value of our actual element type.
 	  * Hotspot for subclasses to provide specialized implementation of searching for an element
 	  * which actually is of our element type. Used by [[SeqTemplate#indexOf]] if the argument
 	  * can be cast to `E`.
 	  */
-	override def lastPositionOf(elem: E, from: Int) = superLastIndexOf(elem, from)
+	override def lastPositionOf(elem: E, from: Int) :Int = superLastIndexOf(elem, from)
 
 	/** Analogue of [[net.turambar.palimpsest.specialty.seqs.SeqTemplate#+:]], but builds this collection type
 	  * and thanks to invariance enforces the prepended element to be a subtype of this collection's element type.
@@ -110,7 +112,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	  * efficient implementation. In particular, returned collection may share contents with this collection,
 	  * even if it is mutable.
 	  */
-	def %:[That](elem :E) :Repr = {
+	def %:(elem :E) :Repr = {
 		val b = newBuilder
 		if (hasFastSize)
 			b.sizeHint(length + 1)
@@ -124,7 +126,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	  * efficient implementation. In particular, returned collection may share contents with this collection,
 	  * even if it is mutable.
 	  */
-	def :%[That](elem :E) :Repr = {
+	def :%(elem :E) :Repr = {
 		val b = newBuilder
 		if (hasFastSize)
 			b.sizeHint(length + 1)
@@ -150,9 +152,9 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 		if (start<0)
 			throw new IllegalArgumentException(s"$stringPrefix<$length>.copyToFitArray([], $start, $count")
 		else {
-			val max = math.min(count, xs.length-start)
+			val max = Math.min(count, xs.length-start)
 			if (max > 0)
-				verifiedCopyTo(xs, start, max)
+				uncheckedCopyTo(xs, start, max)
 			else 0
 		}
 }

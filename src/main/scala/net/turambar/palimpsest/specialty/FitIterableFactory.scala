@@ -26,7 +26,7 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X,
 	}
 
 
-	override def tabulate[@specialized(Elements) E](n: Int)(f: (Int) => E): S[E] = {
+	override def tabulate[@specialized(Elements) E](n: Int)(f: Int => E): S[E] = {
 		var i=0
 		val builder = newBuilder[E]
 		while (i<n) { builder += f(i); i += 1 }
@@ -96,7 +96,7 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X,
 
 		override private[specialty] def companion: Any = factory
 
-		override def canEqual(that :Any) = that.isInstanceOf[CanBuildSpecialized[_]]
+		override def canEqual(that :Any) :Boolean = that.isInstanceOf[CanBuildSpecialized[_]]
 
 		override def toString = s"$factory.CBF[$specialization]"
 	}
@@ -134,7 +134,7 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X,
 
 
 
-	override val toString = {
+	override val toString :String = {
 		val className = getClass.getName
 		val start = className.lastIndexOf('.')
 		val end = className.indexOf('$', start+1)
@@ -194,9 +194,9 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 
 	override def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E] = impl.fill(n)(elem)
 
-	override def tabulate[@specialized(Elements) E](n: Int)(f: (Int) => E): S[E] = impl.tabulate(n)(f)
+	override def tabulate[@specialized(Elements) E](n: Int)(f: Int => E): S[E] = impl.tabulate(n)(f)
 
-	override def iterate[@specialized(Elements) E](start: E, len: Int)(f: (E) => E): S[E] = impl.iterate(start, len)(f)
+	override def iterate[@specialized(Elements) E](start: E, len: Int)(f: E => E): S[E] = impl.iterate(start, len)(f)
 
 }
 

@@ -1,100 +1,77 @@
 package net.turambar.palimpsest.specialty.tries
 
+import net.turambar.palimpsest.slang.Nullable
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitIterator, IterableTemplate, Var}
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate}
-import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, TrieCombinator, TrieOperator, TriePatch}
+import net.turambar.palimpsest.specialty.tries.Trie.TrieOpRes
+import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun2}
 
 import scala.annotation.unspecialized
 import scala.collection.GenTraversableOnce
 
 
-trait EmptyTrieTemplate[+K, +V, +E, +T] extends TrieTemplate[K, V, E, T] with EmptyIterableTemplate[E, T] {
+trait EmptyTrieTemplate[+K, +T <: TrieTemplate[K, T]]
+	extends TrieTemplate[K, T]
+{ this :T =>
 	/** Fixed to return [[Trie.EmptyNode]], equal to zero - denotes the magnitude of leaves (as in 'one, two, many') in this trie. */
 	@inline final override def plurality :Trie.NodeType = 0
 
-	override def empty = this.asInstanceOf[T]
-	override def asTrie = this.asInstanceOf[T]
-
-	override def key :K = throw new NoSuchElementException(s"$stringPrefix().key")
-	override def value :V = throw new NoSuchElementException(s"$stringPrefix().value")
-
-	override def keyOpt = None
-	override def valueOpt = None
-
-	override def trieHead: T = empty
-	override def trieLast: T = empty
-
-//	override protected[this] def hasLeaf(key :K) :Boolean = false
-//	override protected[this] def leafFor(key :K) :T = empty
-	override def leaf(idx :Int) :T = asTrie //throw new NoSuchElementException(s"$typeStringPrefix.leaf($idx)")
-
-//	override protected[this] def belongs(key: K): Boolean = false
+	@inline def emptyTrie :T = this
 
 
-	override def forEachLeaf(f: T => Unit): Unit = ()
-	//	@unspecialized override def forLeavesReversed(f: (T) => Unit): Unit = ()
+	override def key :K = throw new NoSuchElementException(s"$EmptyTrie().key")
 
-	override def forEachKey(f: (K) => Unit): Unit = ()
-	override def forEachKeysReversed(f: (K) => Unit): Unit = ()
-	override def forEachValue(f: V => Unit): Unit = ()
-	override def forEachValueReversed(f: V => Unit): Unit = ()
+	override def key_? : ?[K] = Blank
 
-	override def existsLeaf(f: T => Boolean): Boolean = false
-	override def forAllLeaves(f: T => Boolean): Boolean = true
+	override def keyOpt :Option[K] = None
 
-	override def existsKey(f: (K) => Boolean): Boolean = false
-	override def forAllKeys(f: (K) => Boolean): Boolean = true
+	final override def headNode: T = this
+	final override def lastNode: T = this
 
-	override def existsValue(f: (V) => Boolean): Boolean = false
-	override def forAllValues(f :V => Boolean) :Boolean = true
+	final override def keyNode(idx :Var[Int]) :T = this
 
-	override def findLeaf(f: (T) => Boolean): T = empty
-
-	override def findKey(f: K => Boolean): Option[K] = None
-	override def findValue(f: (V) => Boolean): Option[V] = None
-
-	override def filterLeaves(f: (T) => Boolean): T = asTrie
-
-	override def leafSpan(f :T => Boolean) :(T, T) = (asTrie, asTrie)
-
-	private[palimpsest] override def properPrefixOrNull(f: (T) => Boolean) = null.asInstanceOf[T]
-	override def takeLeaves(f :T => Boolean) :T = asTrie
-	override def dropLeaves(f :T => Boolean) :T = asTrie
-
-	override def filterKeys(f: K => Boolean): T = asTrie
-	override def filterKeysNot(f :K => Boolean) :T = asTrie
-	override def filterValues(f: V => Boolean): T = asTrie
-	override def filterValuesNot(f :V=>Boolean) :T = asTrie
+	override def dropTrie(count :Var[Int]) :T = this
+	override def takeTrie(count :Var[Int]) :T = this
+	override def dropRightTrie(count :Var[Int]) :T = this
+	override def takeRightTrie(count :Var[Int]) :T = this
+	override def sliceTrie(dropLeft :Var[Int], size :Var[Int]) :T = this
+	override def splitTrie(idx :Var[Int]) :(T, T) = (this, this)
 
 
-	override protected[this] def unionTrie(other: T): T = other
-	override protected[this] def diffTrie(other: T): T = empty
-	override protected[this] def intersectTrie(other: T): T = empty
-	override protected[this] def subtrieOf(other: T): Boolean = true
+/*
+	override def find_?[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean, where :Boolean): ?[E] = Blank
+	override def exists[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean) :Boolean = false
+	override def forall[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean) :Boolean = true
+	override def count[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean) :Int = 0
+	override def partition[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean) :(T, T) = (this, this)
+	override def filter[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean, where :Boolean) :T = this
+	override def foreach[@specialized(Fun1) E, @specialized(Unit) O](elements :ElementOf[E, T])(f :E => O) :Unit = ()
+	override def reverseForeach[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Unit) :Unit = ()
+
+	override def dropWhile[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean) :T = this
+	override def takeWhile[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean) :T = this
+	override def span[@specialized(Fun1) E](elements :ElementOf[E, T])(f :E => Boolean) :(T, T) = (this, this)
 
 
-//	override protected[this] def without(key :K) :T = empty
+	override def reduce[@specialized(Fun2) E](elements :ElementOf[E, T])(f :(E, E) => E) :E =
+		throw new UnsupportedOperationException("Empty.reduce")
 
-//	override protected[this] def patch(key: K, mutant: TriePatch[K, V, T]): T = mutant.notFound(key, this)
-//
-//	override protected[this] def patch(root: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): T =
-//		mutant.notFound(key, this) match {
-//			case e if e == empty => e
-//			case leaf => root.size_++(); leaf
-//		}
-//
-//
-//	override protected[this] def mutate(root: MutableTrieRoot[T], parent: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): Unit =
-//		mutant.notFound(key, this) match {
-//			case e if e == empty => ()
-//			case newLeaf => root.size_++(); parent.hang(newLeaf)
-//		}
+	override def foldLeft[@specialized(Fun2) E, @specialized(Fun2) O](elements :ElementOf[E, T])(acc :O)(f :(O, E) => O) :O = acc
+	override def foldRight[@specialized(Fun2) E, @specialized(Fun2) O](elements :ElementOf[E, T])(acc :O)(f :(E, O) => O) :O = acc
+	override def copyToArray[@specialized(Elements) E](elements :ElementOf[E, T])(array :Array[E], from :Int, max :Int) :Int = 0
+
+	override def iterator[@specialized(Elements) E](elements :ElementOf[E, T]) :FitIterator[E] = FitIterator.empty[E]
+*/
 
 
-	override protected[this] def combine(other :T, combinator :TrieCombinator[T]) :T = combinator.emptyFirst(other)
-	override protected[this] def combine[O](other: T, operator: TrieOperator[T, O]): O = operator.emptyFirst(other)
+	override def clone() :T = this
 
-
+	override def toString = "{}"
 }
+
+
+
+
 
 
 /** Base, minimal implementation of specialized empty trie implementations.
@@ -107,138 +84,34 @@ trait EmptyTrieTemplate[+K, +V, +E, +T] extends TrieTemplate[K, V, E, T] with Em
   *           on this type or the relationship between 'this' and `T` to simplify implementation,
   *           but actual collections will generally assume that `this.type <: T`.
   */
-trait EmptyTrie[@specialized(Int, Long) +K, +V, +T <: TrieTemplate[K, V, Any, T]] extends Trie[K, V, T] with EmptyTrieTemplate[K, V, Any, T] {
-	/** Fixed to return [[Trie.EmptyNode]], equal to zero - denotes the magnitude of leaves (as in 'one, two, many') in this trie. */
-//	@inline final override def plurality :Trie.NodeType = 0
-//	override def empty = this.asInstanceOf[T]
-//	override def asTrie = this.asInstanceOf[T]
-//
-//	@unspecialized
-//	override def key :K = throw new NoSuchElementException(s"$stringPrefix().key")
-//	override def value :V = throw new NoSuchElementException(s"$stringPrefix().value")
-//
-//	override def keyOpt = None
-//	override def valueOpt = None
-//
-//	override def trieHead: T = empty
-//	override def trieLast: T = empty
-//
-	override protected[this] def hasLeaf(key :K) :Boolean = false
-	override protected[this] def leafFor(key :K) :T = empty
-//	@unspecialized override def leaf(idx :Int) :T = asTrie //throw new NoSuchElementException(s"$typeStringPrefix.leaf($idx)")
-
-	override protected[this] def belongs(key: K): Boolean = false
+trait EmptyTrie[@specialized(Int, Long) +K, +T <: TrieTemplate[K, T]]
+	extends Trie[K, T] with EmptyTrieTemplate[K, T]
+{ this :T =>
 
 
-//	@unspecialized override def forEachLeaf(f: T => Unit): Unit = ()
-//
-//
-//	@unspecialized override def forEachKey(f: (K) => Unit): Unit = ()
-//	@unspecialized override def forEachKeysReversed(f: (K) => Unit): Unit = ()
-//	override def forEachValue(f: V => Unit): Unit = ()
-//	override def forEachValueReversed(f: V => Unit): Unit = ()
-//
-//	@unspecialized override def existsLeaf(f: T => Boolean): Boolean = false
-//	@unspecialized override def forAllLeaves(f: T => Boolean): Boolean = true
-//
-//	@unspecialized override def existsKey(f: (K) => Boolean): Boolean = false
-//	@unspecialized override def forAllKeys(f: (K) => Boolean): Boolean = true
-//
-//	override def existsValue(f: (V) => Boolean): Boolean = false
-//	override def forAllValues(f :V => Boolean) :Boolean = true
-//
-//	@unspecialized override def findLeaf(f: (T) => Boolean): T = empty
-//
-//	@unspecialized override def findKey(f: K => Boolean): Option[K] = None
-//	override def findValue(f: (V) => Boolean): Option[V] = None
-//
-//	@unspecialized override def filterLeaves(f: (T) => Boolean): T = asTrie
-//
-//	override def leafSpan(f :T => Boolean) :(T, T) = (asTrie, asTrie)
-//
-//	private[palimpsest] override def properPrefixOrNull(f: (T) => Boolean) = null.asInstanceOf[T]
-//	override def takeLeaves(f :T => Boolean) :T = asTrie
-//	override def dropLeaves(f :T => Boolean) :T = asTrie
-//
-//	@unspecialized override def filterKeys(f: K => Boolean): T = asTrie
-//	@unspecialized override def filterKeysNot(f :K => Boolean) :T = asTrie
-//	override def filterValues(f: V => Boolean): T = asTrie
-//	override def filterValuesNot(f :V=>Boolean) :T = asTrie
-//
-//
-//	@unspecialized override protected[this] def unionTrie(other: T): T = other
-//	@unspecialized override protected[this] def diffTrie(other: T): T = empty
-//	@unspecialized override protected[this] def intersectTrie(other: T): T = empty
-//	@unspecialized override protected[this] def subtrieOf(other: T): Boolean = true
-//
+	override def size :Int = 0
+	override def ofAtLeast(elems :Int) :Boolean = elems >= 0
+	override def nonEmpty :Boolean = false
+	override def isEmpty :Boolean = true
 
-	override protected[this] def without(key :K) :T = empty
+	override def tail = throw new UnsupportedOperationException("EmptyTrie.tail")
+	override def init = throw new UnsupportedOperationException("EmptyTrie.init")
 
-	override protected[this] def patch(key: K, mutant: TriePatch[K, V, T]): T = mutant.notFound(key, this)
-
-	override protected[this] def patch(root: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): T =
-		mutant.notFound(key, this) match {
-//			case e if e == empty => e
-			case e if e.isEmpty => e
-			case leaf => root.size_++(); leaf
-		}
+	override protected[this] def hasKey(key :K) :Boolean = false
+	override protected[this] def nodeFor(key :K) :T = this
+	override protected[this] def belongs(key :K) :Boolean = false
 
 
-	override protected[this] def mutate(root: MutableTrieRoot[T], parent: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): Unit =
-		mutant.notFound(key, this) match {
-//			case e if e == empty => ()
-			case e if e.isEmpty => ()
-			case newLeaf => root.size_++(); parent.hang(newLeaf)
-		}
 
+//	override protected[this] def foldPath[U >: T, @specialized(TrieOpRes) O](op: Trie.FoldPath[K, U, O])(key: K): O =
+//		op.whenTrieEmpty(key, this)
 
-//	override protected[this] def combine(other :T, combinator :TrieCombinator[T]) :T = combinator.emptyFirst(other)
-//	override protected[this] def combine[O](other: T, operator: TrieOperator[T, O]): O = operator.emptyFirst(other)
 }
 
 
 
 object EmptyTrie {
-	@inline final def unapply(elems :GenTraversableOnce[Any]) :Boolean = elems match {
-		case e :Trie[_, _, _] => e.isEmpty
-		case _ => false
-	}
 
-	object IsEmptyTrie {
-		@inline final def unapply(trie :Trie[_, _, _]) :Boolean = trie.isInstanceOf[EmptyTrie[_, _, _]]
-	}
-
-
-	abstract class EmptyTrieFoundation[+K, +V, +E, +T <: TrieTemplate[K, V, E, T]]
-		extends EmptyIterable[E, T] with EmptyTrieTemplate[K, V, E, T]
-
-	abstract class AbstractEmptyTrie[@specialized(Int, Long) +K, +V, +E, +T <: TrieTemplate[K, V, E, T]] //extends EmptyIterable[E, T] with EmptyTrie[K, V, T] {
-		extends EmptyTrieFoundation[K, V, E, T] with EmptyTrie[K, V, T]
-	{
-		override def empty :T = this.asInstanceOf[T]
-		override def asTrie :T = this.asInstanceOf[T]
-
-
-		override protected[this] def patch(key: K, mutant: TriePatch[K, V, T]) = mutant.notFound(key, this)
-
-		override protected[this] def patch(root: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]) =
-			mutant.notFound(key, this) match {
-				case e if e.isEmpty => e
-				case leaf => root.size_++(); leaf
-			}
-
-		override protected[this] def mutate(root: MutableTrieRoot[T], parent: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): Unit =
-			mutant.notFound(key, this) match {
-				case e if e.isEmpty => ()
-				case newLeaf => root.size_++(); parent.hang(newLeaf)
-			}
-
-		override protected[this] def mutate(root: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): Unit =
-			mutant.notFound(key, this) match {
-				case e if e.isEmpty => ()
-				case newLeaf => root.size_++(); root.hang(newLeaf)
-			}
-
-	}
+	abstract class EmptyTrieFoundation[+K, +T <: TrieTemplate[K, T]] extends EmptyTrieTemplate[K, T] { this :T => }
 
 }

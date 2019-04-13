@@ -4,6 +4,18 @@ package net.turambar
   * @author Marcin Mościcki
   */
 package object palimpsest {
+	/* todo: possible renaming scheme:
+	 * Specialized/Fit => Apt
+	 * Stable => Const, Fixed(?)
+	 */
+
+	/** Field used for classes `@SerialVersionUID` annotation, common to the whole library for simplicity and safety.
+	  * Set to the lowest version number of the library which collections is serially (not binary!) compatible with
+	  * this version. This guarantee holds only for collection types - any other classes (which aren't serialized
+	  * as part of public collection types) may be incompatible with classes from this version.
+	  */
+	final val SerializationVersion = 100000
+
 	/**
 	  * @author Marcin Mościcki
 	  */

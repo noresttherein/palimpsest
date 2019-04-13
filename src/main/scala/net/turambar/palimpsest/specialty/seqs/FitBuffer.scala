@@ -65,7 +65,7 @@ trait FitBuffer[@specialized(Elements) E]
 	}
 
 	def ++=(elems :FitTraversableOnce[E]) :this.type = {
-		val it = elems.fitIterator
+		val it = elems.toIterator
 		while(it.hasNext) this += it.next()
 		this
 	}
@@ -108,10 +108,10 @@ object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqF
 	override protected[this] def default: FitIterableFactory[SharedArrayBuffer] = SharedArrayBuffer
 	
 	def of[E <: AnyVal :Specialized](size :Int) :FitBuffer[E] =
-		SharedArrayBuffer(Specialized.erasedArray[E](size))
+		SharedArrayBuffer(Specialized.arrayFor[E](size))
 
 	def of[E :Specialized](size :Int, value :E) :FitBuffer[E] =
-		SharedArrayBuffer(arrayFill(Specialized.erasedArray[E](size), value))
+		SharedArrayBuffer(arrayFill(Specialized.arrayFor[E](size), value))
 	
 	
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitBuffer[_], E, FitBuffer[E]]): CanBuildFrom[FitBuffer[_], E, FitBuffer[E]] =

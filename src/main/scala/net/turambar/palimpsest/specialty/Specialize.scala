@@ -7,11 +7,11 @@ package net.turambar.palimpsest.specialty
   *
   * @tparam R a type constructor for generic types, either specialized themselves, or requiring a specialized constructor.
   * @see [[Specialize#apply]]
-  * @see [[Specialize.SpecializeDistinctly]]
+  * @see [[Specialize.SpecializeIndividually]]
   * @author Marcin Mościcki
   */
 trait Specialize[R[X]] {
-	
+
 	/** Double dispatch execution of [[Specialize#specialized]] on `this`.
 	  * Retrieves implicit specialization information, whatever is available, and invokes the appropriate
 	  * specialized variant of [[Specialize#specialized]].
@@ -20,7 +20,7 @@ trait Specialize[R[X]] {
 	  */
 	@inline final def apply[E]()(implicit specialization :Specialized[E]) :R[E] =
 		specialization.call(this)
-	
+
 	/** Callback specialized method to be implemented by subclasses.
 	  * Invoked as a result of calling `this()`, and - as long as any specialization information was present at that point,
 	  * either explicitly (specialized code) or implicitly (for example `ClassTag[E]`), an appropriate specialized variant
@@ -71,7 +71,7 @@ object Specialize {
 	  */
 	type WithValue[R[X], P] = With[R, Const[P]#T]
 
-	type Distinct[R[X]] = SpecializeDistinctly[R]
+	type Individually[R[X]] = SpecializeIndividually[R]
 
 
 
@@ -81,12 +81,12 @@ object Specialize {
 	  * and delegates to a `forE` method for a type `E` specified at call site.
 	  * @tparam R type constructor for the returned value.
 	  */
-	trait SpecializeDistinctly[R[X]] {
+	trait SpecializeIndividually[R[X]] {
 
 		/** Call the appropriate `forE` method for type `E` and return its result. By default,
-		  * all these methods simply forward to [[SpecializeDistinctly#specialized]]. If `E` is not a primitive type
+		  * all these methods simply forward to [[SpecializeIndividually#specialized]]. If `E` is not a primitive type
 		  * or no specialization information is available/a generic implicit value is provided it instead delegates
-		  * directly to [[SpecializeDistinctly#specialized]].
+		  * directly to [[SpecializeIndividually#specialized]].
  *
 		  * @param specialization implicit specialization information for type `E`
 		  * @tparam E type specialized for
@@ -95,153 +95,86 @@ object Specialize {
 		@inline final def apply[E]()(implicit specialization :Specialized[E]) :R[E] =
 			specialization.call(this)
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Byte` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Byte]`
-		  */
-		def forByte :R[Byte] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Byte` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forByte :R[Byte]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Short` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Short]`
-		  */
-		def forShort :R[Short] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Short` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forShort :R[Short]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Char` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Char]`
-		  */
-		def forChar :R[Char] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Char` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forChar :R[Char]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Int` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Int]`
-		  */
-		def forInt :R[Int] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Int` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forInt :R[Int]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Long` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Long]`
-		  */
-		def forLong :R[Long] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Long` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forLong :R[Long]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Float` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Float]`
-		  */
-		def forFloat :R[Float] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Float` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forFloat :R[Float]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Double` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Double]`
-		  */
-		def forDouble :R[Double] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Double` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forDouble :R[Double]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Boolean` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Boolean]`
-		  */
-		def forBoolean :R[Boolean] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Boolean` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forBoolean :R[Boolean]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Unit` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Unit]`
-		  */
-		def forUnit :R[Unit] = specialized
+		/** Invoked from `this[E]()` if `E` is specified to be `Unit` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forUnit :R[Unit]
+		//todo: are these two of any use?
+		/** Invoked from `this[E]()` if `E` is specified to be `Nothing` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forNothing :R[Nothing] = forRef[Nothing]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Nothing` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Nothing]`
-		  */
-		def forNothing :R[Nothing] = specialized[Nothing]
+		/** Invoked from `this[E]()` if `E` is specified to be `Null` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forNull :R[Null] = forRef[Null]
 
-		/** Invoked from `this[E]()` if `E` is specified to be `Null` by the implicit argument to [[SpecializeDistinctly#apply]].
- *
-		  * @return by default, result of [[SpecializeDistinctly#specialized]]`[Null]`
+		/** Invoked from `this[E]()` if `E` is either a reference type or is erased and boxed at the point of calling.
+		  * Implicit argument gives all available information about type `E`.
 		  */
-		def forNull :R[Null] = specialized[Null]
+		def forRef[E :Specialized] :R[E]
+	}
+
+
+
+	/** A convenience base trait of [[SpecializeIndividually]] which delegates all methods to the single [[SpecializeSome#specialized]],
+	  * allowing subclasses to provide a distinct implementation only for a selected few types and default to a common
+	  * method for all others.
+	  */
+	trait SpecializeSome[R[X]] extends SpecializeIndividually[R] {
+
+		override def forByte :R[Byte] = specialized
+
+		override def forShort :R[Short] = specialized
+
+		override def forChar :R[Char] = specialized
+
+		override def forInt :R[Int] = specialized
+
+		override def forLong :R[Long] = specialized
+
+		override def forFloat :R[Float] = specialized
+
+		override def forDouble :R[Double] = specialized
+
+		override def forBoolean :R[Boolean] = specialized
+
+		override def forUnit :R[Unit] = specialized
+
+		override def forNothing :R[Nothing] = specialized[Nothing]
+
+		override def forNull :R[Null] = specialized[Null]
+
+		override def forRef[E :Specialized] :R[E] = specialized[E]
 
 		/** Default callback implementation called when no specialization information is available, the specified type
 		  * is not a primitive type or the appropriate `forE` method for the given type `E` was not overridden.
 		  * @tparam E type specialized for
 		  */
 		def specialized[@specialized E :Specialized] :R[E]
-		
+
 	}
 
 
-	/** A variant of the [[SpecializeDistinctly]] callback which is a more convenient base class when you need
-	  * to specialize only for few types and fall back to an erased, generic call for all the rest. 
-	  * It implements [[SpecializeDistinctly#specialized]] to delegate to [[Singular#unspecialized]], meaning 
-	  * derived classes won't have all the specialized variants of the latter method generated (unless they override it),
-	  * instead needing only a single method definition in the byte code - except for any overriden methods for individual
-	  * types. They too have been overriden here to delegate to default `unspecialized` implementation.
-	  * @tparam R type constructor for the returned value.
-	  */
-	abstract class Singular[R[X]] extends SpecializeDistinctly[R] {
-		/** Invoked when `Singular[Byte]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Byte]`
-		  */
-		override def forByte: R[Byte] = unspecialized
-
-		/** Invoked when `Singular[Short]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Short]`
-		  */
-		override def forShort: R[Short] = unspecialized
-
-		/** Invoked when `Singular[Char]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Char]`
-		  */
-		override def forChar: R[Char] = unspecialized
-
-		/** Invoked when `Singular[Int]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Int]`
-		  */
-		override def forInt: R[Int] = unspecialized
-
-		/** Invoked when `Singular[Long]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Long]`
-		  */
-		override def forLong: R[Long] = unspecialized
-
-		/** Invoked when `Singular[Float]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Float]`
-		  */
-		override def forFloat: R[Float] = unspecialized
-
-		/** Invoked when `Singular[Double]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Double]`
-		  */
-		override def forDouble: R[Double] = unspecialized
-
-		/** Invoked when `Singular[Boolean]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Boolean]`
-		  */
-		override def forBoolean: R[Boolean] = unspecialized
-
-		/** Invoked when `Singular[Unit]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Unit]`
-		  */
-		override def forUnit: R[Unit] = unspecialized
-
-		/** Invoked when `Singular[Nothing]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Nothing]`
-		  */
-		override def forNothing: R[Nothing] = unspecialized[Nothing]
-
-		/** Invoked when `Singular[Null]()` is called (either statically resolved or the type information was otherwise available).
-		  * @return by default, result of [[Singular#unspecialized]]`[Null]`
-		  */
-		override def forNull: R[Null] = unspecialized
-
-		/** Overriden to delegate to [[Singular#unspecialized]], this method should not be called. */		
-		final override def specialized[@specialized E: Specialized]: R[E] = unspecialized
-
-		/** Default unspecialized variant of this operation invoked when no specialization information is available
-		  * or the extending class didn't override the particular separate method for type `E`.
-		  */
-		def unspecialized[E :Specialized] :R[E]
-	}
 
 
 }

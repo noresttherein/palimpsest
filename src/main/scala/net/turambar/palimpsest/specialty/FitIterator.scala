@@ -1,29 +1,33 @@
 package net.turambar.palimpsest.specialty
 
+import java.lang.Math
+
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
-import scala.collection.{AbstractIterator, BufferedIterator, GenTraversableOnce, Iterator, immutable, mutable}
+import scala.collection.{immutable, mutable, AbstractIterator, BufferedIterator, GenTraversableOnce, Iterator}
 import net.turambar.palimpsest.{IndexedIteratorLike, ReverseIndexedIteratorLike}
-import net.turambar.palimpsest.specialty.FitIterator.{FilterIterator, LimitedIterator, MappedIterator, ScanLeftIterator, TakeWhileIterator}
+import net.turambar.palimpsest.specialty.FitIterator.{ConcatIterator, FilterIterator, LimitedIterator, MappedIterator, ScanLeftIterator, TakeWhileIterator}
 import Specialized.{Fun1, Fun1Vals, Fun2, Fun2Vals}
-import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq, StableArray}
+import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitIndexedSeq, FitSeq, StableArray}
 
 
 
 sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 	protected[this] def mySpecialization :Specialized[E]
 
-	override def ofAtLeast(size :Int) = {
-		@tailrec def enumerate(n :Int) :Boolean =
-			n<=0 || hasNext && (n==1 || { skip(); enumerate(n-1) })
-		enumerate(size)
-	}
+//	def hasFastSize :Boolean = hasNext
+
+//	override def ofAtLeast(size :Int) :Boolean = {
+//		@tailrec def enumerate(n :Int) :Boolean =
+//			n<=0 || hasNext && (n==1 || { skip(); enumerate(n-1) })
+//		enumerate(size)
+//	}
 
 	override def traverse(f :E => Unit) :Unit = foreach(f)
 
-	override def forall(p: (E) => Boolean): Boolean = forall(p, ourTruth=true)
-	override def exists(p: (E) => Boolean): Boolean = !forall(p, ourTruth=false)
-	override def indexWhere(p: (E) => Boolean): Int = indexWhere(p, ourTruth=true)
+	override def forall(p: E => Boolean): Boolean = { dropWhile(p); isEmpty }
+	override def exists(p: E => Boolean): Boolean = { dropWhile(p, false); hasNext }
+	override def indexWhere(p: E => Boolean): Int = indexWhere(p, ourTruth=true)
 
 	override def indexOf[B >: E](elem: B): Int =
 		if (mySpecialization.boxType.isAssignableFrom(elem.getClass))
@@ -40,19 +44,39 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 
 	@inline override final def /:[@specialized(Fun2) B](z: B)(op: (B, E) => B): B = foldLeft(z)(op)
 
-	override def fitIterator :FitIterator[E] = this
+//	override def toIterator :FitIterator[E] = this
 
 	def skip() :Unit
+
+	protected def empty :FitIterator[E]
+
+//	override def drop(n: Int): FitIterator[E] = {
+//		var i=n
+//		while(i>0 && hasNext) { skip(); i-=1 }
+//		this
+//	}
 
 
 	override def drop(n: Int): FitIterator[E] =
 		if (n<=0) this
-		else if (hasFastSize && n>=size) FitIterator.Empty
+		else if (hasFastSize && n>=size) empty //FitIterator.empty[E]
 		else {
 			var i=n
 			while(i>0 && hasNext) { skip(); i-=1 }
 			this
 		}
+
+
+	override def take(n :Int) :FitIterator[E] =
+		if (n<=0) empty
+		else if (hasFastSize && size <= n) this
+		else new LimitedIterator(this, n)
+
+
+	protected def dropWhile(p :E => Boolean, is :Boolean) :FitIterator[E]
+
+	override def dropWhile(p: E => Boolean): FitIterator[E] = dropWhile(p, true)
+
 
 	override def slice(from: Int, until: Int): FitIterator[E] = drop(from).take(until-from)
 
@@ -60,11 +84,16 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 	override def filterNot(p :E=>Boolean) :FitIterator[E] = filter(p, ourTruth=false)
 	override def withFilter(p :E=>Boolean) :FitIterator[E] = filter(p, ourTruth=true)
 
+	@deprecated("release", "use :++ as ++ cannot be specialized")
+	override def ++[U >: E](andThen: => GenTraversableOnce[U]) :Iterator[U] = super.++(andThen)
+
 
 	override def toSeq :FitSeq[E] = (FitSeq.fitBuilder(mySpecialization) ++= this).result()
 
 	//todo: 'optimistic specialization'
 	override def toBuffer[U>:E] :FitBuffer[U] = toFitBuffer
+
+	override def toIterator :FitIterator[E] = this
 
 	def toFitBuffer[U>:E :Specialized] :FitBuffer[U] = //(FitBuffer.fitBuilder(mySpecialization) ++= this).result()
 		FitBuffer.like[U] ++= this
@@ -76,11 +105,12 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 		else if (mySpecialization.emptyArray.getClass.isAssignableFrom(xs.getClass)) //todo
 			specializedCopy(xs.asInstanceOf[Array[E]], start, len)
 		else {
-			var i = start; val end = math.min(xs.length, start+len)
+			var i = start; val end = Math.min(xs.length, start+len)
 			while(i<end && hasNext) { xs(i) = next(); i+=1 }
 		}
 
 }
+
 
 
 /** This is a `@specialized` version of scala `Iterator`, which allows to eliminate boxing of each element
@@ -105,39 +135,69 @@ trait FitIterator[@specialized(Elements) +E]
 	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
 	
 	@unspecialized
-	override def specialization :Specialized[_<:E] = mySpecialization
+	override final def specialization :Specialized[_<:E] = mySpecialization
 	
 
 	
-//	def hasFastSize :Boolean
+	override def hasFastSize :Boolean = !hasNext
+	override def isEmpty :Boolean = !hasNext
+	override def nonEmpty :Boolean = hasNext
 
-//	def ofAtLeast(size :Int)
+	override def ofAtLeast(size :Int) :Boolean = {
+		@tailrec def enumerate(n :Int) :Boolean =
+			n<=0 || hasNext && (n==1 || { skip(); enumerate(n-1) })
+		enumerate(size)
+	}
+
+	protected def empty :FitIterator[E] =
+		if (!hasNext) this
+		else FitIterator.empty[E]
 
 	
 	/** First element of the iterator, if not empty.
-	  * Note that for efficiency the result of calling it on an empty iterator is undefined (doesn't necessarily throw an exception).
-	  * '''Always''' check if the iterator has the next element with [[hasNext]]
-      * @return
+	  * Note that for efficiency reason the result of calling it on an empty iterator is undefined (doesn't necessarily
+	  * throw an exception). '''Always''' check if the iterator has the next element with [[hasNext]].
 	  */
 	override def head :E
 	
 	override def next(): E //= { val res = head; skip(); head }
+
+	/** Applies the given function to `head` element of this iterator. Exists for the benefit of
+	  * [[net.turambar.palimpsest.specialty.FitIterator.MappedIterator]], so it can be specialized only on its
+	  * return type, rather than all `(E=>O)` pairs.
+	  */
+	private[specialty] def mapHead[@specialized(Fun1Vals) O](f :E=>O) :O = f(head)
+
+	/** Applies the given function to `next()` element of this iterator, advancing it. Exists for the benefit of
+	  * [[net.turambar.palimpsest.specialty.FitIterator.MappedIterator]], so it can be specialized only on its
+	  * return type, rather than all `(E=>O)` pairs.
+	  */
+	private[specialty] def mapNext[@specialized(Fun1Vals) O](f :E=>O) :O = f(next())
+
+	/** Applies the given function to the passed first argument and the next element of this iterator, advancing it.
+	  * Exists for the benefit of [[FitIterator.ScanLeftIterator]], to avoid specializing it on both source and
+	  * result element types.
+	  */
+	private[specialty]def scanNext[@specialized(Fun2) O](acc :O, f :(O, E) => O) :O = f(acc, next())
+
+
+
+
 	
 
-	override def take(n :Int) :FitIterator[E] =
-		if (n<=0) FitIterator.empty[E]
-		else if (hasFastSize && size <= n) this
-		else new LimitedIterator(this, n)
+	protected def dropWhile(p :E => Boolean, is :Boolean) :FitIterator[E] = {
+		while(hasNext && p(head) == is) skip(); this
+	}
 	
-
+//	override def dropWhile(p: E => Boolean): FitIterator[E] = {
+//		while(hasNext && p(head)) skip(); this
+//	}
 	
-	override def dropWhile(p: (E) => Boolean): FitIterator[E] =
-		{ while(hasNext && p(head)) skip(); this }
-	
-	override def takeWhile(p: (E) => Boolean): FitIterator[E] =
+	override def takeWhile(p: E => Boolean): FitIterator[E] =
 		if (!hasNext) this
 		else new TakeWhileIterator[E](this, p)
 		
+	
 	def filter(p :E=>Boolean, ourTruth :Boolean) :FitIterator[E] =
 		if (!hasNext) this
 		else new FilterIterator(p, ourTruth)(this)
@@ -145,18 +205,19 @@ trait FitIterator[@specialized(Elements) +E]
 
 
 
-	override def foreach[@specialized(Unit) U](f: (E) => U): Unit =
-		{ while (hasNext) f(next()) }
-	
-
-	
-
-	protected def forall(p :E=>Boolean, ourTruth :Boolean) :Boolean = {
-		while(hasNext) {
-			if (p(next())!=ourTruth) return false
-		}
-		true
+	override def foreach[@specialized(Unit) U](f: E => U): Unit = { 
+		while (hasNext) f(next()) 
 	}
+	
+
+	
+
+//	protected def forall(p :E=>Boolean, ourTruth :Boolean) :Boolean = {
+//		while(hasNext) {
+//			if (p(next())!=ourTruth) return false
+//		}
+//		true
+//	}
 	
 
 	
@@ -181,7 +242,7 @@ trait FitIterator[@specialized(Elements) +E]
 	}
 	
 	
-	override def find(p: (E) => Boolean): Option[E] = {
+	override def find(p: E => Boolean): Option[E] = {
 		while(hasNext) {
 			val e = next()
 			if (p(e)) return Some(e)
@@ -189,18 +250,31 @@ trait FitIterator[@specialized(Elements) +E]
 		None
 	}
 	
-	override def count(p: (E) => Boolean): Int = {
+	def find_?(p :E => Boolean, where :Boolean): ?[E] = {
+		while(hasNext) {
+			val e = next()
+			if (p(e) == where) return Sure(e)
+		}
+		Blank
+	}
+	
+	override def count(p: E => Boolean): Int = {
 		var t = 0
 		while(hasNext) if (p(next())) t+=1
 		t
 	}
 	
 	
-	override def map[@specialized(Fun1Vals) B](f: (E) => B): FitIterator[B] = new MappedIterator(f)(this)
-	
-	
-	
-	
+	override def map[@specialized(Fun1) B](f: E => B): FitIterator[B] = new MappedIterator(f)(this)
+
+
+	override def flatMap[@specialized(Fun1) B](f :E => GenTraversableOnce[B]) :FitIterator[B] =
+		if (!hasNext)
+			FitIterator.empty[B]
+		else
+			new ConcatIterator[B](FitIterator.adapt(f(next()).toIterator), flatMap(f))
+
+
 	override def corresponds[@specialized(Fun2) O](that: GenTraversableOnce[O])(p: (E, O) => Boolean): Boolean =
 		that.toIterator match {
 			case fit :FitIterator[O] =>
@@ -223,7 +297,6 @@ trait FitIterator[@specialized(Elements) +E]
 		acc
 	}
 	
-	//todo: unspecialize the two
 	override def scanLeft[@specialized(Fun2) A](z: A)(op: (A, E) => A): FitIterator[A] =
 		new ScanLeftIterator(z, op)(this)
 	
@@ -251,8 +324,6 @@ trait FitIterator[@specialized(Elements) +E]
 //	def partition(p: E => Boolean): (Iterator[E], Iterator[E]) = {
 //	override def collect[B](pf: PartialFunction[E, B]): Iterator[B] = super.collect(pf)
 //	def span(p: E => Boolean): (Iterator[E], Iterator[E]) = super.span(p)
-	
-
 
 
 	override def sameElements(that: Iterator[_]): Boolean = that match {
@@ -273,7 +344,7 @@ trait FitIterator[@specialized(Elements) +E]
 
 	/** Copies elements to the array, assuming their specializations are equal. */
 	protected[this] def specializedCopy(xs :Array[E], start :Int, len :Int) :Unit = {
-		val end = math.min(xs.length, start + len)
+		val end = Math.min(xs.length, start + len)
 		var i = start
 		while (i<end && hasNext) { val e :E = next(); xs(i) = e; i+=1 }
 	}
@@ -285,22 +356,30 @@ trait FitIterator[@specialized(Elements) +E]
 
 
 object FitIterator {
-	def empty[E] :FitIterator[E] = Empty
 
+	/** An empty iterator, specialized for its declared element type.
+	  * @see [[FitIterator.Empty]] an empty iterator with erased element type.
+	  */
+	def empty[@specialized(Elements) E] :FitIterator[E] = new EmptyIterator[E] //Empty
+
+	/** An iterator over `times` copies of `elem`. */
 	def repeated[@specialized(Elements) E](elem :E, times :Int) :FitIterator[E] = new ConstIterator[E](elem, times)
 
+	/** An iterator over a single element. */
 	def apply[@specialized(Elements) E](value :E) :FitIterator[E] = new SingletonIterator[E](value)
+
+	/** An iterator over two values. */
 	def apply[@specialized(Elements) E](first :E, second :E) :FitIterator[E] = new DoubletonIterator[E](first, second)
 	
-	
+	/** Wraps the given iterator in an erased `FitIterator`. */
 	def adapt[@specialized(Elements) E](iter :Iterator[E]) :FitIterator[E] = iter match {
 		case spec :FitIterator[_] => spec.asInstanceOf[FitIterator[E]]
-		case i => new ErasedIterator(iter.buffered)
+		case _ => new ErasedIterator(iter.buffered)
 	}
 	
 	
 	/** Checks if the given instance can be converted to a [[FitIterator]].
-	  * Matching succeeds if the instance already is a `FitIterator`,
+	  * Matching succeeds if the instance already is a `Fitterator`,
 	  * is a [[FitIterable]] (in which case its iterator is returned),
 	  * or is an instance of `mutable.WrappedArray`, in which case a properly
 	  * specialized iterator is created.
@@ -311,8 +390,18 @@ object FitIterator {
 		case arr :mutable.WrappedArray[E] => Some(ArrayIterator(arr.array))
 		case _ => None
 	}
-	
-	
+
+
+	/** Implicit conversion from `FitIterator[E]` which adds a concatenation operation `:++`. Note that standard
+	  * iterator's method `++` is generic with a lower bound for element type which makes it impossible to spcialize.
+	  */
+	implicit class IteratorConcatenation[@specialized(Elements) E](first :FitIterator[E]) {
+		def :++(andThen: =>GenTraversableOnce[E]) :FitIterator[E] = new ConcatIterator[E](first, andThen)
+	}
+
+
+
+
 	/** Base class for [[FitIterator]] instances introduced to minimize static forwarding of trait methods.
 	  * This class is ''unspecialized'' (so can be extended by specialized classes)
 	  * and contains only methods which don't need specializations (to be provided by concrete implementations).
@@ -321,126 +410,92 @@ object FitIterator {
 	  */
 	abstract class BaseIterator[+E] extends AbstractIterator[E] with IteratorTemplate[E] { this :FitIterator[E] =>
 		
-		override def specialization :Specialized[_<:E] = mySpecialization
-		
-		override def hasFastSize = !hasNext
-		override def isEmpty = !hasNext
-		override def nonEmpty = hasNext
+//		override def specialization :Specialized[_<:E] = mySpecialization
 
-		override def ofAtLeast(size :Int) = {
-			@tailrec def enumerate(n :Int) :Boolean =
-				n<=0 || hasNext && (n==1 || { skip(); enumerate(n-1) })
-			hasFastSize && this.size >= size || enumerate(size)
-		}
+		override def traverse(f: E => Unit): Unit = foreach[Unit](f :E=>Unit) //dear compiler, please use specialized f.apply
 		
-		override def fitIterator :FitIterator[E] = this
-		
-		override def drop(n: Int): FitIterator[E] =
-			if (n<=0) this
-			else if (hasFastSize && n>=size) FitIterator.Empty
-			else {
-				var i=n
-				while(i>0 && hasNext) { skip(); i-=1 }
-				this
-			}
-		
-		override def slice(from: Int, until: Int): FitIterator[E] = drop(from).take(until-from)
-		
-		override def filter(p :E=>Boolean) :FitIterator[E] = filter(p, ourTruth=true)
-		override def filterNot(p :E=>Boolean) :FitIterator[E] = filter(p, ourTruth=false)
-		override def withFilter(p :E=>Boolean) :FitIterator[E] = filter(p, ourTruth=true)
-		
-		override def forall(p: (E) => Boolean): Boolean = forall(p, ourTruth=true)
-		
-		override def exists(p: (E) => Boolean): Boolean = !forall(p, ourTruth=false)
-		
-		override def indexWhere(p: (E) => Boolean): Int = indexWhere(p, ourTruth=true)
-		
-		
-		override def traverse(f: (E) => Unit): Unit = foreach[Unit](f :E=>Unit) //dear compiler, please use specialized f.apply
-		
-		override def toString =
+		override def toString :String =
 			if (isEmpty) s"Iterator[$mySpecialization]()"
 			else s"Iterator[$mySpecialization]($head, ???)"
 		
 	}
 
+	/** An iterator of known size, computable in `O(1)` or close enough to make little difference.
+	  * Implements size-related methods using its `size`.
+	  */
 	abstract class FastSizeIterator[+E] extends BaseIterator[E] { this :FitIterator[E] =>
 		override def hasFastSize = true
 		override def hasDefiniteSize = true
-//		override def isEmpty = size == 0
-//		override def nonEmpty = size > 0
-		override def ofAtLeast(items :Int) = size >= items
-		override def hasNext = size > 0
+//		override def isEmpty :Boolean = size == 0
+//		override def nonEmpty :Boolean = size > 0
+		override def ofAtLeast(items :Int) :Boolean = size >= items
+		override def hasNext :Boolean = size > 0
 	}
 
-//	abstract class ProxyIterator[E] extends BaseIterator[E] {
-//		protected[this] def source :Iterator
-//	}
-	
-	/** An empty, erased iterator. */
-	object Empty extends FitIterator[Nothing] {
-		override val specialization = Specialized[Nothing]
-		
-		override def head: Nothing = throw new NoSuchElementException(s"FitIterator.empty.head")
-		override def next(): Nothing = head
-		override def skip() :Unit = ()
-		override def hasNext: Boolean = false
-		override def isEmpty = true
-		override def nonEmpty = false
-		
+
+
+	private class EmptyIterator[@specialized(Elements) E] extends FastSizeIterator[E] with FitIterator[E]  {
 		override def size = 0
 		override def length = 0
-		override def hasDefiniteSize = true
-		override def hasFastSize = true
-		
-		override def drop(n: Int): FitIterator[Nothing] = this
-		override def take(n: Int): FitIterator[Nothing] = this
-		override def slice(from: Int, until: Int): FitIterator[Nothing] = this
+		override def ofAtLeast(items :Int) :Boolean = items <= 0
+		override def hasNext = false
+		override def isEmpty = true
+		override def nonEmpty = false
 
-		
-		override def filter(p: (Nothing) => Boolean, ourTruth: Boolean): FitIterator[Nothing] = this
-//		override def filter(p: (Nothing) => Boolean): FitIterator[Nothing] = this
-//		override def filterNot(p: (Nothing) => Boolean): FitIterator[Nothing] = this
-		
-		override def foreach[@specialized(Unit) U](f: (Nothing) => U): Unit = ()
-		override def traverse(f: (Nothing) => Unit): Unit = ()
-		
-		override def map[@specialized(Fun1Vals) B](f: (Nothing) => B): FitIterator[B] = this
-		override def flatMap[B](f: (Nothing) => GenTraversableOnce[B]): FitIterator[B] = this
-		
-		
-		override def copyToArray[B >: Nothing](xs: Array[B], start: Int, len: Int): Unit = ()
-		
-		override def toSeq :FitSeq[Nothing] = FitSeq.Empty
-		override def toIndexedSeq = StableArray.Empty
-		override def toBuffer[U >: Nothing]: FitBuffer[U] = FitBuffer.empty[U]
-		override def toFitBuffer[U >: Nothing : Specialized]: FitBuffer[U] = FitBuffer.empty[U]
-		
+		override protected def empty :FitIterator[E] = this
+
+		override def head: E = throw new NoSuchElementException(s"FitIterator.empty.head")
+		override def next() :E = head
+		override def skip() :Unit = ()
+
+		override def drop(n :Int) :FitIterator[E] = this
+		override def take(n :Int) :FitIterator[E] = this
+		override def slice(from :Int, until :Int) :FitIterator[E] = this
+
+		override def filter(p :E => Boolean, where :Boolean) :FitIterator[E] = this
+
+		override def foreach[@specialized(Unit) U](f :E => U) :Unit = ()
+		override def traverse(f :E => Unit) :Unit = ()
+
+		override def map[@specialized(Fun1) O](f :E => O) :FitIterator[O] = FitIterator.empty[O]
+		override def flatMap[@specialized(Fun1) O](f :E => GenTraversableOnce[O]) :FitIterator[O] = FitIterator.empty[O]
+
+		override def copyToArray[B >: E](xs: Array[B], start: Int, len: Int): Unit = ()
+
+		override def toSeq :FitSeq[E] = FitSeq.empty[E]
+		override def toIndexedSeq :immutable.IndexedSeq[E] = StableArray.empty[E]
+		override def toBuffer[U >: E]: FitBuffer[U] = FitBuffer.empty[U]
+		override def toFitBuffer[U >: E : Specialized]: FitBuffer[U] = FitBuffer.empty[U]
+
 		override def sameElements(that: Iterator[_]): Boolean = that.isEmpty
-		
-		override def toString = "FitIterator[Nothing]()"
+
+		override def toString :String = "FitIterator[" + mySpecialization + "]()"
 	}
+
+
+	/** An empty, erased iterator. */
+	val Empty :FitIterator[Nothing] = new EmptyIterator[Nothing] { //todo: do we need this specialization info?
+		override val mySpecialization :Specialized[Nothing] = Specialized[Nothing]
+	}
+
 	
 	
-	
-	/** Unspecialized base class for [[FitIterator]] implementations which iterate over
+	/** Not specialized base class for [[FitIterator]] implementations which iterates over
 	  * some kind of indexed sequences (in a generic sense). It is assumed that [[index]]
 	  * describes the position of the current element ([[FitIterator#head]]) and that advancing
 	  * the iterator can be represented by increasing the index by one in [[skip]], until a
 	  * predefined (but mutable) end index is reached (exclusive).
-	  * Note that implementations of [[FitIterator#head]] and [[FitIterator#next]] are left to the
-	  * subclasses in order to be specializable.
+	  * Implementation of [[FitIterator#head]] and [[FitIterator#next]] is left to the
+	  * subclasses in order to be specialized.
 	  * @param index current position of the `head` element
 	  * @param end end index for the iteration, `end>index` for non-empty iterators.
 	  */
 	abstract class IndexedIterator[+E](protected[this] final var index :Int, protected[this] final var end :Int)
 		extends FastSizeIterator[E]
 	{ this :FitIterator[E] =>
-		@inline final override def size = if (index>=end) 0 else end-index
-		override def ofAtLeast(n :Int) :Boolean = size >= n
-		
-		override def hasNext = index<end
+		@inline final override def size :Int = if (index>=end) 0 else end-index
+
+		override def hasNext :Boolean = index<end
 		
 		override def skip() :Unit = index+=1
 		
@@ -465,7 +520,7 @@ object FitIterator {
 		}
 		
 		
-		override def toString =
+		override def toString :String =
 			if (isEmpty) s"Iterator[$mySpecialization]#$index>>()"
 			else s"Iterator[$mySpecialization]#$index>>($head, ?)"
 	}
@@ -485,9 +540,8 @@ object FitIterator {
 		extends FastSizeIterator[E]
 	{ this :FitIterator[E] =>
 		
-		@inline final override def size = if (end>index) 0 else index-end +1
-		override def ofAtLeast(size :Int) = this.size >= size
-		
+		@inline final override def size :Int = if (end>index) 0 else index-end +1
+
 		override def hasNext: Boolean = index >= end
 		
 		override def skip() :Unit = index-=1
@@ -512,7 +566,7 @@ object FitIterator {
 			this
 		}
 		
-		override def toString =
+		override def toString :String =
 			if (isEmpty) s"Iterator[$mySpecialization]#$index>>()"
 			else s"Iterator[$mySpecialization]#$index>>($head, ?)"
 	}
@@ -521,13 +575,13 @@ object FitIterator {
 	
 	
 	private class ErasedIterator[+E](source :BufferedIterator[E]) extends BaseIterator[E] with FitIterator[E] {
-		override def hasDefiniteSize = source.hasDefiniteSize
+		override def hasDefiniteSize :Boolean = source.hasDefiniteSize
 		
 		override def head: E = source.head
 
 		override def next(): E = source.next()
 		
-		override def skip() = source.next()
+		override def skip() :Unit = source.next()
 
 		override def hasNext: Boolean = source.hasNext
 		
@@ -536,21 +590,19 @@ object FitIterator {
 	
 	
 	
-	private class SingletonIterator[@specialized(Elements) +E](val head :E) extends FitIterator[E] {
-		override def specialization: Specialized[_ <: E] = mySpecialization
+	private class SingletonIterator[@specialized(Elements) +E](val head :E) extends FastSizeIterator[E] with FitIterator[E] {
+//		override def specialization: Specialized[_ <: E] = mySpecialization
 		
 		private[this] var left = 1
 		override def skip() :Unit = left = 0
-		override def next() = { left=0; head }
-		override def hasNext = left>0
+		override def next() :E = { left=0; head }
+		override def hasNext :Boolean = left>0
 		
-		override def hasFastSize = true
-		override def hasDefiniteSize = true
-		override def size = left
+		override def size :Int = left
 		
 		
-		override def foreach[@specialized(Unit) U](f: (E) => U): Unit = f(head)
-		override def traverse(f: (E) => Unit): Unit = f(head)
+		override def foreach[@specialized(Unit) U](f: E => U): Unit = f(head)
+		override def traverse(f: E => Unit): Unit = f(head)
 		
 		@unspecialized
 		override def drop(n: Int): FitIterator[E] = {
@@ -570,10 +622,12 @@ object FitIterator {
 			if (left>0 && len>0 && xs.length-start>0)
 				xs(start) = head
 		
-		override def toString =
+		override def toString :String =
 			if (isEmpty) s"FitIterator[$mySpecialization]()"
 			else s"FitIterator[$mySpecialization]($head)"
 	}
+
+
 
 	private final class DoubletonIterator[@specialized(Elements) +E](first :E, second :E) extends CountdownIterator[E](2) with FitIterator[E] {
 		override def head: E = limit match {
@@ -589,20 +643,20 @@ object FitIterator {
 
 
 	abstract class CountdownIterator[+E](protected[this] final var limit :Int) extends FastSizeIterator[E] { this :FitIterator[E] =>
-		override def size = math.max(0, limit)
-		override def hasNext = limit > 0
-		override def ofAtLeast(items :Int) = limit >= items
+		override def size :Int = Math.max(0, limit)
+		override def hasNext :Boolean = limit > 0
+		override def ofAtLeast(items :Int) :Boolean = limit >= items
 		
 		override def take(n :Int) :FitIterator[E] =
 			if (n>size) this
-			else if (n<=0) Empty
+			else if (n<=0) empty
 			else {
 				limit -= n; this
 			}
 		
 		override def drop(n :Int) :FitIterator[E] =
 			if (n<=0) this
-			else if (n>size) Empty
+			else if (n>size) empty
 			else {
 				val until = size-n
 				do { skip() } while (size > until)
@@ -611,12 +665,17 @@ object FitIterator {
 	}
 
 
+
 	class ConstIterator[@specialized(Elements) +E](override val head :E, count :Int) extends CountdownIterator[E](count) with FitIterator[E] {
 		override def next(): E = { limit-= 1; head }
 		override def skip(): Unit = limit -= 1
 	}
-	
-	
+
+
+
+	/** Iterator implementing a `take` operation on another iterator. Returns elements of `source` for as long as
+	  * next element exists or a predefined element limit has been reached.
+	  */
 	class LimitedIterator[@specialized(Elements) +E](source :FitIterator[E], private[this] var limit :Int)
 		extends BaseIterator[E] with FitIterator[E]
 	{
@@ -626,7 +685,7 @@ object FitIterator {
 		
 		override def next(): E = { limit-=1; source.next() }
 		
-		override def hasNext = limit>0 && source.hasNext
+		override def hasNext :Boolean = limit>0 && source.hasNext
 		
 		@unspecialized
 		override def take(n: Int): FitIterator[E] = {
@@ -644,15 +703,17 @@ object FitIterator {
 		}
 		
 		override def hasDefiniteSize = true
-		override def hasFastSize = limit<=0 || source.hasFastSize
-		override def size = if (limit<=0) 0 else limit min source.size
-		override def isEmpty = limit<=0 || source.isEmpty
-		override def nonEmpty = limit> 0 && source.nonEmpty
-		override def ofAtLeast(elems :Int) = limit >= elems && source.ofAtLeast(elems)
-		
+		override def hasFastSize :Boolean = limit<=1 || source.hasFastSize
+		override def size :Int = if (limit<=0) 0 else limit min source.size
+		override def isEmpty :Boolean = limit<=0 || source.isEmpty
+		override def nonEmpty :Boolean = limit > 0 && source.nonEmpty
+		override def ofAtLeast(elems :Int) :Boolean = limit >= elems && source.ofAtLeast(elems)
+
+
 		override def copyToArray[B >: E](xs: Array[B], start: Int, len: Int): Unit =
 			source.copyToArray(xs, start, len min limit)
-		
+
+
 		override def toString = s"$source.take($limit)"
 	}
 
@@ -661,79 +722,84 @@ object FitIterator {
 	class TakeWhileIterator[@specialized +E](source :FitIterator[E], p :E=>Boolean)
 		extends BaseIterator[E] with FitIterator[E]
 	{
-		override def hasDefiniteSize = source.hasDefiniteSize
+		override def hasDefiniteSize :Boolean = source.hasDefiniteSize
 		
 		private[this] var hd: E = source.head
-		var hasNext = p(hd)
+		private[this] var takeHead = p(hd)
+
+		def hasNext :Boolean = takeHead
 		
-		override def head = hd
+		override def head :E = hd
 		
 		override def next(): E = {
 			val res = hd
-			if (source.hasNext) hd=source.next()
-			else hasNext = false
+			if (source.hasNext) hd = source.next()
+			else takeHead = false
 			res
 		}
 		
 		override def skip(): Unit = {
 			if (source.hasNext) hd = source.next()
-			else hasNext = false
+			else takeHead = false
 		}
 		
 	}
 	
 
 	
-	class MappedIterator[@specialized(Fun1) X, @specialized(Fun1Vals) +E](f :X=>E)(protected var source :FitIterator[X])
+	class MappedIterator[X, @specialized(Fun1Vals) +E](f :X=>E)(protected var source :FitIterator[X])
 		extends BaseIterator[E] with FitIterator[E]
 	{
-		override def head: E = f(source.head)
-		override def next(): E = f(source.next())
+		override def head: E = source.mapHead(f) //f(source.head)
+		override def next(): E = source.mapNext(f) //f(source.next())
 		override def skip() :Unit = source.skip()
-		override def hasNext = source.hasNext
-		
-		override def size = source.size
+		override def hasNext :Boolean = source.hasNext
+
+		override def size :Int = source.size
 		override def hasDefiniteSize: Boolean = source.hasDefiniteSize
 		override def hasFastSize :Boolean = source.hasFastSize
-		override def isEmpty = source.isEmpty
-		override def nonEmpty = source.nonEmpty
-		override def ofAtLeast(size :Int) = source.ofAtLeast(size)
+		override def isEmpty :Boolean = source.isEmpty
+		override def nonEmpty :Boolean = source.nonEmpty
+		override def ofAtLeast(size :Int) :Boolean = source.ofAtLeast(size)
 
 		@unspecialized
 		override def drop(n: Int): FitIterator[E] = {
 			source = source.drop(n); this
 		}
-		
+
 		@unspecialized
 		override def take(n: Int): FitIterator[E] = {
 			source = source.take(n); this
 		}
-		
+
 		@unspecialized
 		override def slice(from: Int, until: Int): FitIterator[E] = {
 			source = source.slice(from, until); this
 		}
-		
-		override def map[@specialized(Fun1Vals) O](g: (E) => O): FitIterator[O] =
-			new MappedIterator[X, O]({ x :X => g(f(x)) })(source)
+
+		override def map[@specialized(Fun1Vals) O](g: E => O): FitIterator[O] =
+			new MappedIterator[X, O]((x :X) => g(f(x)))(source)
 	}
 	
-	
-	class ScanLeftIterator[@specialized(Fun2) +A, @specialized(Fun2) +E](private[this] var acc :A, op :(A, E)=>A)(source :FitIterator[E])
+
+
+	private class ScanLeftIterator[@specialized(Fun2) +A, E](private[this] var acc :A, op :(A, E)=>A)(source :FitIterator[E])
 		extends BaseIterator[A] with FitIterator[A]
 	{
-		override def hasFastSize = source.hasFastSize
+		override def hasFastSize :Boolean = source.hasFastSize
 		override def hasDefiniteSize: Boolean =  source.hasDefiniteSize
-		override def size = 1 + source.size
-		override def ofAtLeast(n :Int) = n<=1 || source.ofAtLeast(n-1)
-		var hasNext = true
+		override def size :Int = 1 + source.size
+		override def ofAtLeast(n :Int) :Boolean = n<=1 || source.ofAtLeast(n-1)
+		override def hasNext :Boolean = hasMore
+
+		private[this] var hasMore = true
 
 		override def head: A = acc //op(acc, source.head)
 		
 		override def next(): A = {
 			val res = acc
-			if (source.hasNext) acc = op(res, source.next())
-			else hasNext = false
+			if (source.hasNext) acc = source.scanNext(res, op) //op(res, source.next())
+			else hasMore = false
 			res
 		}
 		
@@ -741,32 +807,100 @@ object FitIterator {
 		
 	}
 	
-	
-	class FilterIterator[@specialized(Fun1) E](p :E=>Boolean, ourTruth :Boolean = true)(source :FitIterator[E])
+
+
+	class FilterIterator[@specialized(Fun1) +E](p :E=>Boolean, ourTruth :Boolean = true)(source :FitIterator[E])
 		extends BaseIterator[E] with FitIterator[E]
 	{
-		override def hasDefiniteSize = source.hasDefiniteSize
-		var head :E = source.next()
+		override def hasDefiniteSize :Boolean = source.hasDefiniteSize
+
+		private[this] var hd :E = source.next()
 		private[this] var hasMore = true
+
 		if (p(head)!=ourTruth) next()
-		
-		def hasNext = hasMore
+
+		def head :E = hd
+		def hasNext :Boolean = hasMore
 		
 		/** Delegate to a specialized method. */
 		def skip() :Unit = next()
 		
 		override def next() :E = {
-			val res = head
+			val res = hd
 			while(source.hasNext) {
-				val hd = source.next()
-				if (p(hd)==ourTruth) {
-					head = hd; return res
+				val e = source.next()
+				if (p(e)==ourTruth) {
+					hd = e; return res
 				}
 			}
 			hasMore = false
 			res
 		}
 	
+	}
+
+
+
+	private class ConcatIterator[@specialized(Elements) +E](first :FitIterator[E], andThen: =>GenTraversableOnce[E])
+		extends BaseIterator[E] with FitIterator[E]
+	{
+		private[this] var second :FitIterator[E] = _
+		/** Iterated over all elements from the first iterator. Needed because `size` might evaluate `second`
+		  * before actually advancing to it. If true, implies that `second` has been initialized. */
+		private[this] var firstDone = false
+
+		private def evalSecond :FitIterator[E] = {
+			if (second == null)
+				second = FitIterator.adapt(andThen.toIterator)
+			second
+		}
+
+		override def hasDefiniteSize :Boolean = first.hasDefiniteSize && second!=null && second.hasDefiniteSize
+		override def hasFastSize :Boolean = first.hasFastSize && second!=null && second.hasFastSize
+
+		override def size :Int = first.size + evalSecond.size
+
+		override def hasNext :Boolean =
+			if (firstDone) second.hasNext
+			else if (first.hasNext) true
+			else {
+				firstDone = true
+				second = FitIterator.adapt(andThen.toIterator)
+				second.hasNext
+			}
+
+		override def head :E =
+			if (firstDone)
+				second.head
+			else if (first.hasNext) first.head
+			else {
+				firstDone = true
+				if (second==null)
+					second = adapt(andThen.toIterator)
+				second.head
+			}
+
+		override def next() :E =
+			if (firstDone)
+				second.next()
+			else if (first.hasNext)
+				first.next()
+			else {
+				firstDone = true
+				if (second==null)
+					second = FitIterator.adapt(andThen.toIterator)
+				second.next()
+			}
+
+		override def skip() :Unit =
+			if (firstDone) second.skip()
+			else if (first.hasNext) first.skip()
+			else {
+				firstDone = true
+				if (second==null)
+					second = adapt(andThen.toIterator)
+				second.skip()
+			}
 	}
 }
 

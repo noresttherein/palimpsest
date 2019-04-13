@@ -12,7 +12,7 @@ import scala.collection.{IndexedSeqOptimized, LinearSeq, LinearSeqLike}
 
 
 
-
+//todo: rename ArraySection
 /** Common interface of specialized sequences backed by arrays.
   * The backing array is shared whenever possible, so all slicing methods
   * (including the `drop` and `take` family) operate in constant type and work
@@ -23,8 +23,8 @@ trait ArrayView[@specialized(Elements) +E]
 			with FitIndexedSeq[E] with ArrayViewLike[E, ArrayView[E]]
 			with SpecializableIterable[E, ArrayView]
 {
-	@unspecialized override protected[this] def thisCollection = this
-	@unspecialized override protected[this] def toCollection(repr :ArrayView[E]) = repr
+	@unspecialized override protected[this] def thisCollection :ArrayView[E] = this
+	@unspecialized override protected[this] def toCollection(repr :ArrayView[E]) :ArrayView[E] = repr
 	@unspecialized override def seq :ArrayView[E] = this
 
 
@@ -84,7 +84,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
       * @tparam E element type of the sequence
       * @return an empty sequence.
 	  */
-	@inline final override def empty[@specialized(Elements) E]: S[E] = using(Specialized.erasedArray[E], 0, 0)
+	@inline final override def empty[@specialized(Elements) E]: S[E] = using(Specialized.arrayFor[E], 0, 0)
 	
 	
 	
@@ -289,7 +289,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
       * @return
 	  */
 	@deprecated("use fitBuilder", "palimpsest")
-	def specializedBuilder[@specialized(Elements) E](implicit special :Specialized[E]) :FitBuilder[E, S[E]] =
+	override def specializedBuilder[@specialized(Elements) E](implicit special :Specialized[E]) :FitBuilder[E, S[E]] =
 		new ArraySeqBuilder[E](special.emptyArray.asInstanceOf[Array[E]])
 	
 	/** A builder for a sequence backed by an array, which specialization - and resulting component type - are given
@@ -316,7 +316,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 //	  *
 //	  * @return an erased version of the builder for element type `E`.
 //	  */
-//	override def genericBuilder[E]: FitBuilder[E, S[E]] = new SharedArrayBuilder[E](Specialized.erasedArray)
+//	override def genericBuilder[E]: FitBuilder[E, S[E]] = new SharedArrayBuilder[E](Specialized.arrayFor)
 	
 //	protected def erasedBuilder[E] :FitBuilder[E, S[E]]
 	
@@ -364,10 +364,11 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 		
 		override def specialization: Specialized[E] = mySpecialization
 
-		override def elementType = classTag[E].runtimeClass
+		override def elementType :Class[_] = classTag[E].runtimeClass
 
 		override def apply(from: S[_]): FitBuilder[E, S[E]] =
-			from.specializedBuilder[E](mySpecialization)
+			from.genericBuilder[E]
+//			from.fitBuilder[E](mySpecialization)
 
 		override def apply(): FitBuilder[E, S[E]] =
 			specializedBuilder[E](mySpecialization)

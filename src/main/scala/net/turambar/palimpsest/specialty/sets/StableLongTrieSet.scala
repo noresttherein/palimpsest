@@ -1,21 +1,24 @@
 package net.turambar.palimpsest.specialty.sets
-
+/*
 import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate}
-import net.turambar.palimpsest.specialty.tries.LongPrefixTrie.{EmptyLongTrie, LongTrieBranch, LongTrieLeaf, MutableLongTrie, OrderedLongLeaf, OrderedLongTrie, commonPath, flipSign}
-import net.turambar.palimpsest.specialty.tries.Trie.{DeleteTrie, LeafValueIterator, MutableTrieRoot, ReplaceLeaf, TrieCombinator, TriePatch}
+import net.turambar.palimpsest.specialty.tries.LongTrieKeys.{commonPath, flipSign, EmptyLongKeys, LongKeyBranch, LongKeyLeaf, MutableLongTrie}
+import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, ReplaceLeaf, TrieCombinator, AbstractTriePatch}
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate, IterableFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals}
+import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals, ValOrdering}
 import net.turambar.palimpsest.specialty.ordered.OrderedAs.EmptyOrderedTemplate
 import net.turambar.palimpsest.specialty.sets.StableLongTrieSet.{EditableLongTrieSet, LongTrieSet1, StableLongTrieSetN}
-import net.turambar.palimpsest.specialty.tries.BinaryTrie.ValueTrieTemplate
+import net.turambar.palimpsest.specialty.tries.TrieBranch.ValueTrieTemplate
 import net.turambar.palimpsest.specialty.tries.EmptyTrie.AbstractEmptyTrie
 import net.turambar.palimpsest.specialty.tries.TrieLeaf.ValueLeaf
-import net.turambar.palimpsest.specialty.tries.{LongPrefixTrie, Trie, TrieLeaf, TrieTemplate}
+import net.turambar.palimpsest.specialty.tries.{LongTrieKeys, OrderedLongKeyedTrie, Trie, TrieLeaf, TrieTemplate}
+import net.turambar.palimpsest.specialty.tries.BinaryTrie.LeafValueIterator
+import net.turambar.palimpsest.specialty.tries.OrderedLongKeyedTrie.{FlippedLongBranch, FlippedLongLeaf}
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.{GenIterable, GenSet, SortedSetLike}
+
 
 
 
@@ -23,15 +26,15 @@ import scala.collection.{GenIterable, GenSet, SortedSetLike}
   * @author Marcin Mościcki
   */
 trait StableLongTrieSet extends StableOrderedSet[Long] with OrderedSetTemplate[Long, StableLongTrieSet]
-								with LongPrefixTrie[Long, StableLongTrieSet] with TrieTemplate[Long, Long, Long, StableLongTrieSet]
+								with LongTrieKeys[Long, StableLongTrieSet] with TrieTemplate[Long, Long, StableLongTrieSet]
 {
-	override implicit def ordering: Ordering[Long] = Ordering.Long
-	override def compare(e1: Long, e2: Long) = java.lang.Long.compare(e1, e2)
+	override implicit def ordering: ValOrdering[Long] = ValOrdering.LongOrdering
+	override def compare(e1: Long, e2: Long) :Int = java.lang.Long.compare(e1, e2)
 
 
 	override def empty :StableLongTrieSet = StableLongTrieSet.Empty
 
-	override def contains(elem: Long): Boolean = hasLeaf(elem ^ 0x8000000000000000L)
+	override def contains(elem: Long): Boolean = hasKey(elem ^ 0x8000000000000000L)
 
 
 	override def +(elem: Long): StableLongTrieSet = patch(elem ^ 0x8000000000000000L, StableLongTrieSet.addElement)
@@ -75,7 +78,7 @@ trait StableLongTrieSet extends StableOrderedSet[Long] with OrderedSetTemplate[L
 		case _ => super.sameElements(that)
 	}
 
-	private[sets] def update(root :MutableTrieRoot[StableLongTrieSet], key :Long, mutant :TriePatch[Long, Long, StableLongTrieSet]) :Unit
+	private[sets] def update(root :MutableTrieRoot[StableLongTrieSet], key :Long, mutant :AbstractTriePatch[Long, Long, StableLongTrieSet]) :Unit
 
 	private[sets] def merge(other :StableLongTrieSet)(combinator :TrieCombinator[StableLongTrieSet]) :StableLongTrieSet =
 		combine(other, combinator)
@@ -123,7 +126,7 @@ class MutableLongTrieSet private[sets] (private[this] var root :StableLongTrieSe
 	override def size_++() :Unit = size += 1
 	override def size_--() :Unit = size -= 1
 
-	override implicit def ordering: Ordering[Long] = Ordering.Long
+	override implicit def ordering: ValOrdering[Long] = ValOrdering.LongOrdering
 
 	@inline final private[sets] def trie = root
 	@inline final protected[this] def source = root
@@ -143,6 +146,9 @@ class MutableLongTrieSet private[sets] (private[this] var root :StableLongTrieSe
 
 	@inline final override def head = root.head
 	@inline final override def last = root.last
+
+
+//	override def hasKey(key :Long) :Boolean = root.hasKey(key)
 
 	override def keyAt(idx: Int) = root.keyAt(idx)
 
@@ -260,8 +266,8 @@ class MutableLongTrieSet private[sets] (private[this] var root :StableLongTrieSe
 					StableLongTrieSet.Empty
 				}
 
-				override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet =
-					MutableLongTrieSet.this.reduce(res1, res2)
+				override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet =
+					MutableLongTrieSet.this.reduced(res1, res2)
 			})
 			this
 		case mute :MutableLongTrieSet => this --= mute.trie
@@ -288,7 +294,7 @@ class MutableLongTrieSet private[sets] (private[this] var root :StableLongTrieSe
 	}
 
 
-	override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet =
+	override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet =
 		EditableLongTrieSet(res1, res2)
 
 	override def reduced(original: StableLongTrieSet)(left: StableLongTrieSet, right: StableLongTrieSet) =
@@ -296,7 +302,7 @@ class MutableLongTrieSet private[sets] (private[this] var root :StableLongTrieSe
 
 	override def keysIteratorFrom(start: Long): FitIterator[Long] = root.keysIteratorFrom(start)
 
-	override def rangeImpl(from: Option[Long], until: Option[Long]): MutableOrderedSet[Long] =
+	override def rangeImpl(from: ?[Long], until: ?[Long]): MutableOrderedSet[Long] =
 		new MutableLongTrieSet(root.rangeImpl(from, until))
 
 	override def count = size
@@ -317,24 +323,22 @@ class MutableLongTrieSet private[sets] (private[this] var root :StableLongTrieSe
 
 object StableLongTrieSet {
 	import java.lang.Long.{MIN_VALUE => SignBit}
-	import LongPrefixTrie.{flipSign, commonPath}
+	import LongTrieKeys.{flipSign, commonPath}
 
 	@inline final def empty :StableLongTrieSet = Empty
 
 
 
 
-	object Empty extends EmptyLongTrie[Long, Long, StableLongTrieSet]
+	object Empty extends EmptyLongKeys[Long, Long, StableLongTrieSet]
 						 with StableLongTrieSet with EmptyOrderedTemplate[Long, StableLongTrieSet] with EmptySetSpecialization[Long, StableLongTrieSet]
 	{
 
 //		override def lowerBound: Long = 0L
 //		override def upperBound: Long = -1L //0xff...ff
 
-		override def leaf(n: Int) = super.leaf(n)
-
-		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: TriePatch[Long, Long, StableLongTrieSet]): Unit =
-			mutant.notFound(key, this) match {
+		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: AbstractTriePatch[Long, Long, StableLongTrieSet]): Unit =
+			mutant.patchMissing(key, this) match {
 				case e if e.isEmpty => ()
 				case newLeaf => root.size_++(); root.hang(newLeaf)
 			}
@@ -349,24 +353,24 @@ object StableLongTrieSet {
 
 
 	class LongTrieSet1(flipped :Long) //extends TrieLeafFoundation[Long, Long, LongTrieSet] with LongTrieSet with SingletonSpecialization[Long, LongTrieSet]
-		extends LongTrieLeaf[Long, Long, StableLongTrieSet](flipped) with ValueLeaf[Long, Long, StableLongTrieSet] with OrderedLongLeaf[Long, StableLongTrieSet]
-				with StableLongTrieSet with SingletonSpecialization[Long, StableLongTrieSet] //with TriePatch[Long, Long, LongTrieSet]
+		extends LongKeyLeaf[Long, Long, StableLongTrieSet](flipped) with ValueLeaf[Long, Long, StableLongTrieSet] with FlippedLongLeaf[Long, StableLongTrieSet]
+				with StableLongTrieSet with SingletonSpecialization[Long, StableLongTrieSet] //with AbstractTriePatch[Long, Long, LongTrieSet]
 	{
 		@inline final override def value: Long = flipSign(key) // ^ 0x8000000000000000L
 		@inline final override def head = flipSign(key) // ^ 0x8000000000000000L
 //		@inline final override def lowerBound: Long = flipSign(key)
 //		@inline final override def upperBound: Long = flipSign(key)
 
-		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: TriePatch[Long, Long, StableLongTrieSet]): Unit =
-			if (key==this.key) mutant.updateLeaf(this) match {
+		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: AbstractTriePatch[Long, Long, StableLongTrieSet]): Unit =
+			if (key==this.key) mutant.patchLeaf(this) match {
 				case empty if empty.isEmpty => root.size_--(); root.hang(empty)
 				case replacement => root.hang(replacement)
-			} else mutant.notFound(key, this) match {
+			} else mutant.patchMissing(key, this) match {
 				case e if e.isEmpty => ()
-				case other => root.size_++(); root.hang(disjoint(other))
+				case other => root.size_++(); root.hang(branchWith(other))
 			}
 
-		override protected[this] def disjoint(other: StableLongTrieSet): StableLongTrieSet = {
+		override protected[this] def branchWith(other: StableLongTrieSet): StableLongTrieSet = {
 			val k = key
 			val path = commonPath(k, other.key)
 			if ((path & k) == path)
@@ -395,24 +399,24 @@ object StableLongTrieSet {
 	  * @see [[StableLongTrieSetN]]
 	  */
 	class LongTrieSetNode(delimitedPath :Long, zeros :StableLongTrieSet, ones :StableLongTrieSet)
-		extends LongTrieBranch[Long, StableLongTrieSet](delimitedPath, zeros, ones)
+		extends LongKeyBranch[Long, StableLongTrieSet](delimitedPath, zeros, ones)
 				with ValueTrieTemplate[Long, Long, StableLongTrieSet]
-				with OrderedLongTrie[Long, StableLongTrieSet] with StableLongTrieSet
+				with FlippedLongBranch[Long, StableLongTrieSet] with StableLongTrieSet
 				with TrieCombinator[StableLongTrieSet]
 	{
-		@inline final override def asTrie :StableLongTrieSet = this
+//		@inline final override def asTrie :StableLongTrieSet = this
 
 		@inline final def value = flipSign(key) // ^ 0x8000000000000000L
 
-//		@inline final override def lowerBound: Long = flipSign(extremeLeft)
-//		@inline final override def upperBound: Long = flipSign(extremeRight)
+//		@inline final override def lowerBound: Long = flipSign(lowerBound)
+//		@inline final override def upperBound: Long = flipSign(upperBound)
 
 		@inline final override def head = left.head
 		@inline final override def last = right.last
 
 		override def iterator: FitIterator[Long] = new LeafValueIterator(this, 64)
 
-		protected override def verifiedCopyTo(xs: Array[Long], start: Int, total: Int) :Int = {
+		protected override def uncheckedCopyTo(xs: Array[Long], start: Int, total: Int) :Int = {
 			def cpy(trie :StableLongTrieSet, pos :Int, left :Int) :Unit = trie match {
 				case branch :LongTrieSetNode =>
 					val lsize = branch.left.size
@@ -428,7 +432,7 @@ object StableLongTrieSet {
 			} else 0
 		}
 
-		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: TriePatch[Long, Long, StableLongTrieSet]): Unit =
+		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: AbstractTriePatch[Long, Long, StableLongTrieSet]): Unit =
 			root.hang(patchSubtrie(root, key, mutant)(this))
 
 		override protected[this] def unionTrie(other: StableLongTrieSet) = combine(other, this)
@@ -447,9 +451,9 @@ object StableLongTrieSet {
 		}
 
 
-		override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = join(res1, res2)
+		override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = join(res1, res2)
 
-		override def reduced(original: StableLongTrieSet)(left: StableLongTrieSet, right: StableLongTrieSet) = join(original.key, left, right)
+		override def reduced(original: StableLongTrieSet)(left: StableLongTrieSet, right: StableLongTrieSet) = trieOf(original.key, left, right)
 
 		override protected[this] def copy(l: StableLongTrieSet, r: StableLongTrieSet) :StableLongTrieSet =
 			new LongTrieSetNode(center, left, right)
@@ -491,7 +495,7 @@ object StableLongTrieSet {
 
 
 
-		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: TriePatch[Long, Long, StableLongTrieSet]) = {
+		override private[sets] def update(root: MutableTrieRoot[StableLongTrieSet], key: Long, mutant: AbstractTriePatch[Long, Long, StableLongTrieSet]) = {
 			mutate(root, key, mutant)
 		}
 
@@ -585,9 +589,9 @@ object StableLongTrieSet {
 //			else new MutableLongTrieSet.StableSetAdapter(center, left, right, size)
 		override def clone() :StableLongTrieSet = new StableLongTrieSetN(center, left.clone(), right.clone(), size)
 
-		override def stable = this
+		override def stable :StableLongTrieSetN = this
 
-		override def editable =
+		override def editable :LongTrieSetNode =
 			if (size <= 8) new EditableLongTrieSet(center, left.editable, right.editable)
 			else new LongTrieSetNode(center, left, right)
 //		override def editable
@@ -597,14 +601,14 @@ object StableLongTrieSet {
 
 
 
-	@inline final def addElement :TriePatch[Long, Long, StableLongTrieSet] = NewLeaf
+	@inline final def addElement :AbstractTriePatch[Long, Long, StableLongTrieSet] = NewLeaf
 
-	private[this] final val NewLeaf = new TriePatch[Long, Long, StableLongTrieSet] {
-		override def notFound[S>:StableLongTrieSet](key: Long, sibling: Trie[Long, Long, S]): S = new LongTrieSet1(key)
-		override def updateLeaf[S>:StableLongTrieSet](oldLeaf: TrieLeaf[Long, Long, S]): S = oldLeaf.asTrie
+	private[this] final val NewLeaf = new AbstractTriePatch[Long, Long, StableLongTrieSet] {
+		override def patchMissing[S>:StableLongTrieSet](key: Long, sibling: Trie[Long, Long, S]): S = new LongTrieSet1(key)
+		override def patchLeaf[S>:StableLongTrieSet](oldLeaf: TrieLeaf[Long, Long, S]): S = oldLeaf.asTrie
 	}
 
-	@inline final def removeElement :TriePatch[Long, Long, StableLongTrieSet] = RemoveLeaf
+	@inline final def removeElement :AbstractTriePatch[Long, Long, StableLongTrieSet] = RemoveLeaf
 
 	private[this] final val RemoveLeaf = new ReplaceLeaf[Long, Long, StableLongTrieSet](Empty)
 
@@ -617,7 +621,7 @@ object StableLongTrieSet {
 		override def emptySecond(left: StableLongTrieSet): StableLongTrieSet = left
 		override def disjoint(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(left, right)
 		override def matched(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = right
-		override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
+		override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
 	}
 
 	@inline final def stableUnion :TrieCombinator[StableLongTrieSet] = StableUnion
@@ -627,7 +631,7 @@ object StableLongTrieSet {
 		override def emptySecond(left: StableLongTrieSet): StableLongTrieSet = left
 		override def disjoint(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(left, right.stable)
 		override def matched(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = left
-		override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
+		override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
 	}
 
 	@inline final def mutableUnion :TrieCombinator[StableLongTrieSet] = MutableUnion
@@ -637,7 +641,7 @@ object StableLongTrieSet {
 		override def emptySecond(left: StableLongTrieSet): StableLongTrieSet = left.clone().editable
 		override def disjoint(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = EditableLongTrieSet(left.clone().editable, right.clone().editable)
 		override def matched(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = left.clone().editable
-		override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
+		override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
 	}
 
 
@@ -649,7 +653,7 @@ object StableLongTrieSet {
 		override def emptySecond(left: StableLongTrieSet): StableLongTrieSet = left.clone()
 		override def disjoint(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = left.clone()
 		override def matched(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = Empty
-		override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
+		override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
 	}
 
 
@@ -660,6 +664,7 @@ object StableLongTrieSet {
 		override def emptySecond(left: StableLongTrieSet): StableLongTrieSet = Empty
 		override def disjoint(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = Empty
 		override def matched(left: StableLongTrieSet, right: StableLongTrieSet): StableLongTrieSet = left.clone()
-		override def reduce(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
+		override def reduced(res1: StableLongTrieSet, res2: StableLongTrieSet): StableLongTrieSet = StableLongTrieSet(res1, res2)
 	}
 }
+*/

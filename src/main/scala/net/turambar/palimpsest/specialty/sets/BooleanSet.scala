@@ -2,74 +2,118 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.lang
 
-import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, EmptyIterable, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, Specialized}
+import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, EmptyIterable, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, Specialized, Sure}
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, FastSizeIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.BooleanSet.{BooleanSetIterator, IsTrue}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.ordered.OrderedBy.OrderedEmpty
+import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.ValSet.{ImmutableSetBuilder, Mutable, Stable}
 
 import scala.collection.{GenSet, GenTraversableOnce}
 import scala.collection.generic.CanBuildFrom
 
 
-/** A set of boolean values (i.e. one of `{}, {false}, {true}, {false, true}`) represented
+/** A, mostly humorous, set of boolean values (i.e. one of `{}, {false}, {true}, {false, true}`) represented
   * as a bitmap. The lowest bit (value 1) specifies whether 'false' belongs to this set,
   * and the second bit (value 2) specifies whether 'true' belongs to this set.
-  * This is my attempt at humour, if anyone wondered.
+  *
   * @author Marcin Mościcki
   */
 final class BooleanSet protected (private[this] var bitmap :Int) extends MutableOrderedSet[Boolean] with OfKnownSize {
-	@inline private def toBitset = bitmap
+	@inline private def toBitset :Int = bitmap
 
 	protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
-	override implicit def ordering: Ordering[Boolean] = Ordering.Boolean
+	override implicit def ordering: ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 
 	override def empty = new BooleanSet(0)
 	
 	override def size: Int = bitmap - (bitmap >> 1)
-	override def count = bitmap - (bitmap >> 1)
+	override def count :Int = bitmap - (bitmap >> 1)
+
+	override def isEmpty :Boolean = bitmap==0
+
+	override def nonEmpty :Boolean = bitmap>0
 
 	override def hasFastSize = true
 	override def hasDefiniteSize: Boolean =  true
-	
-	override def head =
+
+
+	override def head :Boolean =
 		if (bitmap==0) throw new NoSuchElementException(s"Set().head")
 		else bitmap == 2 // case {true} => true; case _ => false
 
-	override def last =
+	override def last :Boolean =
 		if (bitmap==0) throw new NoSuchElementException(s"Set().last")
 		else bitmap != 1 // case {false} => false; case _ => true
-	
-	override def tail =
+
+	override def keyAt(n :Int) :Boolean =
+		if (n < 0 || n >= bitmap - (bitmap >> 1)) throw new NoSuchElementException(s"$this.keyAt($n)")
+		else (bitmap & 1) == n
+
+
+	override def tail :BooleanSet =
 		if (bitmap>0) new BooleanSet(bitmap ^ (bitmap & -bitmap)) //def lowestOneBit = i & -i
 		else throw new UnsupportedOperationException("Set().tail")
 
-	override def init =
+	override def init :BooleanSet =
 		if (bitmap>0) new BooleanSet((bitmap - 2) & 3)
 		else throw new UnsupportedOperationException("Set().init")
 
-	override def isEmpty = bitmap==0
 
-	override def nonEmpty = bitmap>0
-	
+
+	override def filter(p: Boolean => Boolean, ourTruth: Boolean): MutableOrderedSet[Boolean] =
+		new BooleanSet(
+		  (if ((bitmap & 1) > 0 && p(false)==ourTruth) 1 else 0) |
+		      (if ((bitmap & 2) > 0 && p(true)==ourTruth) 2 else 0)
+		)
+
+
+	override def foreach[@specialized(Unit) U](f: Boolean => U) :Unit = bitmap match {
+		case 1 => f(false)
+		case 2 => f(true)
+		case 3 => f(false); f(true);
+		case _ => ()
+	}
+
+	override protected def reverseForeach(f: Boolean => Unit): Unit = bitmap match {
+		case 1 => f(false)
+		case 2 => f(true)
+		case 3 => f(true); f(false)
+		case _ => ()
+	}
+
+
+	override def map[@specialized(Fun1Vals) O, That](f: Boolean => O)(implicit bf: CanBuildFrom[MutableOrderedSet[Boolean], O, That]) :That = {
+		val b = bf(this)
+		if ((bitmap & 1) > 0) b += f(false)
+		if ((bitmap & 2) > 0) b += f(true)
+		b.result()
+	}
+
+	override def flatMap[U, That](f: Boolean => GenTraversableOnce[U])(implicit bf: CanBuildFrom[MutableOrderedSet[Boolean], U, That]) :That = {
+		val b = bf(this)
+		if ((bitmap & 1) > 0) b ++= f(false).seq
+		if ((bitmap & 2) > 0) b ++= f(true).seq
+		b.result()
+	}
+
+
+	override def find_?(p :Boolean => Boolean, where :Boolean): ?[Boolean] =
+		if ((bitmap & 1) > 0 && p(false) == where)
+			Sure(false)
+		else if ((bitmap & 2) > 0 && p(true) == where)
+			Sure(true)
+		else
+			Blank
+
+
+
+
 	override def contains(elem: Boolean): Boolean =
 		elem && (bitmap & 2) > 0 || !elem && (bitmap & 1) > 0
-
-	//todo: projection carrying mutations to this
-	override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
-		if (start) new BooleanSetIterator(bitmap & 2)
-		else new BooleanSetIterator(bitmap)
-
-	//todo: projection carrying mutations to this
-	override def rangeImpl(from: Option[Boolean], until: Option[Boolean]): MutableOrderedSet[Boolean] =
-		if (until.isDefined)
-			if (until.get) new BooleanSet(bitmap & 1)
-			else new BooleanSet(0)
-		else if (from.isDefined && from.get) new BooleanSet(bitmap & 2)
-		else new BooleanSet(bitmap)
-
 
 
 	override def +(elem: Boolean): MutableOrderedSet[Boolean] =
@@ -78,7 +122,32 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 	override def -(elem: Boolean): MutableOrderedSet[Boolean] =
 		new BooleanSet(bitmap & (if (elem) 1 else 2))
 
+	override def ^(elem :Boolean) :MutableOrderedSet[Boolean] =
+		new BooleanSet(bitmap ^ (if (elem) 1 else 2))
 
+
+	override def ^(that :GenSet[Boolean]) :MutableOrderedSet[Boolean] = that match {
+		case set :BooleanSet => new BooleanSet(bitmap ^ set.toBitset)
+		case set :ValSet[Boolean] =>
+			var bitset = bitmap
+			if (set(true)) bitset ^= 1
+			if (set(false)) bitset ^= 2
+			new BooleanSet(bitset)
+		case _ =>
+			var bitset = bitmap
+			if (that(true)) bitset ^= 1
+			if (that(false)) bitset ^= 2
+			new BooleanSet(bitset)
+	}
+
+	override def &(that :ValSet[Boolean]) :MutableOrderedSet[Boolean] = that match {
+		case set :BooleanSet => new BooleanSet(bitmap & set.toBitset)
+		case _ =>
+			var bitset = bitmap
+			if (!that.contains(false)) bitset &= ~1
+			if (!that.contains(true)) bitset &= ~2
+			new BooleanSet(bitset)
+ 	}
 
 	override def +=(elem: Boolean): this.type = {
 		bitmap |= (if (elem) 2 else 1)
@@ -87,6 +156,11 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 
 	override def -=(elem: Boolean): this.type = {
 		bitmap &= (if (elem) 1 else 2)
+		this
+	}
+
+	override def ^=(elem :Boolean): this.type = {
+		bitmap ^= (if (elem) 1 else 2)
 		this
 	}
 
@@ -106,6 +180,7 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 		this
 	}
 
+
 	override def -=(elem1: Boolean, elem2: Boolean, elems: Boolean*): this.type = {
 		if (bitmap > 0)
 			if (elem1 ^ elem2) //elem1 != elem2
@@ -122,6 +197,7 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 					bitmap = 0
 		this
 	}
+
 
 	override def ++=(xs: TraversableOnce[Boolean]): this.type = {
 		xs match {
@@ -154,7 +230,7 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 				else bitmap |= 1
 			this
 		case _ if bitmap != 3 && xs.nonEmpty =>
-			++=(xs.fitIterator)
+			++=(xs.toIterator)
 		case _ => this
 	}
 
@@ -184,7 +260,7 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 				else bitmap &= 2
 			this
 		case _ if bitmap==0 || xs.isEmpty => this
-		case _ => --=(xs.fitIterator)
+		case _ => --=(xs.toIterator)
 	}
 
 
@@ -192,40 +268,25 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 	override def clear(): Unit = bitmap = 0
 
 
-	override def foreach[@specialized(Unit) U](f: (Boolean) => U) :Unit = bitmap match {
-		case 1 => f(false)
-		case 2 => f(true)
-		case 3 => f(false); f(true);
-		case _ => ()
-	}
-
-	override protected def reverseForeach(f: (Boolean) => Unit): Unit = bitmap match {
-		case 1 => f(false)
-		case 2 => f(true)
-		case 3 => f(true); f(false)
-		case _ => ()
-	}
-
-	override protected[this] def filter(p: (Boolean) => Boolean, ourTruth: Boolean): MutableOrderedSet[Boolean] = new BooleanSet(
-		(if ((bitmap & 1) > 0 && p(false)==ourTruth) 1 else 0) |
-		(if ((bitmap & 2) > 0 && p(true)==ourTruth) 2 else 0)
-	)
-
-	override def map[@specialized(Fun1Vals) O, That](f: (Boolean) => O)(implicit bf: CanBuildFrom[MutableOrderedSet[Boolean], O, That]) = {
-		val b = bf(this)
-		if ((bitmap & 1) > 0) b += f(false)
-		if ((bitmap & 2) > 0) b += f(true)
-		b.result()
-	}
-
-	override def flatMap[U, That](f: (Boolean) => GenTraversableOnce[U])(implicit bf: CanBuildFrom[MutableOrderedSet[Boolean], U, That]) = {
-		val b = bf(this)
-		if ((bitmap & 1) > 0) b ++= f(false).seq
-		if ((bitmap & 2) > 0) b ++= f(true).seq
-		b.result()
-	}
 
 	override def iterator: FitIterator[Boolean] = new BooleanSetIterator(bitmap)
+
+
+	//todo: projection carrying mutations to this
+	override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
+		if (start) new BooleanSetIterator(bitmap & 2)
+		else new BooleanSetIterator(bitmap)
+
+	//todo: projection carrying mutations to this
+	override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): MutableOrderedSet[Boolean] =
+		if (until.isDefined)
+			if (until.get) new BooleanSet(bitmap & 1)
+			else new BooleanSet(0)
+		else if (from.isDefined && from.get) new BooleanSet(bitmap & 2)
+		else new BooleanSet(bitmap)
+
+
+
 
 	override def stable: OrderedSet.Stable[Boolean] = bitmap match {
 		case 0 => BooleanSet.Empty
@@ -237,14 +298,17 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 	override def result(): BooleanSet = this
 
 
-	override def stringPrefix = "BooleanSet"
-	
-	override def toString = bitmap match {
-		case 0 => "BooleanSet()"
-		case 1 => "BooleanSet(false)"
-		case 2 => "BooleanSet(true)"
-		case 3 => "BooleanSet(false, true)"
+	override def stringPrefix = "Set[Boolean]"
+
+	override def typeStringPrefix = "BooleanSet"
+
+	override def toString :String = bitmap match {
+		case 0 => "Set[Boolean]()"
+		case 1 => "Set[Boolean](false)"
+		case 2 => "Set[Boolean](true)"
+		case 3 => "Set[Boolean](false, true)"
 	}
+
 }
 
 
@@ -281,52 +345,68 @@ private[sets] object BooleanSet {
 	@inline private[BooleanSet] final val IsTrue = { x :Boolean => x }
 
 
+
 	/** Empty, immutable boolean set. Adding elements will always return a constant representing
 	  * one of four possible values of this set type: `{}, {false}, {true}, {false, true}`.
 	  */
-	object Empty extends EmptyIterable[Boolean, StableOrderedSet[Boolean]] with StableOrderedSet[Boolean] {
-		override def ordering = Ordering.Boolean
+	case object Empty extends /*EmptyIterable[Boolean, StableOrderedSet[Boolean]] with */StableOrderedSet[Boolean] with EmptyIterableTemplate[Boolean, StableOrderedSet[Boolean]]/*with OrderedEmpty[Boolean, StableOrderedSet[Boolean]]*/ {
+		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 		protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
 
 
-		override def empty = this
+		override def empty :Empty.type = this
 		override def contains(elem: Boolean): Boolean = false
 
 		override def +(elem: Boolean): StableOrderedSet[Boolean] = if (elem) True else False
 
 		override def -(elem: Boolean): StableOrderedSet[Boolean] = this
 
+		override def ^(elem :Boolean) :StableOrderedSet[Boolean] = new Singleton(elem)
 
 		override def intersect(that: GenSet[Boolean]): StableOrderedSet[Boolean] = this
+
+		override def &(that :ValSet[Boolean]) :StableOrderedSet[Boolean] = this
 
 		override def union(that: GenSet[Boolean]): StableOrderedSet[Boolean] = that match {
 			case s :StableOrderedSet[Boolean] => s
 			case s :BooleanSet => s.stable
-			case _ => this ++ that
+			case _ if that(true) => if (that(false)) Both else True
+			case _ if that(false) => False
+			case _ => this
 		}
 
 		override def diff(that: GenSet[Boolean]): StableOrderedSet[Boolean] = this
 
+		override def ^(that :GenSet[Boolean]) :StableOrderedSet[Boolean] = this union that
+
+		override def ^(that :ValSet[Boolean]) :StableOrderedSet[Boolean] = this union that
+
 		override def mutable: MutableOrderedSet[Boolean] = new BooleanSet(0)
+
+		override def keyAt(n :Int) :Boolean = throw new NoSuchElementException(s"Set[Boolean]().keyAt($n)")
 
 		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] = FitIterator.Empty
 
-		override def rangeImpl(from: Option[Boolean], until: Option[Boolean]): StableOrderedSet[Boolean] = this
+		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] = this
 
-		protected override def verifiedCopyTo(xs: Array[Boolean], start: Int, total: Int) = 0
+		protected override def uncheckedCopyTo(xs: Array[Boolean], start: Int, total: Int) = 0
 	}
+
 
 	/** Immutable boolean set containing exactly one element. */
 	private final class Singleton(value :Boolean)
 		extends SingletonFoundation[Boolean, StableOrderedSet[Boolean]] with StableOrderedSet[Boolean]
 				with SingletonSpecialization[Boolean, StableOrderedSet[Boolean]]
 	{
-		override def ordering = Ordering.Boolean
+		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 		protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
 
 
-		override def empty = Empty
-		@inline override def head = value
+		override def empty :Empty.type = Empty
+		@inline override def head :Boolean = value
+
+		override def keyAt(n :Int) :Boolean =
+			if (n==0) value else throw new NoSuchElementException(s"Set[Boolean]($value).keyAt($n)")
 
 		override def contains(elem: Boolean): Boolean = elem==head
 
@@ -334,37 +414,62 @@ private[sets] object BooleanSet {
 
 		override def -(elem: Boolean): StableOrderedSet[Boolean] = if (elem==value) Empty else this
 
+		override def ^(elem :Boolean) :StableOrderedSet[Boolean] =
+			if (elem!=value) Both
+			else if (elem) False
+			else True
 
-		override def intersect(that: GenSet[Boolean]): StableOrderedSet[Boolean] = that match {
-			case Empty => Empty
-			case Both => this
-			case _ =>
-				if (that.contains(value)) this else Empty
+		override def intersect(that :GenSet[Boolean]) :StableOrderedSet[Boolean] = that match {
+			case fit :ValSet[Boolean] =>
+				&(that)
+			case _ if that.contains(value) => this
+			case _ => Empty
 		}
 
+		override def &(that: ValSet[Boolean]): StableOrderedSet[Boolean] =
+			if (that.isEmpty) Empty
+			else if (that.contains(value)) this else Empty
+
+
 		override def union(that: GenSet[Boolean]): StableOrderedSet[Boolean] = that match {
-			case Empty => this
-			case Both => Both
-			case s :Singleton => if (s.head==value) this else Both
-			case s :BooleanSet => if (that.contains(!value)) Both else this
+			case s :ValSet[Boolean] => if (s.contains(!value)) Both else this
 			case _ if that.contains(!value) => Both
 			case _ => this
 		}
 
 		override def diff(that: GenSet[Boolean]): StableOrderedSet[Boolean] = that match {
-			case Empty => this
 			case other :ValSet[Boolean] =>
 				if (other.contains(value)) Empty else this
 			case _ if that.contains(value) => Empty
 			case _ => this
 		}
 
+		override def ^(that :GenSet[Boolean]): StableOrderedSet[Boolean] = that match {
+			case _ if that.isEmpty => this
+			case other :ValSet[Boolean] => this ^ other
+			case _ =>
+				if (that.contains(value))
+					if (that.contains(!value))
+						if (value) False else True
+					else Empty
+				else Both
+		}
+
+		override def ^(that :ValSet[Boolean]) :StableOrderedSet[Boolean] =
+			if (that.contains(value))
+				if (that.contains(!value))
+					if (value) False else True
+				else Empty
+			else Both
+
+
+
 		override def mutable: MutableOrderedSet[Boolean] = new BooleanSet(if (value) 2 else 1)
 
 		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
 			if (start && !value) FitIterator.empty else FitIterator(value)
 
-		override def rangeImpl(from: Option[Boolean], until: Option[Boolean]): StableOrderedSet[Boolean] =
+		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] =
 			if (until.isDefined)
 				if (value || !until.get) Empty
 				else if(from.isDefined && from.get) Empty //!value
@@ -372,10 +477,8 @@ private[sets] object BooleanSet {
 			else if (!value && from.isDefined && from.get) Empty
 			else this
 
-		protected override def verifiedCopyTo(xs: Array[Boolean], start: Int, total: Int) = {
-			xs(start) = value; 1
-		}
 	}
+
 
 	/** Singleton immutable set for `{true}`. */
 	final val True :StableOrderedSet[Boolean] = new Singleton(true)
@@ -384,16 +487,27 @@ private[sets] object BooleanSet {
 	final val False :StableOrderedSet[Boolean] = new Singleton(false)
 
 	/** Dedicated implementation for maximal immutable set containing both values: `{false, true}`. */
-	object Both extends DoubletonFoundation[Boolean, StableOrderedSet[Boolean]] with StableOrderedSet[Boolean] {
-		override implicit def ordering: Ordering[Boolean] = Ordering.Boolean
+	case object Both extends DoubletonFoundation[Boolean, StableOrderedSet[Boolean]]
+		           with StableOrderedSet[Boolean] with DoubletonSpecialization[Boolean, StableOrderedSet[Boolean]]
+	{
+
+		override implicit def ordering: ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 		protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
 
 
-		override def empty = Empty
+		override def empty :StableOrderedSet[Boolean] = Empty
+
 		override def head = false
 		override def last = true
-		override def init = False
-		override def tail = True
+
+		override def init :StableOrderedSet[Boolean] = False
+		override def tail :StableOrderedSet[Boolean] = True
+
+
+		override def keyAt(n :Int) :Boolean =
+			if (n==0) false
+			else if (n==1) true
+			else throw new NoSuchElementException(s"Set[Boolean](false, true).keyAt($n)")
 
 		override def contains(elem: Boolean): Boolean = true
 
@@ -401,6 +515,13 @@ private[sets] object BooleanSet {
 
 		override def -(elem: Boolean): StableOrderedSet[Boolean] = if (elem) False else True
 
+		override def ^(elem :Boolean): StableOrderedSet[Boolean] = if (elem) False else True
+
+		override def &(that :ValSet[Boolean]) :StableOrderedSet[Boolean] =
+			if (that.contains(true))
+				if (that.contains(false)) this else True
+			else
+				if (that.contains(false)) False else Empty
 
 		override def intersect(that: GenSet[Boolean]): StableOrderedSet[Boolean] = that match {
 			case other :StableOrderedSet[Boolean] => other
@@ -416,15 +537,22 @@ private[sets] object BooleanSet {
 		override def union(that: GenSet[Boolean]): StableOrderedSet[Boolean] = this
 
 		override def diff(that: GenSet[Boolean]): StableOrderedSet[Boolean] = that match {
-			case Empty => this
-			case Both => Empty
-			case s :Singleton => if (that.head) False else True
-			case _ =>
-				if (that.contains(true))
-					if (that.contains(false)) Empty else False
+			case s :ValSet[Boolean] =>
+				if (s.contains(true))
+					if (s.contains(false)) Empty else False
 				else
-					if (that.contains(false)) True else this
+					if (s.contains(false)) True else this
+			case _ => that.size match {
+				case 0 => this
+				case 2 => Empty
+				case _ if that.contains(true) => False
+				case _ => True
+			}
 		}
+
+		override def ^(that :GenSet[Boolean]) :StableOrderedSet[Boolean] = diff(that)
+
+		override def ^(that :ValSet[Boolean]) :StableOrderedSet[Boolean] = diff(that)
 
 		override def mutable: MutableOrderedSet[Boolean] = new BooleanSet(3)
 
@@ -433,7 +561,7 @@ private[sets] object BooleanSet {
 			if (start) FitIterator(true)
 			else FitIterator(false, true)
 
-		override def rangeImpl(from: Option[Boolean], until: Option[Boolean]): StableOrderedSet[Boolean] =
+		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] =
 			if (until.isDefined)
 				if (!until.get) Empty
 				else if (from.isDefined && from.get) Empty
@@ -441,7 +569,7 @@ private[sets] object BooleanSet {
 			else if (from.isDefined && from.get) True
 			else this
 
-		protected override def verifiedCopyTo(xs: Array[Boolean], start: Int, total: Int) = {
+		protected override def uncheckedCopyTo(xs: Array[Boolean], start: Int, total: Int) :Int = {
 			xs(start) = false
 			if (total>1) {
 				xs(start+1) = true
@@ -454,8 +582,8 @@ private[sets] object BooleanSet {
 	private class BooleanSetIterator (private[this] var bitmap :Int)
 		extends FastSizeIterator[Boolean] with FitIterator[Boolean]
 	{
-		override def hasNext = bitmap != 0
-		override def size = bitmap - (bitmap >> 1)
+		override def hasNext :Boolean = bitmap != 0
+		override def size :Int = bitmap - (bitmap >> 1)
 		
 		def head :Boolean = bitmap == 2
 		

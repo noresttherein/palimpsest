@@ -1,10 +1,10 @@
 package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitBuilder
-
+/*
 
 /** Factory for sets of characters, not to be confused with charsets - character code mappings.
-  * Implementations provided here use [[IntSet]] behind the scenes and simply convert argument
+  * Implementations provided here use [[IntSet]] behind the scenes and simply newRoot argument
   * and return types between `Int` and `Char`.
   * @author Marcin Mościcki
   */
@@ -42,3 +42,4 @@ private[sets] object CharSet {
 
 	
 }
+*/

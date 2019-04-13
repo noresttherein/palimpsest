@@ -15,7 +15,7 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq
 /** Base trait for companion objects to specialized collections.
   * It is a root of seeming blown up hierarchy of companion traits, but this one is needed as
   * it is covariant with regard to built collection type, which means that can be returned
-  * by methods of those sequences, and overriden in more specific sequences
+  * by methods of those sequences, and overridden in more specific sequences
   * (invariance towards built type prevents that as part of non `private[this]` api).
   *
   * @author Marcin Mościcki
@@ -71,11 +71,12 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	def fitBuilder[E :Specialized] :FitBuilder[E, S[E]] = NewBuilder()
 	
 	protected[this] type SpecializedBuilder[E] = FitBuilder[E, S[E]]
+
 	protected[this] final val NewBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
 		override def specialized[@specialized E : Specialized]: SpecializedBuilder[E] = specializedBuilder[E]
 	}
 //
-	def specializedBuilder[@specialized(Elements) E :Specialized] :FitBuilder[E, S[E]]
+	def specializedBuilder[@specialized(Elements) E :Specialized] :FitBuilder[E, S[E]] = newBuilder[E]
 	
 	/** Generic, unspecialized builder of the associated sequence type.
 	  * Always prefer [[newBuilder]] or [[fitBuilder]] whenether any information about element type is present.
@@ -89,7 +90,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	  */
 	@deprecated("this is considered internal api. use newBuilder or fitBuilder", "palimpsest")
 	def genericBuilder[@specialized(Elements) E] :FitBuilder[E, S[E]] = newBuilder[E]
-	
+	//todo: get rid of this
 
 }
 
@@ -129,15 +130,15 @@ object FitCompanion {
 		
 		def specialization :Specialized[_]
 
-		def canEqual(that :Any) = that.isInstanceOf[CanFitFrom[_, _, _]]
+		def canEqual(that :Any) :Boolean = that.isInstanceOf[CanFitFrom[_, _, _]]
 
-		override def equals(that :Any) = that match {
+		override def equals(that :Any) :Boolean = that match {
 			case cbf :CanFitFrom[_, _, _] =>
 				(cbf eq this) || cbf.canEqual(this) && canEqual(cbf) && companion==cbf.companion && specialization == cbf.specialization
 			case _ => false
 		}
 
-		override def hashCode = companion.hashCode * 31 + specialization.hashCode
+		override def hashCode :Int = companion.hashCode * 31 + specialization.hashCode
 
 		override def toString = s"CBF[$specialization]"
 

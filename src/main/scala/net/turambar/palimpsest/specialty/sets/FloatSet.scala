@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitBuilder
 
-
+/*
 /**
   * @author Marcin Mościcki
   */
@@ -34,3 +34,4 @@ object FloatSet {
 
 	
 }
+*/

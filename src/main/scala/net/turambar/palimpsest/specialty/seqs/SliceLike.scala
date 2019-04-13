@@ -44,13 +44,13 @@ trait SliceLike[+E, +Repr] extends SeqTemplate[E, Repr] { //with IterableSpecial
 	  * provides alternate implementations for methods which currently make use of it.
 	  */
 	override def length :Int
-	override def lengthCompare(len :Int) = length - len
+	override def lengthCompare(len :Int) :Int = length - len
 
 	override def hasDefiniteSize: Boolean = true
 	override def hasFastSize :Boolean = true
 
-	override def isEmpty = length == 0
-	override def nonEmpty = length > 0
+	override def isEmpty :Boolean = length == 0
+	override def nonEmpty :Boolean = length > 0
 
 	/** Implemented by [[SliceLike#section]] and [[SliceLike#length]]. */
 	override def tail: Repr =
@@ -101,13 +101,13 @@ trait SliceLike[+E, +Repr] extends SeqTemplate[E, Repr] { //with IterableSpecial
 
 	/** Delegates to [[SliceLike#section]] and [[SliceLike#prefixLength]]. */
 	@inline
-	override def takeWhile(p: (E) => Boolean): Repr = section(0, prefixLength(p))
+	override def takeWhile(p: E => Boolean): Repr = section(0, prefixLength(p))
 
 	/** Delegates to [[SliceLike#section]] and [[SliceLike#prefixLength]]. */
-	override def dropWhile(p: (E) => Boolean): Repr = section(prefixLength(p), length)
+	override def dropWhile(p: E => Boolean): Repr = section(prefixLength(p), length)
 
 	/** Implemented using [[SliceLike#dropWhile]] for the suffix and [[SliceLike#length]] with [[SliceLike#section]] for the prefix. */
-	override def span(p: (E) => Boolean): (Repr, Repr) = {
+	override def span(p: E => Boolean): (Repr, Repr) = {
 		val suffix = dropWhile(p)
 		(section(0, length - toCollection(suffix).length), suffix)
 	}
@@ -126,14 +126,6 @@ trait SliceLike[+E, +Repr] extends SeqTemplate[E, Repr] { //with IterableSpecial
 
 
 
-	/** Fixed to use [[SliceLike#indexOf(U)]]. */
-	override def contains[U >: E](elem: U): Boolean = indexOf(elem) >= 0
-
-	/** Fixed to delegate to [[SliceLike#prefixLength]]. */
-	override def forall(p: E => Boolean): Boolean = prefixLength(p) == length
-
-	/** Fixed to delegate to [[SliceLike#indexWhere]]. */
-	override def exists(p: E => Boolean): Boolean = indexWhere(p, 0) >= 0
 
 
 }

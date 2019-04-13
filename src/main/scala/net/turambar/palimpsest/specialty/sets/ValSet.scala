@@ -2,11 +2,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
-import net.turambar.palimpsest.specialty.iterables.EmptyIterable
-import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
-import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
-import net.turambar.palimpsest.specialty.sets.MutableSet.MutableSetAdapterFoundation
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterable, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, Specialize, Specialized, SpecializedIterableFactory}
 
 import scala.annotation.unspecialized
@@ -19,6 +15,7 @@ import scala.collection.{GenIterable, GenSet, GenTraversableOnce, SetLike, mutab
   * @tparam E element type
   * @tparam S type constructor accepting element type and giving a specialized set type specific to concrete implementing class.
   */
+//todo: is this needed at all?
 trait SpecializableSet[@specialized(Elements) E, +S[@specialized(Elements) X]<:SpecializableSet[X, S] with ValSet[X]]
 	extends GenericSetTemplate[E, S] with SetLike[E, S[E]]
 			with SpecializableIterable[E, S] with SetSpecialization[E, S[E]]
@@ -47,7 +44,7 @@ trait ValSet[@specialized(Elements) E]
 //	override def newBuilder :FitBuilder[E, FitSet[E]] = companion.newBuilder
 
 	override def typeStringPrefix = "Set"
-	override def stringPrefix = super[FitIterable].stringPrefix //typeStringPrefix + "[" + mySpecialization.classTag + "]"
+	override def stringPrefix :String = super[FitIterable].stringPrefix //typeStringPrefix + "[" + mySpecialization.classTag + "]"
 }
 
 
@@ -105,38 +102,39 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 	  *  a given element type. Delegates via double dispatch to the set factory object associated with
 	  *  requested element type.
  	  */
-	final private val SetBuilder = new Specialize.Distinct[SetBuilder] {
+	final private val SetBuilder = new Specialize.Individually[SetBuilder] {
 		override def forBoolean: SetBuilder[Boolean] = BooleanSet.newBuilder
 		override def forByte: SetBuilder[Byte] = ByteSet.newBuilder
-		override def forShort :SetBuilder[Short] = ShortSet.newBuilder
-		override def forInt: SetBuilder[Int] = IntSet.newBuilder
-		override def forLong :SetBuilder[Long] = DirectLongSet.newBuilder
-		override def forFloat :SetBuilder[Float] = FloatSet.newBuilder
-		override def forDouble :SetBuilder[Double] = DoubleSet.newBuilder
-		override def forChar :SetBuilder[Char] = CharSet.newBuilder
-
-		override def specialized[@specialized E : Specialized]: SetBuilder[E] = ???
+		override def forShort :SetBuilder[Short] = ??? //ShortSet.newBuilder
+		override def forInt: SetBuilder[Int] = ??? //IntSet.newBuilder
+		override def forLong :SetBuilder[Long] = ??? //DirectLongSet.newBuilder
+		override def forFloat :SetBuilder[Float] = ??? //FloatSet.newBuilder
+		override def forDouble :SetBuilder[Double] = ??? //DoubleSet.newBuilder
+		override def forChar :SetBuilder[Char] = ??? //CharSet.newBuilder
+		override def forUnit = ???
+		override def forRef[E :Specialized] = ???
 	}
 
-	final private val EmptySet = new Specialize.Distinct[ValSet] {
+	final private val EmptySet = new Specialize.Individually[ValSet] {
 		override def forBoolean = BooleanSet.Empty
 		override def forByte = ByteSet.Empty
-		override def forShort = ShortSet.Empty
-		override def forInt = IntSet.Empty
-		override def forLong = DirectLongSet.Empty
-		override def forChar = CharSet.Empty
-		override def forFloat = FloatSet.Empty
-		override def forDouble = DoubleSet.Empty
-		override def specialized[@specialized E : Specialized]: ValSet[E] = ???
+		override def forShort = ??? //ShortSet.Empty
+		override def forInt = ??? //IntSet.Empty
+		override def forLong = ??? //DirectLongSet.Empty
+		override def forChar = ??? //CharSet.Empty
+		override def forFloat = ??? //FloatSet.Empty
+		override def forDouble = ??? //DoubleSet.Empty
+		override def forUnit = ???
+		override def forRef[E :Specialized] = ???
 	}
 
 
 	abstract class SetAdapter[+Source <: ValSet[E] with SetSpecialization[E, Source], E, +This <: ValSet[E] with SetSpecialization[E, This]]
 			(final protected[this] var source :Source)
 		extends IterableAdapter[Source, E, This] with SetTemplate[E, This] //with ValSet[E] with SetSpecialization[E, This]
-	{ this :ValSet[E] with SetSpecialization[E, This] =>
-		override def stable = source.stable
-		override def mutable = source.mutable
+	{
+		override def stable :Stable[E] = source.stable
+		override def mutable :Mutable[E] = source.mutable
 
 		override def ++(xs: GenTraversableOnce[E]) :This = fromSource(source ++ xs)
 
@@ -162,6 +160,8 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 		override def &~(that: GenSet[E]) :This = fromSource(source &~ that)
 
+		override def ^(that :GenSet[E]) :This = fromSource(source ^ that)
+
 		override def subsetOf(that: GenSet[E]) :Boolean = source.subsetOf(that)
 
 		override def empty :This = fromSource((source :SetSpecialization[E, Source]).empty)
@@ -169,6 +169,8 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 		override def newBuilder :FitBuilder[E, This] = source.newBuilder.mapResult(fromSource)
 
 		override def toBuffer[U >: E] :FitBuffer[U] = source.toBuffer
+
+		override def toSeq :FitSeq[E] = source.toSeq
 
 		override def clone() :This = fromSource(source.clone())
 
@@ -212,4 +214,6 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
 		SetSpecialization.friendCopy(set, xs, start, total)
+
+
 }

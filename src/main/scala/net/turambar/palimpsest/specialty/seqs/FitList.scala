@@ -3,19 +3,20 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
-import scala.collection.{GenSeq, LinearSeqLike, SeqLike, mutable}
+import scala.collection.{mutable, GenSeq, LinearSeqLike, SeqLike}
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
 import net.turambar.palimpsest.specialty.seqs.FitList.{FitListBuilder, FitListIterator, FullLink, Link, Terminus}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterator, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialize, Specialized}
+import net.turambar.palimpsest.specialty._
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 
 /** Specialized linked list with O(1) `length` and O(1) `take` operations.
   * Random indexing and `drop` still take O(n), though.
   * In line with [[FitSeq]] philosophy, slicing tries to share the contents and return view on
-  * the parent sequence which prevent 'dropped' tails from garbage collection -
+  * the parent sequence which will prevent 'dropped' tails from garbage collection -
   * make a copy if you want to store one for longer and suspect it's only a fragment of a larger structure.
   *
   * @author Marcin Mościcki
@@ -24,16 +25,15 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 		override val length :Int,
 		start :Link[E]
 	) extends SeqFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
-			  with IterableSpecialization[E, FitList[E]] with StableSeq[E] with SliceLike[E, FitList[E]] with SpecializableIterable[E, FitList]
+			  with IterableSpecialization[E, FitList[E]] with StableSeq[E] with SliceLike[E, FitList[E]] with SpecializableIterable[E, FitList] with OfKnownSize
 {
 	import Specialized.Fun2Vals
 
-	override def isEmpty = length == 0
-	override def nonEmpty = length > 0
-	override def hasFastSize = true
+//	override def isEmpty :Boolean = length == 0
+//	override def nonEmpty :Boolean = length > 0
+//	override def hasFastSize = true
 
 
-	override def ofAtLeast(size: Int): Boolean = size<=0 || drop(size-1).nonEmpty
 
 	@tailrec private[this] final def dropped(n :Int, l :Link[E]=start) :Link[E] =
 		if (n<=0) l
@@ -54,7 +54,11 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 		if (length>0) start.head
 		else throw new NoSuchElementException(s"FitList().head")
 
-	override def headOption =
+	override def head_? : ?[E] =
+		if (length > 0) Sure(start.head)
+		else Blank
+
+	override def headOption :Option[E] =
 		if (length>0) Some(start.head)
 		else None
 
@@ -62,7 +66,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 		if (length>0) dropped(length-1).head
 		else throw new NoSuchElementException(s"FitList().last")
 
-	override def lastOption =
+	override def lastOption :Option[E] =
 		if (length>0) Some(dropped(length-1).head)
 		else None
 
@@ -73,7 +77,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 		else new FitList(length-1, start.tail)
 
 
-	override def dropWhile(p: (E) => Boolean): FitList[E] = {
+	override def dropWhile(p: E => Boolean): FitList[E] = {
 		var len=length; var elems=start
 		while(len>0 && p(elems.head)) { len-=1; elems=elems.tail }
 		new FitList(len, elems)
@@ -86,7 +90,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 	/************** Searching for an element methods  ***************/
 
-	override def segmentLength(p: (E) => Boolean, from: Int): Int =
+	override def segmentLength(p: E => Boolean, from: Int): Int =
 		if (from>=length) 0
 		else {
 			var l = dropped(from); var len=0; val max = length - math.max(from, 0)
@@ -109,7 +113,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 
-	override def find(p: (E) => Boolean): Option[E] = {
+	override def find(p: E => Boolean): Option[E] = {
 		var len = length; var elem = start
 		while(len>0 && !p(elem.head)) {
 			len -= 1; elem = elem.tail
@@ -119,8 +123,16 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 	}
 
 
+	override def find_?(p :E => Boolean, where :Boolean) : ?[E] = {
+		var len = length; var elem = start
+		while (len > 0 && p(elem.head) != where) {
+			len -= 1; elem = elem.tail
+		}
+		if (len > 0) Sure(elem.head)
+		else Blank
+	}
 
-	override def lastIndexWhere(p: (E) => Boolean, from: Int): Int = {
+	override def lastIndexWhere(p: E => Boolean, from: Int): Int = {
 		var i =0; var l = start; var last = -1; val e = math.min(from, length)
 		while(i<e) {
 			if (p(l.head))
@@ -177,13 +189,13 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 	/************** Predicate testing and traversing methods ***************/
 
-	override def foreach[@specialized(Unit) O](f: (E) => O): Unit = {
+	override def foreach[@specialized(Unit) O](f: E => O): Unit = {
 		var left = length; var link = start
 		while(left>0) { f(link.head); link=link.tail; left -= 1 }
 	}
 
 	@unspecialized
-	override def reverseForeach(f: (E) => Unit): Unit = inverse.foreach(f)
+	override def reverseForeach(f: E => Unit): Unit = inverse.foreach(f)
 
 	override def foldLeft[@specialized(Fun2Vals) O](z: O)(op: (O, E) => O): O = {
 		var left = length; var link = start
@@ -198,7 +210,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 
-	override protected[this] def filter(p :(E) => Boolean, value :Boolean) :FitList[E] = {
+	override def filter(p :E => Boolean, value :Boolean) :FitList[E] = {
 		val builder = newBuilder
 		var i = 0; val l = length; var link = start
 		while (i < l) {
@@ -232,7 +244,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 
-	protected[this] override def verifiedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
+	protected[this] override def uncheckedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
 		var i = start; var l = this.start
 		val count = math.min(total, length); val e = start + count
 		while (i<e) {

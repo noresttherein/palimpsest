@@ -1,17 +1,19 @@
 package net.turambar.palimpsest.specialty.sets
-
+/*
 import java.util
 
 import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, FastSizeIterator, MappedIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.IntSet.IntSetIterator
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, Specialized}
+import net.turambar.palimpsest.specialty.{?, FitBuilder, FitIterator, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.iterables.EmptyIterable
+import net.turambar.palimpsest.specialty.ordered.ValOrdering
+import net.turambar.palimpsest.specialty.ordered.ValOrdering.IntOrdering
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{AbstractIterator, BitSet, BitSetLike, GenTraversableOnce, Set, SortedSet, SortedSetLike, immutable}
+import scala.collection.{immutable, AbstractIterator, BitSet, BitSetLike, GenTraversableOnce, Set, SortedSet, SortedSetLike}
 
 
 
@@ -100,7 +102,7 @@ class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val si
 			else this
 	
 	override def iterator: FitIterator[Int] = new IntSetIterator(negative, positive, size)
-//	override def fitIterator :FitIterator[Int] = new IntSetIterator(negative, positive, size)
+//	override def toIterator :FitIterator[Int] = new IntSetIterator(negative, positive, size)
 
 	override def mutable: MutableSet[Int] = MutableSet.from(this)
 
@@ -121,9 +123,9 @@ object IntSet {
 
 	object Sorted {
 		final val Empty :StableOrderedSet[Int] = new EmptyIterable[Int, StableOrderedSet[Int]] with StableOrderedSet[Int] with EmptySetSpecialization[Int, StableOrderedSet[Int]]{
-			override implicit val ordering: Ordering[Int] = Ordering.Int
+			override implicit val ordering: ValOrdering[Int] = IntOrdering
 			override def keysIteratorFrom(start: Int): FitIterator[Int] = FitIterator.empty[Int]
-			override def rangeImpl(from: Option[Int], until: Option[Int]): StableOrderedSet[Int] = this
+			override def rangeImpl(from: ?[Int], until: ?[Int]): StableOrderedSet[Int] = this
 
 			override def contains(elem: Int): Boolean = false
 
@@ -184,7 +186,7 @@ object IntSet {
 		override def newBuilder =
 			source.newBuilder.mapInput(to).mapResult(fromSource)
 
-		override protected def verifiedCopyTo(xs: Array[Y], start: Int, total: Int): Int =
+		override protected def uncheckedCopyTo(xs: Array[Y], start: Int, total: Int): Int =
 			if (total >= source.size) {
 				var idx = start
 				source.foreach { i: Int => xs(idx) = my(i); idx += 1 }
@@ -201,8 +203,8 @@ object IntSet {
 	trait MappedMutableIntSet[
 			+S<:MutableSet[Int] with SetSpecialization[Int, S],
 			@specialized(Byte, Short, Char, Float) Y,
-			+Repr<:MutableSet[Y] with MutableSetLike[Y, Repr] with SetSpecialization[Y, Repr]
-		] extends IterableMapping[Int, S, Y, Repr] with MutableSet[Y] with MutableSetLike[Y, Repr]
+			+Repr<:MutableSet[Y] with MutableSetSpecialization[Y, Repr] with SetSpecialization[Y, Repr]
+		] extends IterableMapping[Int, S, Y, Repr] with MutableSet[Y] with MutableSetSpecialization[Y, Repr]
 				  with MappedIntSet[S, Y, Repr] //with MutableSet[Y]
 	{ //this :IterableMapping[Int, MutableSet[Int], Y, Repr]  => //this :Repr =>
 //		override protected[this] val source :MutableSet[Int]
@@ -442,7 +444,7 @@ object IntSet {
 			}
 		}
 
-		override protected[this] def filter(p: (Int) => Boolean, ourTruth: Boolean): ContinuousBitSet = {
+		override protected[this] def filter(p: (Int) => Boolean, where: Boolean): ContinuousBitSet = {
 			val copy = util.Arrays.copyOf(words, words.length)
 			var idx = 0; val max = words.length; var count = 0
 			while(idx < max) {
@@ -450,7 +452,7 @@ object IntSet {
 				var n = idx << 6
 				while(w != 0L) {
 					if ((w & 1L) == 1L)
-						if(p(n)!=ourTruth)
+						if(p(n)!=where)
 							copy(idx) ^= 1L << n
 						else
 							count += 1
@@ -515,7 +517,7 @@ object IntSet {
 			} else this
 		}
 
-		override def fitIterator: FitIterator[Int] = new BitSetIterator(words)
+		override def toIterator: FitIterator[Int] = new BitSetIterator(words)
 
 		override def keysIteratorFrom(start: Int) :FitIterator[Int] with AbstractIterator[Int] =
 			new BitSetIterator(words, start)
@@ -615,3 +617,4 @@ object IntSet {
 
 	}
 }
+*/

@@ -1,14 +1,14 @@
 package net.turambar.palimpsest.specialty.sets
-
+/*
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.{FitBuilder, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.Specialized.Fun2
 import net.turambar.palimpsest.specialty.iterables.EmptyIterable
-import net.turambar.palimpsest.specialty.sets.LongSet.{BranchLike, Empty, Singleton, StableBranch, StableLongTrie, delimitedPrefix}
+import net.turambar.palimpsest.specialty.sets.DirectLongSet.{BranchLike, Empty, Singleton, StableBranch, StableLongTrie, delimitedPrefix}
 
 
 /** A mutable variant of a Trie holding `Long` values with their binary format as a path.
-  * Unlike [[net.turambar.palimpsest.specialty.sets.LongSet.StableLongTrie]], there is only one implementation and the set consists only
+  * Unlike [[net.turambar.palimpsest.specialty.sets.DirectLongSet.StableLongTrie]], there is only one implementation and the set consists only
   * of instances of this class and [[Empty]] as leaves.
   * If this is an empty set, then `common` must equal zero, and both `zeros` and `ones` must be [[Empty]].
   * If this is a singleton set, then `common` must equal the one element and both `zeros` and `ones` must be `Empty`
@@ -22,9 +22,10 @@ import net.turambar.palimpsest.specialty.sets.LongSet.{BranchLike, Empty, Single
   * @param left non-empty subset containing all elements which have a clear bit on the position of `diffBit` (as obtained from `common`). Empty if `size`<=1.
   * @param right non-empty subset containing all elements which have a set bit on the position of `diffBit` (as obtained from `common`). Empty if `size`<=1.
   */
-private[sets] final class MutableLongSet(private[this] var _size :Int, private[this] var common :Long, private[sets] var left: LongSet, private[sets] var right: LongSet)
-	extends BranchLike[MutableLongSet] with OfKnownSize
-			with MutableSet[Long] with SetSpecialization[Long, MutableLongSet] with MutableSetLike[Long, MutableLongSet] with LongSet
+@deprecated("This standalone implementation should be replaced with one based on generic tries", "sometime")
+private[sets] final class MutableDirectLongSet(private[this] var _size :Int, private[this] var common :Long, private[sets] var left: DirectLongSet, private[sets] var right: DirectLongSet)
+	extends BranchLike[MutableDirectLongSet] with OfKnownSize
+			with MutableSet[Long] with SetSpecialization[Long, MutableDirectLongSet] with MutableSetSpecialization[Long, MutableDirectLongSet] with DirectLongSet
 {
 
 	/** A singleton mutable set. */
@@ -33,7 +34,7 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 	/** An empty mutable set. */
 	def this() = this(0, 0L, Empty, Empty)
 
-	def this(common :Long, left: LongSet, right: LongSet) = this(left.size + right.size, common, left, right)
+	def this(common :Long, left: DirectLongSet, right: DirectLongSet) = this(left.size + right.size, common, left, right)
 
 	@inline def path = if (_size==1) common else common & (common-1) //clear lowest set bit
 	@inline def diffBit = if (_size==1) 0L else common & -common //mask for the lowest set bit
@@ -56,17 +57,17 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 	override def last = if (_size==1) common else right.last
 	override def lastOption = if (_size==1) Some(common) else right.lastOption
 
-	override def tail :MutableLongSet =
+	override def tail :MutableDirectLongSet =
 		if (left.nonEmpty) filtered(left.tail, right)
 		else if (size==1) empty
 		else filtered(Empty, right.tail) //right is Empty, so will throw UnsupportedOperatoinException
 
-	override def init :MutableLongSet  =
+	override def init :MutableDirectLongSet  =
 		if (right.nonEmpty) filtered(left, right.init)
 		else if (size==1) empty
 		else filtered(left.init, Empty) //left is Empty, so will throw UnsupportedOperationException
 
-	override def empty :MutableLongSet = new MutableLongSet(0, 0L, Empty, Empty)
+	override def empty :MutableDirectLongSet = new MutableDirectLongSet(0, 0L, Empty, Empty)
 
 
 	override def contains(elem: Long) = _size match {
@@ -82,23 +83,23 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 	}
 
 	override def +(elem: Long) = _size match {
-		case 0 => new MutableLongSet(elem)
+		case 0 => new MutableDirectLongSet(elem)
 		case 1 =>
 			if (common==elem) this
-			else MutableLongSet.join(this, new MutableLongSet(elem))
+			else MutableDirectLongSet.join(this, new MutableDirectLongSet(elem))
 		case _ =>
 			val DiffBit = common & -common
 			(elem & -common | ~elem & common) ^ (elem & DiffBit) match {
-				case 0 => new MutableLongSet(common, left, right + elem)
-				case DiffBit => new MutableLongSet(common, left+elem, right)
-				case _ => MutableLongSet.join(this, new MutableLongSet(elem))
+				case 0 => new MutableDirectLongSet(common, left, right + elem)
+				case DiffBit => new MutableDirectLongSet(common, left+elem, right)
+				case _ => MutableDirectLongSet.join(this, new MutableDirectLongSet(elem))
 			}
 	}
 
 	override def -(elem: Long) = _size match {
 		case 0 => this
 		case 1 =>
-			if (common==elem) new MutableLongSet()
+			if (common==elem) new MutableDirectLongSet()
 			else this
 		case _ =>
 			val DiffBit = common & -common
@@ -114,20 +115,20 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 	override def add(elem: Long): Boolean = _size match {
 		case 0 => become(elem); true
 		case 1 => common!=elem && {
-			become(new MutableLongSet(common), new MutableLongSet(elem))
+			become(new MutableDirectLongSet(common), new MutableDirectLongSet(elem))
 			true
 		}
 		case total =>
 			val DiffBit = common & -common
 			(elem & -common | ~elem & common) ^ (elem & DiffBit) match {
-				case 0 => (right.asInstanceOf[MutableLongSet] add elem) && {
+				case 0 => (right.asInstanceOf[MutableDirectLongSet] add elem) && {
 					_size = left.size + right.size; true
 				}
-				case DiffBit => (left.asInstanceOf[MutableLongSet] add elem) && {
+				case DiffBit => (left.asInstanceOf[MutableDirectLongSet] add elem) && {
 					_size = left.size + right.size; true
 				}
 				case _ =>
-					become(new MutableLongSet(total, common, left, right), new MutableLongSet(elem))
+					become(new MutableDirectLongSet(total, common, left, right), new MutableDirectLongSet(elem))
 					true
 			}
 	}
@@ -141,10 +142,10 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 		case total =>
 			val DiffBit = common & -common
 			(elem & -common | ~elem & common) ^ (elem & DiffBit) match {
-				case 0 => (right.asInstanceOf[MutableLongSet] remove elem) && {
+				case 0 => (right.asInstanceOf[MutableDirectLongSet] remove elem) && {
 					update(); true
 				}
-				case DiffBit => (left.asInstanceOf[MutableLongSet] remove elem) && {
+				case DiffBit => (left.asInstanceOf[MutableDirectLongSet] remove elem) && {
 					update(); true
 				}
 				case _ => false
@@ -156,7 +157,7 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 
 
 	override def ++=(xs: FitTraversableOnce[Long]) :this.type = xs match {
-		case trie :MutableLongSet => trie.size match {
+		case trie :MutableDirectLongSet => trie.size match {
 			case 0 =>
 				this
 			case 1 =>
@@ -167,39 +168,39 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 					left = trie.left.clone(); right = trie.right.clone()
 					this
 				case 1 =>
-					become(trie.clone(), new MutableLongSet(common))
+					become(trie.clone(), new MutableDirectLongSet(common))
 					this
 				case _ =>
 					val path1 = common; val path2 = trie.delimitedPath
 					val diff = path1 ^ path2
 					if (diff==0L) {
-						left.asInstanceOf[MutableLongSet] ++= trie.left
-						right.asInstanceOf[MutableLongSet] ++= trie.right
+						left.asInstanceOf[MutableDirectLongSet] ++= trie.left
+						right.asInstanceOf[MutableDirectLongSet] ++= trie.right
 						_size = left.size + right.size
 					} else {
 						val point1 = path1 & -path1; val point2 = path2 & -path2
 						val mask1 = -point1 ^ point1; val mask2 = -point2 ^ point2
 						if ((diff & mask1) == 0L) {//path1 is prefix of path2
 							if ((path2 & point1) == 0L)
-								left.asInstanceOf[MutableLongSet] ++= trie
+								left.asInstanceOf[MutableDirectLongSet] ++= trie
 							else
-								right.asInstanceOf[MutableLongSet] ++= trie
+								right.asInstanceOf[MutableDirectLongSet] ++= trie
 							_size = left.size + right.size
 						} else if ((diff & mask2)==0L) //path2 is prefix of path1
 							if ((path1 & point2)==0L) {
 								this ++= trie.left
-								left = new MutableLongSet(common, left, right)
+								left = new MutableDirectLongSet(common, left, right)
 								right = trie.right
 								common = path2
 								_size = left.size + right.size
 							}else {
 								this ++= trie.right
-								right = new MutableLongSet(common, left, right)
+								right = new MutableDirectLongSet(common, left, right)
 								common = path2
 								_size = left.size + right.size
 							}
 						else //path1 and path2 differ on their common section
-							become(new MutableLongSet(_size, common, left, right), trie)
+							become(new MutableDirectLongSet(_size, common, left, right), trie)
 					}
 					this
 			}
@@ -209,26 +210,26 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 
 	override def --=(xs: FitTraversableOnce[Long]) = super.--=(xs)
 
-	override def dropTake(from: Int, until: Int) :MutableLongSet =
+	override def dropTake(from: Int, until: Int) :MutableDirectLongSet =
 		if (until<=from || from >= size)
-			new MutableLongSet()
-		else if (size==1) new MutableLongSet(common)
+			new MutableDirectLongSet()
+		else if (size==1) new MutableDirectLongSet(common)
 		else {
 			val lsize = left.size
 			if (until <= lsize)
-				left.asInstanceOf[MutableLongSet].dropTake(from, until)
+				left.asInstanceOf[MutableDirectLongSet].dropTake(from, until)
 			else if (from >= lsize)
-				right.asInstanceOf[MutableLongSet].dropTake(from-lsize, until-lsize)
-			else new MutableLongSet(
+				right.asInstanceOf[MutableDirectLongSet].dropTake(from-lsize, until-lsize)
+			else new MutableDirectLongSet(
 				common,
-				left.asInstanceOf[MutableLongSet].dropTake(from, lsize),
-				right.asInstanceOf[MutableLongSet].dropTake(0, until-lsize)
+				left.asInstanceOf[MutableDirectLongSet].dropTake(from, lsize),
+				right.asInstanceOf[MutableDirectLongSet].dropTake(0, until-lsize)
 			)
 		}
 
-	override def filter(p: (Long) => Boolean, ourTruth: Boolean): MutableLongSet =
+	override def filter(p: (Long) => Boolean, ourTruth: Boolean): MutableDirectLongSet =
 		if (ourTruth) filter(p) else filterNot(p)
-//		filtered(left.filter(p, ourTruth), right.filter(p, ourTruth))
+//		filtered(left.filter(p, where), right.filter(p, where))
 	override def filter(p: (Long) => Boolean) = filtered(left.filter(p), right.filter(p))
 
 	override def filterNot(p: (Long) => Boolean) = filtered(left.filterNot(p), right.filterNot(p))
@@ -302,9 +303,9 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 	private def update() :Unit =
 		if (left.isEmpty)
 			if (right.isEmpty) clear()
-			else become(right.asInstanceOf[MutableLongSet])
+			else become(right.asInstanceOf[MutableDirectLongSet])
 		else if (right.isEmpty)
-			become(left.asInstanceOf[MutableLongSet])
+			become(left.asInstanceOf[MutableDirectLongSet])
 		else
 			_size = left.size + right.size
 
@@ -313,13 +314,13 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 		common = singleton; _size = 1
 	}
 
-	@inline final private[this] def become(other :MutableLongSet) :Unit = {
+	@inline final private[this] def become(other :MutableDirectLongSet) :Unit = {
 		common = other.delimitedPath; _size = other.size
 		left = other.left; right = other.right
 	}
 
 
-	protected def become(x :MutableLongSet, y :MutableLongSet) :Unit = {
+	protected def become(x :MutableDirectLongSet, y :MutableDirectLongSet) :Unit = {
 		val xPath = x.path
 		common = delimitedPrefix(xPath, y.path)
 		if ((xPath & common & -common) == 0L) {
@@ -331,24 +332,24 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 	}
 
 
-	def filtered(l: LongSet, r: LongSet) :MutableLongSet =
+	def filtered(l: DirectLongSet, r: DirectLongSet) :MutableDirectLongSet =
 		if (l.isEmpty) r match {
 			case _ if r.isEmpty => empty
-			case m :MutableLongSet => m
+			case m :MutableDirectLongSet => m
 			case _ => throw new MatchError(s"Illegal child of a MutableLongTrie - neither a MutableLongTrie nor Empty: $l")
 		} else if (r.isEmpty)
-			l.asInstanceOf[MutableLongSet]
+			l.asInstanceOf[MutableDirectLongSet]
 		else
-			new MutableLongSet(common, l, r)
+			new MutableDirectLongSet(common, l, r)
 
 	override def stable :StableLongTrie = _size match {
-		case 0 => LongSet.Empty
-		case 1 => new LongSet.Singleton(common)
-		case _ => new StableBranch(common, left.asInstanceOf[MutableLongSet].stable, right.asInstanceOf[MutableLongSet].stable)
+		case 0 => DirectLongSet.Empty
+		case 1 => new DirectLongSet.Singleton(common)
+		case _ => new StableBranch(common, left.asInstanceOf[MutableDirectLongSet].stable, right.asInstanceOf[MutableDirectLongSet].stable)
 	}
 
 
-	override def clone() :MutableLongSet = new MutableLongSet(_size, common, left.clone(), right.clone())
+	override def clone() :MutableDirectLongSet = new MutableDirectLongSet(_size, common, left.clone(), right.clone())
 
 	override def stringPrefix = "MutableSet[Long]"
 
@@ -359,25 +360,26 @@ private[sets] final class MutableLongSet(private[this] var _size :Int, private[t
 
 
 
-object MutableLongSet {
+object MutableDirectLongSet {
 
 //	object Empty extends MutableLongTrie(0, 0L, null, null) {
 //		left = this; right = this
 //	}
 
-	def empty :MutableSet[Long] = new MutableLongSet()
-	def newBuilder :FitBuilder[Long, MutableSet[Long]] = new MutableLongSet()
-	def singleton(value :Long) :MutableSet[Long] = new MutableLongSet() += value
+	def empty :MutableSet[Long] = new MutableDirectLongSet()
+	def newBuilder :FitBuilder[Long, MutableSet[Long]] = new MutableDirectLongSet()
+	def singleton(value :Long) :MutableSet[Long] = new MutableDirectLongSet() += value
 
 
 
-	private def join(x :MutableLongSet, y :MutableLongSet) :MutableLongSet = {
+	private def join(x :MutableDirectLongSet, y :MutableDirectLongSet) :MutableDirectLongSet = {
 		val xPath = x.path
 		val common = delimitedPrefix(xPath, y.path)
 		if ((xPath & common & - common) == 0L)
-			new MutableLongSet(common, x, y)
+			new MutableDirectLongSet(common, x, y)
 		else
-			new MutableLongSet(common, y, x)
+			new MutableDirectLongSet(common, y, x)
 	}
 
 }
+*/

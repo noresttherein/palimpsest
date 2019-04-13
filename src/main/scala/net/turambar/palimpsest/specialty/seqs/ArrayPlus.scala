@@ -237,7 +237,7 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
   * the ownership of the backing array on concatenation, making
   */
 object ArrayPlus extends ArrayViewFactory[ArrayPlus] { factory =>
-	@inline def Acc[E :Specialized] :ArrayPlus[E] = using(Specialized.erasedArray[E], 0, 0)
+	@inline def Acc[E :Specialized] :ArrayPlus[E] = using(Specialized.arrayFor[E], 0, 0)
 	
 	
 	

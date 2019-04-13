@@ -1,26 +1,25 @@
 package net.turambar.palimpsest.specialty.sets
 
+/*
 
 import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate, SingletonSpecialization, SingletonTemplate}
 import net.turambar.palimpsest.specialty.{Elements, FitIterator, FitTraversableOnce}
-import net.turambar.palimpsest.specialty.tries.BinaryTrie.{MutableTrieBranch, ValueTrieTemplate}
-import net.turambar.palimpsest.specialty.tries.EmptyTrie.AbstractEmptyTrie
-import net.turambar.palimpsest.specialty.tries.{BinaryTrie, EmptyTrie, Trie, TrieLeaf, TrieKeys, TrieTemplate}
-import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, TrieCombinator, TrieOperator, TriePatch, ValueTrie}
-import net.turambar.palimpsest.specialty.tries.TrieLeaf.{AbstractTrieLeaf, ValueLeaf}
+import net.turambar.palimpsest.specialty.tries.TrieBranch.{MutableTrieBranch, ValueTrieTemplate}
+import net.turambar.palimpsest.specialty.tries.{TrieBranch, EmptyTrie, Trie, TrieLeaf, TrieKeys, TrieTemplate}
+import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, TrieCombinator, TrieOperator, AbstractTriePatch, ValueTrie}
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.{GenIterable, GenSet, GenTraversableOnce, mutable}
 
 
 /** Partial interface of trie sets, declaring front-end [[ValSet]] methods of extending classes.
-  * Extending classes will likely mix-in an appropriate back-end trait of [[TrieKeys]], which in turn operates
+  * Derived classes will likely mix-in an appropriate back-end trait of [[TrieKeys]], which in turn operates
   * in terms of the keys in this set, abstracting over values. This dichotomy exists so as to avoid
   * cartesian explosion of specialized variants when specializing on both key and value types.
   * Instead, this instance is specialized for the value (element) type, while [[TrieKeys]] is specialized for the key types.
-  * They are paired only in the concrete implementation classes according to actual needs.
+  * They are paired only in concrete implementation classes according to actual needs.
   *
   * It is intended as a 'private' interface, not exposed to the clients of the library; in particular, it extends
   * [[TrieCombinator]], providing callbacks for creating unions of compatible tries. These methods, when called
@@ -28,9 +27,9 @@ import scala.collection.{GenIterable, GenSet, GenTraversableOnce, mutable}
   */
 trait TrieSetValues[K, @specialized(Elements) V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]]
 	extends ValueTrie[K, V, T] with SetSpecialization[V, T] with TrieCombinator[T]
-{ //this :Trie[K, V, T] =>
+{ this :T => //this :Trie[K, V, T] =>
 
-	private[sets] def update(root :MutableTrieRoot[T], element :V, mutant :TriePatch[K, V, T]) :Unit
+	private[sets] def update(root :MutableTrieRoot[T], element :V, mutant :AbstractTriePatch[K, V, T]) :Unit
 
 
 	private type Mutable = MutableTrieValueSetFoundation[K, V, T, _] //MutableTrieValueSet[K, V, T]
@@ -96,7 +95,7 @@ trait TrieSetValues[K, @specialized(Elements) V, T <: TrieKeys[K, V, T] with Tri
 	/** Union of a subset of this instance and an equal, compatible trie set - in other words, the subset (left argument) itself. */
 	override def matched(left: T, right: T): T = left
 
-	override def disjoint(res1: T, res2: T): T = reduce(res1, res2)
+	override def disjoint(res1: T, res2: T): T = reduced(res1, res2)
 
 	protected def disjoint(other :T) :T = disjoint(asTrie, other)
 
@@ -144,7 +143,7 @@ object TrieSetValues {
 
 	abstract class EmptyTrieSetKeys[@specialized(Int, Long) K,/* @specialized(Elements)*/ V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]]
 		extends EmptyTrie[K, V, T] with EmptyIterableTemplate[V, T] with StableSet[V] with SetSpecialization[V, T] with TrieKeys[K, V, T]
-	{
+	{ this :T =>
 
 //		override def --(elems: FitTraversableOnce[V]) :T = asTrie
 //		override def --(xs: GenTraversableOnce[V]) :T = asTrie
@@ -153,27 +152,27 @@ object TrieSetValues {
 //		override def subsetOf(that: GenSet[V]) = true
 
 
-		override protected[this] def patch(root: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): T =
-			mutant.notFound(key, this) match {
+		override protected[this] def patch(root: MutableTrieRoot[T], key: K, mutant: AbstractTriePatch[K, V, T]): T =
+			mutant.patchMissing(key, this) match {
 				case e if e.isEmpty => e
 				case leaf => root.size_++(); leaf
 			}
 
 
-		override protected[this] def mutate(root: MutableTrieRoot[T], key :K, mutant: TriePatch[K, V, T]) =
-			mutant.notFound(key, this) match {
+		override protected[this] def mutate(root: MutableTrieRoot[T], key :K, mutant: AbstractTriePatch[K, V, T]) =
+			mutant.patchMissing(key, this) match {
 				case e if e.isEmpty => ()
 				case newLeaf => root.size_++(); root.hang(newLeaf)
 			}
 
-		override protected[this] def mutate(root: MutableTrieRoot[T], parent :MutableTrieRoot[T], key :K, mutant: TriePatch[K, V, T]) =
-			mutant.notFound(key, this) match {
+		override protected[this] def mutate(root: MutableTrieRoot[T], parent :MutableTrieRoot[T], key :K, mutant: AbstractTriePatch[K, V, T]) =
+			mutant.patchMissing(key, this) match {
 				case e if e.isEmpty => ()
 				case newLeaf => root.size_++(); parent.hang(newLeaf)
 			}
 
 
-		override def empty :T = asTrie
+//		override def empty :T = asTrie
 		override final def stable :T = asTrie
 		override final def editable :T = asTrie
 		override final def clone() :T = asTrie
@@ -188,7 +187,7 @@ object TrieSetValues {
 
 	trait TrieSet1Key[@specialized(Int, Long) K, /*@specialized(Elements) */V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]]
 		extends TrieLeaf[K, V, T] /*with StableSet[V] */ with TrieKeys[K, V, T] //with SingletonSpecialization[V, T] //with ValueLeaf[K, V, T] with SingletonSpecialization[V, T]
-	{ //this :T =>
+	{ this :T =>
 
 
 		override final def stable :T = asTrie
@@ -216,16 +215,16 @@ object TrieSetValues {
 	  * @see [[StableTrieSetKeys]]
 	  */
 	trait TrieValueSetNode[@specialized(Int, Long) K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]]
-		extends BinaryTrie[K, V, T]
-				with ValueTrieTemplate[K, V, T] with SetTemplate[V, T] //with MutableLongTrie[Long, StableLongTrieSet]
+		extends TrieBranch[K, V, T]
+				with SetTemplate[V, T] with ValueTrieTemplate[K, V, T] //with MutableLongTrie[Long, StableLongTrieSet]
 				with TrieKeys[K, V, T] with TrieCombinator[T]
-	{
+	{ this :T =>
 		override def head = left.head
 		override def last = right.last
 
 
 
-		protected override def verifiedCopyTo(xs: Array[V], start: Int, total: Int) :Int = {
+		protected override def uncheckedCopyTo(xs: Array[V], start: Int, total: Int) :Int = {
 			def cpy(trie :T, pos :Int, left :Int) :Unit = trie match {
 				case branch :TrieValueSetNode[K, V, T] =>
 					val lsize = branch.left.size
@@ -244,10 +243,10 @@ object TrieSetValues {
 			} else 0
 		}
 
-		override protected[this] def mutate(root: MutableTrieRoot[T], parent :MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): Unit =
+		override protected[this] def mutate(root: MutableTrieRoot[T], parent :MutableTrieRoot[T], key: K, mutant: AbstractTriePatch[K, V, T]): Unit =
 			parent.hang(patch(root, key, mutant))
 
-		override protected[this] def mutate(root: MutableTrieRoot[T], key: K, mutant: TriePatch[K, V, T]): Unit =
+		override protected[this] def mutate(root: MutableTrieRoot[T], key: K, mutant: AbstractTriePatch[K, V, T]): Unit =
 			root.hang(patch(root, key, mutant))
 
 
@@ -274,7 +273,7 @@ object TrieSetValues {
 		override def editable :T = asTrie
 
 //		protected[this] def editableCopy(l :T, r :T) :T
-		//todo: all slice/drop methods from BinaryTrie may return directly any of our children (or their subtries)
+		//todo: all slice/drop methods from TrieBranch may return directly any of our children (or their subtries)
 		//it is not sufficient to override copy
 //		override def stable = new StableLongTrieSetN(center, left, right)
 
@@ -290,7 +289,7 @@ object TrieSetValues {
 	  */
 	trait EditableTrieSetKeys[@specialized(Int, Long) K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]]
 		extends TrieValueSetNode[K, V, T] with MutableTrieBranch[K, V, T]
-	{
+	{ this :T =>
 
 
 		override def emptySecond(left: T): T = left
@@ -301,7 +300,7 @@ object TrieSetValues {
 
 //		override def stable = new StableLongTrieSetN(center, left.stable, right.stable)
 //		override def editable :T = this
-		override def clone() :T = copy(left.clone(), right.clone())
+		override def clone() :T = subTrie(left.clone(), right.clone())
 	}
 
 
@@ -313,7 +312,7 @@ object TrieSetValues {
 	  */
 	trait StableTrieSetKeys[@specialized(Int, Long) K, V, T <: StableSet[V] with TrieKeys[K, V, T] with TrieSetValues[K, V, T]]
 		extends TrieValueSetNode[K, V, T] with OfKnownSize
-	{
+	{ this :T =>
 
 		/** These methods are used to implement `++`/`union` via `combine`. */
 		override def emptyFirst(right: T): T = right//.stable
@@ -323,12 +322,12 @@ object TrieSetValues {
 		override def disjoint(first: T, second: T): T
 
 
-		override def leaf(idx: Int) :T =
+		override def elem(idx: Int) :T =
 			if (idx<0 || idx>=size)
-				empty
+				(this :Trie[K, V, T]).empty //self type would make it pick implemented variant from SetSpecialization
 			else {
 				@tailrec def skip(trie :T, n :Int) :T = trie match {
-					case branch :BinaryTrie[K, V, T] =>
+					case branch :TrieBranch[K, V, T] =>
 						val lsize = branch.left.size
 						if (n < lsize) skip(branch.left, n)
 						else skip(branch.right, n-lsize)
@@ -355,25 +354,27 @@ object TrieSetValues {
 
 
 	private type ErasedType = TrieSetValues[Any, Any, Nothing] //TrieSetKeys[Any, Any, Nothing]// with TrieSetValues[Any, Any, Nothing]
-	@inline final def union[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] = SharedUnion.asInstanceOf[TrieCombinator[T]]
+	@inline final def union[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
+		SharedUnion.asInstanceOf[TrieCombinator[T]]
 
 	private[this] final val SharedUnion = new TrieCombinator[ErasedType] {
 		override def emptyFirst(right: ErasedType): ErasedType = right
 		override def emptySecond(left: ErasedType): ErasedType = left
 		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = left.disjoint(right.asTrie)
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = right
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
 	/** A combinator performing a union between a stable trie on the left, and not-stable on the  right, which requires converting to a stable instance to produce a really immutable result. */
-	@inline final def stableUnion[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] = StableUnion.asInstanceOf[TrieCombinator[T]]
+	@inline final def stableUnion[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
+		StableUnion.asInstanceOf[TrieCombinator[T]]
 
 	private[this] final val StableUnion = new TrieCombinator[ErasedType] {
 		override def emptyFirst(right: ErasedType): ErasedType = right.stable
 		override def emptySecond(left: ErasedType): ErasedType = left
 		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = left.disjoint(right.stable)
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = left
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
 	@inline final def cloneUnion[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
@@ -384,74 +385,81 @@ object TrieSetValues {
 		override def emptySecond(left: ErasedType): ErasedType = left.clone()
 		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = (left.clone() :ErasedType).disjoint(right.clone())
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = left.clone()
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
 	/** A combinator performing a union which results in a fresh, mutable copy of the summands. Calls [[TrieKeys#editableCopy]] on each returned argument. */
-	@inline final def mutableUnion[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] = MutableUnion.asInstanceOf[TrieCombinator[T]]
+	@inline final def mutableUnion[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
+		MutableUnion.asInstanceOf[TrieCombinator[T]]
 
 	private[this] final val MutableUnion = new TrieCombinator[ErasedType] {
 		override def emptyFirst(right: ErasedType): ErasedType = right.editableCopy
 		override def emptySecond(left: ErasedType): ErasedType = left.editableCopy
-		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = left.reduce(left.editableCopy, right.editableCopy)
+		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = left.reduced(left.editableCopy, right.editableCopy)
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = left.editableCopy
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
-	@inline final def difference[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] = Difference.asInstanceOf[TrieCombinator[T]]
+	@inline final def difference[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
+		Difference.asInstanceOf[TrieCombinator[T]]
 
 	private[this] final val Difference = new TrieCombinator[ErasedType] {
 		override def emptyFirst(right: ErasedType): ErasedType = right.empty
 		override def emptySecond(left: ErasedType): ErasedType = left.clone()
 		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = left.clone()
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = left.empty
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
 
 
-	@inline final def mutableDifference[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] = MutableDifference.asInstanceOf[TrieCombinator[T]]
+	@inline final def mutableDifference[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
+		MutableDifference.asInstanceOf[TrieCombinator[T]]
 
 	private[this] final val MutableDifference = new TrieCombinator[ErasedType] {
 		override def emptyFirst(right: ErasedType): ErasedType = (right.empty :ErasedType).editable
 		override def emptySecond(left: ErasedType): ErasedType = left.editableCopy
 		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = left.editableCopy
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = (left.empty :ErasedType).editable
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
 
 
-	@inline final def intersection[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] = Intersection.asInstanceOf[TrieCombinator[T]]
+	@inline final def intersection[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
+		Intersection.asInstanceOf[TrieCombinator[T]]
 
 	private[this] final val Intersection = new TrieCombinator[ErasedType] {
 		override def emptyFirst(right: ErasedType): ErasedType = right.empty
 		override def emptySecond(left: ErasedType): ErasedType = left.empty
 		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = left.empty
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = left.clone()
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
 
 
-	@inline final def mutableIntersection[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] = MutableIntersection.asInstanceOf[TrieCombinator[T]]
+	@inline final def mutableIntersection[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieCombinator[T] =
+		MutableIntersection.asInstanceOf[TrieCombinator[T]]
 
 	private[this] final val MutableIntersection = new TrieCombinator[ErasedType] {
 		override def emptyFirst(right: ErasedType): ErasedType = (right.empty :ErasedType).editable
 		override def emptySecond(left: ErasedType): ErasedType = (left.empty :ErasedType).editable
 		override def disjoint(left: ErasedType, right: ErasedType): ErasedType = (left.empty :ErasedType).editable
 		override def matched(left: ErasedType, right: ErasedType): ErasedType = left.editableCopy
-		override def reduce(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduce(res1.asTrie, res2.asTrie)
+		override def reduced(res1: ErasedType, res2: ErasedType): ErasedType = res1.reduced(res1.asTrie, res2.asTrie)
 	}
 
-	@inline final def subtrieOf[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieOperator[T, Boolean] = MutableIntersection.asInstanceOf[TrieOperator[T, Boolean]]
+	@inline final def subtrieOf[K, V, T <: TrieKeys[K, V, T] with TrieSetValues[K, V, T] with StableSet[V]] :TrieOperator[T, Boolean] =
+		MutableIntersection.asInstanceOf[TrieOperator[T, Boolean]]
 
 	private[this] final val SubtrieOf = new TrieOperator[ErasedType, Boolean] {
 		override def emptyFirst(second: ErasedType): Boolean = true
 		override def emptySecond(first: ErasedType): Boolean = false //first.isEmpty
 		override def disjoint(first: ErasedType, second: ErasedType): Boolean = false
 		override def matched(first: ErasedType, second: ErasedType): Boolean = true
-		override def reduce(res1: Boolean, res2: Boolean): Boolean = res1 && res2
+		override def reduced(res1: Boolean, res2: Boolean): Boolean = res1 && res2
 	}
 }
 
+*/

@@ -598,7 +598,7 @@ class GrowingArrayBuffer[@specialized(Elements) E](
 
 	def this(storageType :Class[E]) = this(Array.empty[E](ClassTag(storageType)))
 
-	def this() = this(Specialized.erasedArray[E])
+	def this() = this(Specialized.arrayFor[E])
 	
 }
 

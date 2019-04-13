@@ -1,9 +1,9 @@
 package net.turambar.palimpsest.specialty.seqs
 
-
+import java.lang.Math
 import scala.annotation.unspecialized
-import scala.collection.{GenSeq, IndexedSeqLike, IndexedSeqOptimized, SeqLike, mutable}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterator, IterableSpecialization, SpecializableIterable}
+import scala.collection.{immutable, mutable, GenSeq, IndexedSeqLike, IndexedSeqOptimized, SeqLike}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitCompanion, FitIterator, Sure, IterableSpecialization, SpecializableIterable}
 import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 
@@ -13,6 +13,7 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 /**
   * @author Marcin Mościcki
   */
+//todo: delete this class
 trait FitIndexedSeq[@specialized(Elements) +E]
 	extends IndexedSeq[E] with IndexedSeqLike[E, FitIndexedSeq[E]]
 			with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]]
@@ -31,25 +32,36 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 
 
 
-	override protected[this] def indexWhere(p: (E) => Boolean, ourTruth: Boolean, from: Int): Int = {
-		var i = math.max(from, 0); val len = length
+	override protected[this] def indexWhere(p: E => Boolean, ourTruth: Boolean, from: Int): Int = {
+		var i = Math.max(from, 0); val len = length
 		while(i<len && p(at(i))!=ourTruth) i+=1
 		if (i==len) -1 else i
 	}
 	
-	override def find(p: (E) => Boolean): Option[E] = {
+	override def find(p: E => Boolean): Option[E] = {
 		var i = 0; val len = length
 		while(i<len) {
 			val e = at(i)
-			if (p(at(i)))
+			if (p(e))
 				return Some(e)
 			i+=1
 		}
 		None
 	}
+
+	override def find_?(p :E => Boolean, where :Boolean): ?[E] = {
+		var i = 0; val len = length
+		while (i < len) {
+			val e = at(i)
+			if (p(e) == where)
+				return Sure(e)
+			i += 1
+		}
+		Blank
+	}
 	
-	override def lastIndexWhere(p: (E) => Boolean, from: Int): Int = {
-		var i = math.min(from, length-1)
+	override def lastIndexWhere(p: E => Boolean, from: Int): Int = {
+		var i = Math.min(from, length-1)
 		while(i>=0 && !p(at(i))) i-=1
 		i
 	}
@@ -58,7 +70,7 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 	
 	
 	override protected[this] def positionOf(elem: E, from: Int): Int = {
-		var i = math.max(from, 0); val len = length
+		var i = Math.max(from, 0); val len = length
 		while(i<=len && at(i)!=elem) i+=1
 		if (i==len) -1 else i
 	}
@@ -66,7 +78,7 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 	
 	
 	override protected[this] def lastPositionOf(elem: E, end: Int): Int = {
-		var i = math.min(end, length-1)
+		var i = Math.min(end, length-1)
 		while(i>=0 && elem!=at(i)) i-=1
 		i
 	}
@@ -146,10 +158,10 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 
 	
 
-	protected[this] override def verifiedCopyTo(target :Array[E], start :Int, len :Int) :Int = {
-		var i = 0; val max = math.min(len, length)
+	protected[this] override def uncheckedCopyTo(target :Array[E], start :Int, len :Int) :Int = {
+		var i = 0; val max = Math.min(len, length)
 		while (i < max) { target(start + i) = at(i); i += 1 }
-		math.max(0, max)
+		Math.max(0, max)
 	}
 	
 	
@@ -161,15 +173,15 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 	
 	override def reverseIterator: FitIterator[E] = new ReverseIterator
 	
-	override def inverse :FitSeq[E] = new ReverseSeq[E](toFitSeq)
+	override def inverse :FitSeq[E] = new ReverseSeq[E](toSeq)
 
-	override def toFitSeq :FitIndexedSeq[E] = this.asInstanceOf[FitIndexedSeq[E]]
+	override def toSeq :FitIndexedSeq[E] = this.asInstanceOf[FitIndexedSeq[E]]
 
 
 	protected class ForwardIterator extends IndexedIterator[E](0, length) with FitIterator[E] {
 		
 		override def head :E = at(index)
-		override def next() = { val res :E = at(index); index+=1; res }
+		override def next() :E = { val res :E = at(index); index+=1; res }
 		
 		@unspecialized
 		override def foreach[@specialized(Unit) U](f: (E) => U): Unit =
@@ -179,7 +191,7 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
 			self.seq.copyToArray(xs, start, len max size)
 		
-		override def toIndexedSeq = section(index, end).toIndexedSeq
+		override def toIndexedSeq :collection.immutable.IndexedSeq[E] = section(index, end).toIndexedSeq
 		
 		override def toSeq :FitSeq[E] = self.section(index, end).asInstanceOf[FitSeq[E]]
 
@@ -196,7 +208,7 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 			if (index==length-1 && end==0) toSeq.reverseTraverse(f.asInstanceOf[E=>Unit])
 			else while(index>=end) { f(at(index)); index-=1; }
 		
-		override def toIndexedSeq = toSeq.toIndexedSeq
+		override def toIndexedSeq :collection.immutable.IndexedSeq[E] = toSeq.toIndexedSeq
 		
 		@unspecialized
 		override def toSeq :FitSeq[E] = self.section(end, index+1).asInstanceOf[FitSeq[E]].inverse

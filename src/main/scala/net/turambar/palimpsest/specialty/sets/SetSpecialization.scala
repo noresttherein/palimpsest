@@ -1,8 +1,9 @@
 package net.turambar.palimpsest.specialty.sets
 
+
+import java.lang.Math
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableTemplate
 import net.turambar.palimpsest.specialty.ordered.OrderedAs
-import net.turambar.palimpsest.specialty.ordered.OrderedAs.EmptyOrderedTemplate
 import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate, Specialized}
 
@@ -29,6 +30,21 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 
 	def --(elems :FitTraversableOnce[E]) :This
 
+	/** Symmetric difference between this set and the argument. Symmetric difference is the set which contains
+	  * an element ''iff'' it is present in exactly one of the two sets.
+	  * @return a set equal to `(this ++ that) -- (this & that)`.
+	  */
+	def ^(that :GenSet[E]) :This
+
+	/** Symmetric difference between this set and the argument. Symmetric difference is the set which contains
+	  * an element ''iff'' it is present in exactly one of the two sets.
+	  * @return a set equal to `(this ++ that) -- (this & that)`.
+	  */
+	def ^(that :ValSet[E]) :This
+
+
+	override def clone() :This = repr
+
 	/** An immutable set for the same element type and specialization as this set and containing the same elements.
 	  * @return `this` if this is an immutable set or a related, specialized snapshot for mutable sets.
 	  */
@@ -43,10 +59,11 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	//todo:
 	def mutate :ValSet.Mutable[E] = mutable
 
-	override def clone() :This = repr
 
 	protected[this] override def newBuilder :FitBuilder[E, This] = empty.newBuilder
 }
+
+
 
 /** A specialized base class for sets providing default specialized implementation for common methods.
   * It is a specialized analogue of `SetLike`.
@@ -58,20 +75,24 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 
 	override def specialization :Specialized[E] = mySpecialization
 
-//	override def clone() :This = repr //empty ++ this //this should be in StableSetSpecialization, but we don't have such a trait, so instead we override it in MutableSetLike ...
+	override def empty :This
 
-	def stable :ValSet.Stable[E]
-	def mutable :ValSet.Mutable[E]
 
-	override def empty :This //= newBuilder.result()
-	override def newBuilder :FitBuilder[E, This] = new ImmutableSetBuilder[E, This](empty)
+	override def apply(elem: E) :Boolean = contains(elem)
 
-	override def apply(elem: E) = contains(elem)
 	override def contains(elem :E) :Boolean
+
+
+	override def +(elem :E) :This
+
+	override def -(elem :E) :This
+
+	def ^(elem :E) :This
 
 	override def +(elem1: E, elem2: E, elems: E*) :This = this + elem1 + elem2 ++ elems
 
 	override def -(elem1: E, elem2: E, elems: E*) :This = this - elem1 - elem2 -- elems
+
 
 	override def ++(elems: GenTraversableOnce[E]) :This = elems match {
 		case fit :FitTraversableOnce[E] => this ++ fit
@@ -83,20 +104,53 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 		case _ => (repr /: xs)(_ - _)
 	}
 
-	override def ++(elems :FitTraversableOnce[E]) :This =
-		elems.foldLeft(repr)(_ + _)
+	override def ++(elems :FitTraversableOnce[E]) :This = {
+		var res = repr; val it = elems.toIterator
+		while (it.hasNext)
+			res = res + it.next()
+		res
+	}
 
 	override def --(elems :FitTraversableOnce[E]) :This = {
-		var res = repr; val it = elems.fitIterator
+		var res = repr; val it = elems.toIterator
 		while(it.hasNext && res.nonEmpty)
 			res = res - it.next()
 		res
 	}
 
-	override def +(elem :E) :This
+	override def ^(that :GenSet[E]) :This = that match {
+		case set :ValSet[E] => this ^ set
+		case _ if that.isEmpty => clone() //so it's safe if this is mutable
+		case _ => (repr /: that){ _ ^ _ }
+	}
 
-	override def -(elem :E) :This
+	override def ^(that :ValSet[E]) :This =
+		if (that.isEmpty)
+			clone() //to make sure we won't return this in case we are mutable
+		else {
+			var res = repr //don't use fold as it will box the element type
+			val it = that.iterator
+			while (it.hasNext) {
+				val e = it.next()
+				if (contains(e)) res -= e else res += e
+			}
+			res
+		}
 
+	override def intersect(that :GenSet[E]) :This = that match {
+		case set :ValSet[E] => &(set)
+		case _ if that.isEmpty => empty
+		case _ => filter(that)
+	}
+
+	def &(elems :ValSet[E]) :This =
+		if (isEmpty || elems.isEmpty)
+			empty
+		else if (elems.hasFastSize && hasFastSize && elems.size < size) {
+			SetSpecialization.intersection(elems, repr, newBuilder)
+		} else {
+			SetSpecialization.intersection(repr, elems, newBuilder)
+		}
 
 
 	@unspecialized
@@ -104,37 +158,77 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 		if (start<0)
 			throw new IllegalArgumentException(s"$stringPrefix.copyToArray([], $start, $total)")
 		else {
-			val max = math.min(xs.length-start, total)
+			val max = Math.min(xs.length-start, total)
 			if (max > 0)
-				verifiedCopyTo(xs, start, max)
-
+				uncheckedCopyTo(xs, start, max)
 		}
 
-	protected override def verifiedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
+	protected override def uncheckedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
 		if (isEmpty) 0
 		else {
-			iterator.copyToArray(xs, start, total); math.min(total, size)
+			iterator.copyToArray(xs, start, total); Math.min(total, size)
 		}
+
+//	override def clone() :This = repr //empty ++ this //this should be in StableSetSpecialization, but we don't have such a trait, so instead we override it in MutableSetSpecialization ...
+
+	def stable :ValSet.Stable[E]
+	def mutable :ValSet.Mutable[E]
+
+ //= newBuilder.result()
+	override def newBuilder :FitBuilder[E, This] = new ImmutableSetBuilder[E, This](empty)
 
 
 	//	override def sameElements[U >: E](that: GenIterable[U]) = super.sameElements(that)
-	override def toSeq :Seq[E] = toFitSeq
+//	override def toSeq :Seq[E] = toFitSeq
 }
+
+
+
 
 object SetSpecialization {
 	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
-		set.verifiedCopyTo(xs, start, total)
+		set.uncheckedCopyTo(xs, start, total)
+
+
+	private[sets] def intersection[@specialized(Elements) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :FitBuilder[E, R]) :R = {
+		val it = set1.iterator
+		while (it.hasNext) {
+			val e = it.next()
+			if (set2.contains(e))
+				builder += e
+		}
+		builder.result()
+	}
+
+
+	private[sets] def buildDifference[@specialized(Elements) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :FitBuilder[E, R]) :Unit = {
+		val it = set1.iterator
+		while (it.hasNext) {
+			val e = it.next()
+			if (!set2.contains(e))
+				builder += e
+		}
+	}
+
+
 }
 
 
+
+
+
+
+
+/*
 
 /**
   * @author Marcin Mościcki
   */
 trait EmptySetTemplate[E, +T<:ValSet[E] with SetSpecialization[E, T]] extends EmptyIterableTemplate[E, T] { this :T =>
-	override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[T, B, That]) = super.++(that)
 
 	override def empty :T = this
+
+	override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[T, B, That]) :That = super.++(that)
 
 	override def --(xs: GenTraversableOnce[E]) :T = this
 
@@ -146,8 +240,9 @@ trait EmptySetTemplate[E, +T<:ValSet[E] with SetSpecialization[E, T]] extends Em
 
 
 
+@deprecated
 trait EmptySetSpecialization[@specialized(Elements) E, +This <: StableSet[E] with SetSpecialization[E, This]]
-	extends StableSet[E] with SetSpecialization[E, This] with EmptyIterableTemplate[E, This] //with OrderedAs[E, This] //with EmptyOrderedTemplate[E, This]
+	extends StableSet[E] with SetSpecialization[E, This] with EmptyIterableTemplate[E, This] //with OrderedAs[E, This] //with OrderedEmpty[E, This]
 {
 	@inline override final def repr :This = this.asInstanceOf[This]
 
@@ -162,12 +257,17 @@ trait EmptySetSpecialization[@specialized(Elements) E, +This <: StableSet[E] wit
 	override def clone() :This = repr
 
 
-	override def span(p: (E) => Boolean) = (repr, repr)
+	override def span(p: E => Boolean) :(This, This) = (repr, repr)
 
-	override def partition(p: (E) => Boolean) = (repr, repr)
+	override def partition(p: E => Boolean) :(This, This) = (repr, repr)
+
+
+
+
 
 
 	override def contains(elem: E): Boolean = false
+
 
 	override def -(elem: E): This = repr
 
@@ -177,34 +277,50 @@ trait EmptySetSpecialization[@specialized(Elements) E, +This <: StableSet[E] wit
 
 	override def --(elems: FitTraversableOnce[E]) :This = repr
 
+	override def &(that :ValSet[E]) :This = repr
+
+	override def diff(that: GenSet[E]) :This = repr
+
+	override def subsets(len: Int) :Iterator[This] = if (len==0) Iterator.single(repr) else Iterator.empty
+
+	override def subsets() :Iterator[This] = Iterator.single(repr)
+
+	override def intersect(that: GenSet[E]) :This = repr
+
+
+
+	override def subsetOf(that: GenSet[E]) :Boolean = true
+
+	override def equals(that :Any) :Boolean = that match {
+		case set :GenSet[_] => set.isEmpty
+		case _ => false
+	}
+
+
+
 	@unspecialized
 	override def copyToFitArray(xs: Array[E], start: Int, total: Int) :Unit = ()
 
-	protected override def verifiedCopyTo(xs :Array[E], start :Int, total :Int) :Int = 0
+	protected override def uncheckedCopyTo(xs :Array[E], start :Int, total :Int) :Int = 0
 
 
-/*
-	override def from(from: E) :This = repr
-	override def until(until: E) :This = repr
-	override def range(from: E, until: E) :This = repr
-	override def to(to: E) :This = repr
-	override def rangeImpl(from: Option[E], until: Option[E]): This = repr
 
-	override def keyAt(n: Int): E = throw new IndexOutOfBoundsException(s"empty $stringPrefix: rank($n)")
 
-	@unspecialized
-	override def reverseKeyIterator: FitIterator[E] = FitIterator.empty
+	/*
+		override def from(from: E) :This = repr
+		override def until(until: E) :This = repr
+		override def range(from: E, until: E) :This = repr
+		override def to(to: E) :This = repr
+		override def rangeImpl(from: Option[E], until: Option[E]): This = repr
 
-	@unspecialized
-	override def keysIteratorFrom(start: E): FitIterator[E] = FitIterator.empty
-*/
-	override def diff(that: GenSet[E]) = super.diff(that)
+		override def keyAt(n: Int): E = throw new IndexOutOfBoundsException(s"empty $stringPrefix: rank($n)")
 
-	override def subsets(len: Int) = super.subsets(len)
+		@unspecialized
+		override def reverseKeyIterator: FitIterator[E] = FitIterator.empty
 
-	override def subsets() = super.subsets()
-
-	override def intersect(that: GenSet[E]) = super.intersect(that)
-
-	override def subsetOf(that: GenSet[E]) = super.subsetOf(that)
+		@unspecialized
+		override def keysIteratorFrom(start: E): FitIterator[E] = FitIterator.empty
+	*/
 }
+*/
+

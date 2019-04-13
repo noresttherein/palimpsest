@@ -1,12 +1,15 @@
 package net.turambar.palimpsest
 
 import java.util
+import java.lang.Math
 
 import scala.Specializable.SpecializedGroup
-import scala.collection.{BitSet, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike, mutable}
+import scala.collection.{mutable, BitSet, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.FitCompanion.{CanBreakOut, CanFitFrom}
+import net.turambar.palimpsest.specialty.Specialized.Primitives
 
+import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.ListSet
 
 
@@ -15,9 +18,34 @@ import scala.collection.immutable.ListSet
   */
 package object specialty {
 
-	final val Elements = Specialized.Values
+	final val Elements = Primitives
 	final val SetElements = Elements //we might want to exclude Boolean
-	
+
+	/** A specialized version of `scala.Option`.
+	  * This is a type alias for [[Unsure]] used as a shorthand for passing uncertain values.
+	  * @see [[Sure]]
+	  * @see [[Blank]]
+	  * @see [[specialty.null_?]]
+	  * @see [[specialty.some_?]]
+	  */
+	type ?[@specialized(Primitives) +T] = Unsure[T]
+
+	val ? = Unsure
+
+
+	/** Tests whether a value is null, creating an uncertain value `?[T]` in the result the same way `Option(value)` would.
+	  * @return [[Sure]]`(value)` ''iff'' `value != null` or [[Blank]] otherwise
+	  */
+	@inline def null_?[T](value :T): ?[T] = if (value == null) Blank else Sure(value)
+
+	/** Converts a scala option to an uncertain value `?[T]`.
+	  * @return [[Sure]]`(value.get)` if `value :Some` or [[Blank]] otherwise.
+	  */
+	@inline def some_?[@specialized(Primitives) T](value :Option[T]): ?[T] = value match {
+		case Some(v) => Sure(v)
+		case None => Blank
+	}
+
 	/** Same as `scala.collection.breakOut`, but for [[CanFitFrom]] instances.
 	  * Named differently to avoid conflicts when both are imported.
 	  * Adapts a builder factory tied to a specific source type to be used for any input collection types.
@@ -25,8 +53,8 @@ package object specialty {
 	  * such as `map` and enforce the usage of a builder for a desired return type expressed as type
 	  * constraint on the result of the operation.
 	  */
-	def forceFit[F, E, T](implicit anyFactory :CanFitFrom[_, E, T]) :CanFitFrom[F, E, T] =
-		new CanBreakOut[F, E, T]
+	def forceFit[F, E, T](implicit anyFactory :CanFitFrom[_, E, T]) :CanBuildFrom[F, E, T] =
+		new CanBreakOut[F, E, T].cbf
 	
 //	def breakOut[F, E, T](implicit anyFactory :FitCanBuildFrom[_, E, T]) :FitCanBuildFrom[F, E, T] =
 //		new CanBreakOut[F, E, T]
@@ -88,7 +116,7 @@ package object specialty {
 	
 	
 	private[specialty] final def arrayFill[E](array :Array[E], value :E, from :Int=0, until :Int=Int.MaxValue) :Array[E] = {
-		val upto = until min array.length
+		val upto = Math.min(until, array.length)
 		val tpe = array.getClass.getComponentType
 		if (tpe==classOf[Int])
 			util.Arrays.fill(array.asInstanceOf[Array[Int]], from, upto, value.asInstanceOf[Int])
@@ -109,6 +137,7 @@ package object specialty {
 		else
 			util.Arrays.fill(array.asInstanceOf[Array[AnyRef]], from, upto, value.asInstanceOf[AnyRef])
 		array.asInstanceOf[Array[E]]
+
 	}
 	
 	
@@ -126,28 +155,31 @@ package object specialty {
 		
 		def copy = new ArrayBounds[E](arrayCopy(array, start, length), 0, length)
 		
-		implicit def specialization = Specialized.ofClass(array.getClass.getComponentType).asInstanceOf[Specialized[E]]
+		implicit def specialization :Specialized[E] = Specialized.ofClass(array.getClass.getComponentType).asInstanceOf[Specialized[E]]
 		
 		
 		override def toString = s"${array.getClass.getName}[${array.length}]($start..$end)"
 	}
-	
+
+
+
 	/** Validates and creates [[ArrayBounds]] instances defining the contents of created specialized sequences. */
 	private[specialty] object ArrayBounds {
-		def share[E](array :Array[E]) :ArrayBounds[E] = new ArrayBounds(array, 0, array.length)
+		@inline final def share[E](array :Array[E]) :ArrayBounds[E] = new ArrayBounds(array, 0, array.length)
 		
-		def copy[E](array :Array[E]) :ArrayBounds[E] = new ArrayBounds(arrayCopy(array), 0, array.length)
+		@inline final def copy[E](array :Array[E]) :ArrayBounds[E] = new ArrayBounds(arrayCopy(array), 0, array.length)
 		
 		
 		
-		def share[E](array :Array[E], start :Int) :ArrayBounds[E] =
+		final def share[E](array :Array[E], start :Int) :ArrayBounds[E] =
 			if (start<0)
-				throw new IndexOutOfBoundsException(s"ArrayBounds.share(${arrayString(array)}, $start")
+				throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start")
 			else if (start>=array.length)
 				     new ArrayBounds(array, array.length, 0)
 			else
 				new ArrayBounds(array, start, array.length-start)
-		
+
+
 		def copy[E](array :Array[E], start :Int) :ArrayBounds[E] =
 			if (start<0)
 				throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start")
@@ -160,7 +192,7 @@ package object specialty {
 		
 		def share[E](array :Array[E], start :Int, length :Int) :ArrayBounds[E] =
 			if (start<0)
-				throw new IndexOutOfBoundsException(s"ArrayBounds.share(${arrayString(array)}, $start, $length")
+				throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start, $length")
 			else if (start >= array.length)
 				     new ArrayBounds(array, array.length, 0)
 			else {
@@ -184,17 +216,19 @@ package object specialty {
 				new ArrayBounds(arrayCopy(array, start, total), 0, total)
 			}
 		
-		
+
+
 		def share[E](from :Int, array :Array[E], until :Int) :ArrayBounds[E] =
 			if (from<0)
-				throw new IndexOutOfBoundsException(s"ArrayContents.share($from, ${arrayString(array)}, $until")
+				throw new IndexOutOfBoundsException(s"ArrayContents.copy($from, ${arrayString(array)}, $until")
 			else if (from >= array.length || until<=from)
 				     new ArrayBounds(array, array.length, 0)
 			else if (until>=array.length)
 				     new ArrayBounds(array, from, array.length-from)
 			else
 				new ArrayBounds(array, from, until-from)
-		
+
+
 		def copy[E](from :Int, array :Array[E], until :Int) :ArrayBounds[E] =
 			if (from<0)
 				throw new IndexOutOfBoundsException(s"ArrayContents.copy($from, ${arrayString(array)}, $until")

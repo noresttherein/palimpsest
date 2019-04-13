@@ -4,11 +4,11 @@ import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListIterator, NonEmpty}
 import net.turambar.palimpsest.specialty.seqs.ListSlice.ListSliceIterator
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{LinearSeqLike, mutable}
+import scala.collection.{mutable, LinearSeqLike}
 import scala.compat.Platform.ConcurrentModificationException
 
 
@@ -25,8 +25,8 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 { //todo: extend slicelike?
 
 	@inline final override def length: Int = len
-	@inline final override def isEmpty = length==0
-	@inline final override def nonEmpty = length>0
+	@inline final override def isEmpty :Boolean = length==0
+	@inline final override def nonEmpty :Boolean = length>0
 	@inline final override def hasFastSize = true
 //	override def ofAtLeast(items :Int) = hat.drop(items).nonEmpty
 
@@ -80,9 +80,13 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 		else new LinkedBuffer(hat.tail.asInstanceOf[NonEmpty[E]], coccyx, len-1)
 
 
+	override def find_?(p :E => Boolean, where :Boolean): ?[E] = hat.tail.find_?(p, where)
+
 	override protected[this] def at(idx: Int): E = hat.get(idx+1)
 
 	override protected[this] def set(idx: Int, elem: E): Unit = ff(idx).x = elem
+
+
 
 	override def update(idx: Int, elem: E): Unit =
 		if (idx<0 || idx>=len)
@@ -118,10 +122,10 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 			if (idx<0)
 				throw new IndexOutOfBoundsException(s"$stringPrefix<$length>.update($idx, ...)")
 			else if (idx==len-1)
-				coccyx.x = elems.head
+				coccyx.x = elems.toIterator.head
 			else {
 				var i = idx; var n = hat.blindDrop(i+1); val limit = len
-				val it = elems.fitIterator
+				val it = elems.toIterator
 				while (it.hasNext && i < limit) {
 					n.asInstanceOf[NonEmpty[E]].x = it.next()
 					n = n.tail
@@ -210,7 +214,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 		else if (idx==length)
 			this ++= elems
 		else if (elems.nonEmpty) {
-			val it = elems.fitIterator
+			val it = elems.toIterator
 			var last = ff(idx-1); val after = last.tail
 			while (it.hasNext) {
 				val next = new NonEmpty(it.next())
@@ -257,7 +261,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 
 
 
-	override protected[this] def filter(p: (E) => Boolean, ourTruth: Boolean): LinkedBuffer[E] = {
+	override def filter(p: E => Boolean, ourTruth: Boolean): LinkedBuffer[E] = {
 		val res = new NonEmpty(hat.x); var last = res; var count = 0
 		var cur = hat.tail; var left = len
 		while(left > 0) {
@@ -272,7 +276,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 
 	override def iterator :FitIterator[E] = new ListSliceIterator(hat.tail, length)
 
-	override def reverseIterator = inverse.iterator
+	override def reverseIterator :FitIterator[E] = inverse.iterator
 
 	override def seq :LinkedBuffer[E] = this
 
@@ -444,7 +448,7 @@ object LinkedBuffer extends ImplementationIterableFactory[LinkedBuffer] {
 
 
 
-		override protected[this] def filter(p: (E) => Boolean, ourTruth: Boolean): LinkedFiller[E] = ???
+		override protected[this] def filter(p: (E) => Boolean, where: Boolean): LinkedFiller[E] = ???
 
 		private final def concurrentMod =
 			throw new NoSuchElementException("FitBuffer.overwrite: underlying buffer shrunk in concurrent modification.")

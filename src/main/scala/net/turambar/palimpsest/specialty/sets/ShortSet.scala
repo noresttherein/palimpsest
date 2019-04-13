@@ -1,4 +1,5 @@
 package net.turambar.palimpsest.specialty.sets
+/*
 
 import net.turambar.palimpsest.specialty.FitIterable.{IterableMapping}
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
@@ -41,3 +42,4 @@ private[sets] object ShortSet {
 	}
 
 }
+*/

@@ -95,10 +95,10 @@ object MutableSeq extends InterfaceIterableFactory[MutableSeq] {
 	override protected[this] final def default: FitIterableFactory[SharedArray] = SharedArray
 
 	def of[E <: AnyVal :Specialized](size :Int) :MutableSeq[E] =
-		SharedArray(Specialized.erasedArray[E](size))
+		SharedArray(Specialized.arrayFor[E](size))
 
 	def of[E :Specialized](size :Int, value :E) :MutableSeq[E] =
-		SharedArray(arrayFill(Specialized.erasedArray[E](size), value))
+		SharedArray(arrayFill(Specialized.arrayFor[E](size), value))
 	
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSeq[_], E, MutableSeq[E]]): CanBuildFrom[MutableSeq[_], E, MutableSeq[E]] =
