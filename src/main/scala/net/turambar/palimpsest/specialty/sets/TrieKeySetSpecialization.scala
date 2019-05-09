@@ -20,10 +20,11 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
                                @specialized(TrieElements.Types) E,
                                +S <: ValSet[E] with SetSpecialization[E, S]]
 	extends IterableTriePotFoundation[K, F, T, E, S] with SetSpecialization[E, S] with IterableTriePotSpecialization[K, F, T, E, S]
+	   with ElementOf[E, F]
 { //this :S =>
 
 	//overriden to narrow down result type - elements now must accept tries of supertype F
-	override protected[this] def elements :ElementOf[E, F]
+	override protected[this] def elements :ElementOf[E, F] = this
 
 	//overriden to narrow down result type - elements now must accept tries of supertype F
 	override protected[this] def countingElements :ElementCounter[E, F]
@@ -78,9 +79,9 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 //	override protected[this] def copy(contents :T, unsureSize :Int) :S //= this.asInstanceOf[S]
 
 
-	override def head :E = elements.elementOf(trie.viewHead)
+	override def head :E = elementOf(trie.viewHead)
 
-	override def last :E = elements.elementOf(trie.viewLast)
+	override def last :E = elementOf(trie.viewLast)
 
 	//todo: head_?/last_?
 
@@ -206,7 +207,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 				}
 				plant(t, count)
 			case _ if hasFastSize =>
-				newSet(trie.filter(elements)(that))
+				newSet(trie.filter(this)(that))
 			case _ =>
 				val counter = countingElements
 				val filtered = trie.filter(counter)(that)  //todo: this possibly is not specialized for some element types
@@ -222,7 +223,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 			case Some(other) =>
 				juxtaposition(other)(ops.Intersection)
 			case _ if hasFastSize =>
-				newSet(trie.filter(elements)(that)) //todo: this is not specialized, bad!
+				newSet(trie.filter(this)(that)) //todo: this is not specialized, bad!
 			case _ =>
 				val counter = countingElements
 				val filtered = trie.filter(counter)(that)
@@ -279,7 +280,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 
 	override def copyToFitArray(xs :Array[E], start :Int, total :Int) :Unit =
-		trie.copyToArray(elements)(xs, start, total)
+		trie.copyToArray(this)(xs, start, total)
 
 
 }
@@ -393,7 +394,7 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 				}
 				res
 			case _ if hasFastSize =>
-				newSet(trie.filter(elements)(that))
+				newSet(trie.filter(this)(that))
 			case _ => //todo: not specialized for non Fun1 element types
 				val counter = countingElements
 				val filtered = trie.filter(counter)(that)
@@ -549,7 +550,7 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 	@unspecialized
 	override def retain(f :E => Boolean) :Unit = {
-		trie.retain(elements, this)(f)
+		trie.retain(this, this)(f)
 		size = -1
 	}
 

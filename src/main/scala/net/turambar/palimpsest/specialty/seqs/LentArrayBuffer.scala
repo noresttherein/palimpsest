@@ -6,7 +6,7 @@ import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
-import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, SpecializableIterable, Specialized}
 
 import scala.annotation.unspecialized
 
@@ -73,11 +73,11 @@ class LentArrayBuffer[@specialized(Elements) E] protected[seqs]
 
 
 object LentArrayBuffer extends ArrayViewFactory[LentArrayBuffer] {
-	
+
 
 	/** Creates an empty buffer of the given capacity, using an array of the type specified by implicit `ClassTag[E]`. */
-	def emptyOf[E :ClassTag](capacity :Int) :LentArrayBuffer[E] =
-		shared(ArrayBounds.share(new Array[E](capacity))).cleared()
+	def emptyOf[E :Specialized](capacity :Int) :LentArrayBuffer[E] =
+		shared(new ArrayBounds(Specialized.arrayFor[E](capacity), 0, 0)).cleared()
 
 	/** Creates an empty buffer writing to the given array, starting from the first index. */
 	def upon[E](buffer :Array[E]) :LentArrayBuffer[E] =

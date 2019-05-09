@@ -19,8 +19,7 @@ import scala.collection.generic.CanBuildFrom
   */
 sealed trait ValList[@specialized(Elements) E]
 	extends LinearSeq[E] with LinearSeqLike[E, ValList[E]] with StableSeq[E]
-	   with ValSeq[E] with ValSeqLike[E, ValList[E]] with SeqTemplate[E, ValList[E]]
-	   with IterableSpecialization[E, ValList[E]] with SpecializableIterable[E, ValList]
+	   with ValSeq[E] with ValSeqLike[E, ValList[E]] with SpecializableIterable[E, ValList]
 {
 	override protected def section(from :Int, until :Int) :ValList[E] = drop(from).take(until-from)
 
@@ -387,11 +386,11 @@ object ValList extends ImplementationIterableFactory[ValList] {
 	private class EmptyList[@specialized(Elements) E] extends EmptyIterableTemplate[E, ValList[E]] with ValList[E] {
 		override def length = 0
 
-		/** Target of `apply` for internal use, assuming the index is valid (faster). */
-		override protected def at(idx :Int) :E = throw new IndexOutOfBoundsException(s"ValList.empty($idx)")
+//		/** Target of `apply` for internal use, assuming the index is valid (faster). */
+//		override protected def at(idx :Int) :E = throw new IndexOutOfBoundsException(s"ValList.empty($idx)")
 
-		/** Create a slice of this instance assuming the indices are already validated. Delegated to from [[slice]] and other subsequence methods. */
-		override protected def section(from :Int, until :Int) :ValList[E] = this
+//		/** Create a slice of this instance assuming the indices are already validated. Delegated to from [[slice]] and other subsequence methods. */
+//		override protected def section(from :Int, until :Int) :ValList[E] = this
 
 		override def -(elem :E) :ValList[E] = this
 	}
@@ -438,6 +437,6 @@ object ValList extends ImplementationIterableFactory[ValList] {
 
 	object ListBuilder extends Specialize[SpecializedBuilder] {
 		override def specialized[@specialized E](implicit s :Specialized[E]) :SpecializedBuilder[E] =
-			new ListBuilder[E](s.Null)
+			new ListBuilder[E](s.default)
 	}
 }

@@ -32,6 +32,8 @@ class ReverseSeq[@specialized(Elements) +E](override val reverse :FitIndexedSeq[
 		new ReverseSeq(sectionOf(reverse, orgIdx(until), orgIdx(from)))
 
 
+	protected override def reverseForeach(f :E => Unit) :Unit = reverse.foreach(f)
+
 	override def filter(p :E => Boolean, where :Boolean) :FitIndexedSeq[E] = {
 		val builder = newBuilder
 		builder.sizeHint(reverse)

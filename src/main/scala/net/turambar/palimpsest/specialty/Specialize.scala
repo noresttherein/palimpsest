@@ -36,33 +36,59 @@ object Specialize {
 	type Self[X] = X
 
 	/** Type lambda for a type constructor ignoring its argument and simply yielding always type `X`. */
-	type Const[X] = ({ type T[Y]=X })
+	type Const[X] = { type T[Y]=X }
 
 	type Adapt2[R[X, Y]] = {
-		type _1[X] = ({ type __[Y] = R[X, Y]})
-		type _2[Y] = ({ type __[X] = R[X, Y]})
+		type _1[X] = { type __[Y] = R[X, Y] }
+		type _2[Y] = { type __[X] = R[X, Y] }
 	}
 
 
-	/** Generic callback invoking specialized code from non-specialized one based on passed implicit specialization information.
-	  *
-	  * @tparam R type constructor for a value needing code specialized for some parameter type `E` to compute.
-	  * @tparam P type constructor for parameter given to the callback.
+	/** Generic callback invoking specialized single parameter method from non-specialized one based on passed implicit
+	  * specialization information.
+	  * @tparam R type constructor for the returned value, needing code specialized for some parameter type `E` to compute.
+	  * @tparam P type constructor for the parameter given to the callback.
 	  */
 	trait With[R[X], P[X]] {
-		/** Retrieves implicit specialization information available at the calling point and delegates to an appropriate
-		  * variant of [[With#specialized]].
-		  * @param param parameter given to [[With#specialized]]
+		/** Retrieves implicit specialization information available at the calling point and invokes the appropriate
+		  * specialized version of this instance's `specialized` method with the same argument.
+		  * @param param the parameter given to [[With#specialized]].
+		  * @param specialization the requested specialization.
+		  * @tparam E type on which the call is specialized.
+		  * @return result of calling [[With#specialized]]`(param)`.
+		  */
+		@inline final def apply[E](param :P[E])(implicit specialization :Specialized[E]) :R[E] =
+			specialization.call(this)(param)
+
+		/** Specialized callback invoked from [[With#apply]] based on the requested specialization type. */
+		def specialized[@specialized E :Specialized](param :P[E]) :R[E]
+	}
+
+
+
+	/** Generic callback invoking specialized two-parameter method from non-specialized one based on passed implicit
+	  * specialization information.
+	  * @tparam R  type constructor for the returned value, needing code specialized for some parameter type `E` to compute.
+	  * @tparam P1 type constructor for the first parameter given to the callback.
+	  * @tparam P2 type constructor for the second parameter given to the callback
+	  */
+	trait With2[R[X], P1[X], P2[X]] {
+		/** Retrieves implicit specialization information available at the calling point and invokes the appropriate
+		  * specialized version of this instance's `specialized` method with the same argument.
+		  * @param param1 the first parameter given to [[With2#specialized]].
+		  * @param param2 the second parameter given to [[With2#specialized]].
 		  * @param specialization requested specialization
 		  * @tparam E type on which the call is specialized
 		  * @return result of calling [[With#specialized]]`(param)`.
 		  */
-		def apply[E](param :P[E])(implicit specialization :Specialized[E]) :R[E] =
-			specialization.call(this)(param)
+		@inline final def apply[E](param1 :P1[E], param2 :P2[E])(implicit specialization :Specialized[E]) :R[E] =
+			specialization.call(this)(param1, param2)
 
-		/** Specialized callback(s) invoked from [[With#apply]] based on requested specialization type. */
-		def specialized[@specialized E :Specialized](param :P[E]) :R[E]
+		/** Specialized callback invoked from this instances `apply` method based on the requested specialization type. */
+		def specialized[@specialized E :Specialized](param1 :P1[E], param2 :P2[E]) :R[E]
 	}
+
+
 
 	/** Generic callback invoking a specialized method accepting parameter of type `P` and returning a value of `R[X]`
 	  * specialized for type `X` specified at call site. This is simply a syntactic wrapper over [[With]].

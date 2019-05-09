@@ -19,12 +19,12 @@ import scala.runtime.Nothing$
 //todo: rename this to AptIterable after cleanup
 
 /** Base trait of specialized collections mirroring scala [[Iterable]]. Overrides methods which can benefit
-  * from specialization and delegates even more of them directly to their iterator counterparts.
+  * mine specialization and delegates even more of them directly to their iterator counterparts.
   * @author Marcin Mościcki
   */
 trait FitIterable[@specialized(Elements) +E]
 	extends FitTraversableOnce[E] with Iterable[E]
-			with SpecializableIterable[E, FitIterable] with IterableSpecialization[E, FitIterable[E]]
+	   with SpecializableIterable[E, FitIterable] with IterableSpecialization[E, FitIterable[E]]
 {
 
 	override def companion: FitCompanion[FitIterable] = FitIterable
@@ -45,7 +45,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	}
 
 
-	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitIterable[_], E, FitIterable[E]] ): CanBuildFrom[FitIterable[_], E, FitIterable[E]] =
+	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitIterable[_], E, FitIterable[E]]): CanBuildFrom[FitIterable[_], E, FitIterable[E]] =
 		fit.cbf
 
 
@@ -53,7 +53,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 
 	abstract class FilterIterable[+E, +Repr] extends FilterMonadic[E, Repr] {
-
+		//todo: mapInput calls are not specialized here
 		override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]): That =  {
 			val b = FitBuilder(bf(from)).mapInput(f).filterInput(predicate)
 			b ++= iterable
@@ -175,7 +175,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 			val deserializer = ElementDeserializer[E]()
 			val b = builder
 			var size = is.readInt()
-
+			b sizeHint size
 			while(size > 0) {
 				builder += deserializer(is); size -= 1
 			}
@@ -189,42 +189,15 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 
 
+	abstract class IterableViewFoundation[X, +E, +This] extends IterableTemplate[E, This] {
+		//todo: as with all foundation classes, methods defined here are often overriden by more specific traits mixed in later :(
+		/** The collection, which elements after mapping comprise the elements of this collection. */
+		protected[this] def source :FitIterable[X]
 
+		/** Adapt a function working on this collection's element types to one accepting the element type of the backing collection. */
+		protected[this] def forSource[@specialized(Fun1Res) O](f :E=>O) :X=>O
 
-
-
-	/** Base class for collections being bijections with another collection.
-	  * This class is not specialized to avoid cartesian explosion of specialized variants, but most methods
-	  * do not require specialization. For full specialization it will be sufficient to override
-	  * [[IterableMapping#head]], [[IterableMapping#last]], [[IterableMapping#scanLeft]], [[IterableMapping#scanRight]],
-	  * [[IterableMapping#foldLeft]], [[IterableMapping#foldRight]] and of course hotspot method [[IterableMapping#my]]/[[IterableMapping#from]]
-	  *
-	  * @tparam X element type of the source collection backing this collection
-	  * @tparam That source collection backing this collection
-	  * @tparam E this collections's element type.
-	  * @tparam This self type of this collection
-	  * @author Marcin Mościcki
-	  */
-	abstract class IterableMapping[X, +That<:IterableSpecialization[X, That], +E, +This] extends IterableTemplate[E, This] {
-
-		/** collection containing actual elements of this collection to be mapped with `my`/`from`. */
-		protected[this] def source :That
-
-		/** Represent another instance of source collection obtainined from delegating a method call to `source`
-		  * as a view with element type `E` similar to this one.
-		  */
-		protected[this] def fromSource(col :That) :This
-
-		/** Adapt a function working on this collection's element types to one accepting the element type of the backing collection.
-		  * Default implemetnation uses [[IterableMapping#my]], which isn't specialized! This is a prime candidate for being overridden.
-		  */
-		protected def forSource[@specialized(Fun1Res) O](f :E=>O) :X=>O = {x :X => f(my(x)) }
-
-		/** Map backing collection's element to this collection element type. Same as `from`, but can be better specialized and more efficient. */
-		protected[this] def my(x :X) :E
-
-		/** Function mapping elements of the source collection to this collection's elements. Implemented as a `SAM` call to `my`. */
-		protected[this] def from :X=>E = my
+		protected[this] def mine: X=>E
 
 		override def size :Int = source.size
 		override def hasFastSize :Boolean = source.hasFastSize
@@ -233,80 +206,125 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		override def nonEmpty :Boolean = source.nonEmpty
 		override def ofAtLeast(items :Int) :Boolean = source.ofAtLeast(items)
 
+		override def foreach[@specialized(Unit) U](f: E => U) :Unit = source foreach forSource(f)
 
-		override def foreach[@specialized(Unit) U](f: (E) => U) :Unit = source foreach forSource(f)
+		override protected def reverseForeach(f: E => Unit): Unit = source reverseTraverse forSource(f)
 
-		override protected def reverseForeach(f: (E) => Unit): Unit = source reverseTraverse forSource(f)
+		override def map[@specialized(Fun1Vals) O, C](f: E => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
+			source.map(forSource(f))(breakOut)
 
-		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O = source.foldLeft(z)((o :O, x :X) => op(o, my(x)))
-		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) :O = source.foldRight(z)((x :X, o :O) => op(my(x), o))
+		override def flatMap[U, C](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C =
+			source.flatMap(forSource(f))(breakOut)
+
 
 		override def forall(p: E => Boolean) :Boolean = source forall forSource(p)
 		override def exists(p: E => Boolean) :Boolean = source exists forSource(p)
 		override def count(p: E => Boolean) :Int = source count forSource(p)
 
-		override def find(p: E => Boolean) :Option[E] = source.find(forSource(p)).map(my)
-		override def find_?(p :E=>Boolean): ?[E] = source.find_?(forSource(p)).map(my)
-		override def find_?(p :E=>Boolean, where :Boolean): ?[E] = source.find_?(forSource(p), where).map(my)
+		override def find(p: E => Boolean) :Option[E] = source.find(forSource(p)).map(mine)
+//		override def find_?(p :E=>Boolean, where :Boolean): ?[E] = source.find_?(forSource(p), where).fitMap(mine)(mySpecialization)
+		//not specialized because specialization would require creating a Specialize.With object anyway
+		override def find_?(p :E=>Boolean, where :Boolean): ?[E] = source.find_?(forSource(p), where).map(mine)
+
+		override def iterator :FitIterator[E] = source.iterator.fitMap(mine)(mySpecialization) //new MappedIterator(mine)(source.iterator)
+
+		override def toSeq :FitSeq[E] = //todo: not specialized
+			source.map(mine)(forceFit)
+//			(FitSeq.fitBuilder[E](mySpecialization).mapInput(mine) ++= source).result()
+
+		override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] =
+			(FitBuffer.fitBuilder[U].mapInput(mine) ++= source).result()
+	}
+
+
+
+	/** Base class for collections being bijections with another collection.
+	  * This class is not specialized to avoid cartesian explosion of specialized variants, but most methods
+	  * do not require specialization. For full specialization it will be sufficient to override
+	  * [[IterableMapping#head]], [[IterableMapping#last]], [[IterableMapping#scanLeft]], [[IterableMapping#scanRight]],
+	  * [[IterableMapping#foldLeft]], [[IterableMapping#foldRight]] and of course hotspot method [[IterableMapping#adapt]]/[[IterableMapping#mine]]
+	  *
+	  * @tparam X element type of the source collection backing this collection
+	  * @tparam That source collection backing this collection
+	  * @tparam E this collections's element type.
+	  * @tparam This self type of this collection
+	  * @author Marcin Mościcki
+	  */
+	abstract class IterableMapping[X, +That <: FitIterable[X] with IterableSpecialization[X, That], +E, +This] extends IterableViewFoundation[X, E, This] {
+
+		override protected[this] def source :That
+
+		/** Represent another instance of source collection obtained mine delegating a method call to `source`
+		  * as a view with element type `E` similar to this one.
+		  */
+		protected[this] def adaptSource(col :That) :This
+
+		/** Adapt a function working on this collection's element types to one accepting the element type of the backing collection.
+		  * Default implementation uses [[IterableMapping#adapt]], which isn't specialized! This is a prime candidate for being overridden.
+		  */
+		protected override def forSource[@specialized(Fun1Res) O](f :E=>O) :X=>O = { x :X => f(adapt(x)) }
+
+		/** Map backing collection's element to this collection element type. Same as `mine`, but can be better specialized and more efficient. */
+		protected[this] def adapt(x :X) :E
+
+		/** Function mapping elements of the source collection to this collection's elements. Implemented as a `SAM` call to `adapt`. */
+		protected[this] override def mine :X=>E = adapt
+
+
+		//todo: specialized function composition for two-argument functions
+		override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O = source.foldLeft(z)((o :O, x :X) => op(o, mine(x)))
+		override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) :O = source.foldRight(z)((x :X, o :O) => op(mine(x), o))
+
 
 		override def scanLeft[@specialized(Fun2) O, C](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
-			source.scanLeft(z)((o :O, x :X) => op(o, my(x)))(breakOut)
+			source.scanLeft(z)((o :O, x :X) => op(o, mine(x)))(breakOut)
 
 		override def scanRight[@specialized(Fun2) O, C](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
-			source.scanRight(z)((x :X, o :O) => op(my(x), o))(breakOut)
+			source.scanRight(z)((x :X, o :O) => op(mine(x), o))(breakOut)
 
 
-		override def tail :This = fromSource(source.tail)
-		override def init :This = fromSource(source.init)
 
-		override def slice(from: Int, until: Int) :This = fromSource(source.slice(from, until))
-		override def take(n: Int) :This = fromSource(source.take(n))
-		override def drop(n: Int) :This = fromSource(source.drop(n))
-		override def takeRight(n: Int) :This = fromSource(source.takeRight(n))
-		override def dropRight(n: Int) :This = fromSource(source.dropRight(n))
+		override def tail :This = adaptSource(source.tail)
+		override def init :This = adaptSource(source.init)
+
+		override def slice(from: Int, until: Int) :This = adaptSource(source.slice(from, until))
+		override def take(n: Int) :This = adaptSource(source.take(n))
+		override def drop(n: Int) :This = adaptSource(source.drop(n))
+		override def takeRight(n: Int) :This = adaptSource(source.takeRight(n))
+		override def dropRight(n: Int) :This = adaptSource(source.dropRight(n))
 
 		override def splitAt(n: Int) :(This, This) = {
 			val split = source.splitAt(n)
-			(fromSource(split._1), fromSource(split._2))
+			(adaptSource(split._1), adaptSource(split._2))
 		}
 
 		override def span(p: E => Boolean) :(This, This) = {
 			val split = source.span(forSource(p))
-			(fromSource(split._1), fromSource(split._2))
+			(adaptSource(split._1), adaptSource(split._2))
 		}
 
-		override def takeWhile(p: E => Boolean) :This = fromSource(source.takeWhile(forSource(p)))
-		override def dropWhile(p: E => Boolean) :This = fromSource(source.dropWhile(forSource(p)))
+		override def takeWhile(p: E => Boolean) :This = adaptSource(source.takeWhile(forSource(p)))
+		override def dropWhile(p: E => Boolean) :This = adaptSource(source.dropWhile(forSource(p)))
 
 
 		override def partition(p: E => Boolean) :(This, This) = {
 			val split = source.partition(forSource(p))
-			(fromSource(split._1), fromSource(split._2))
+			(adaptSource(split._1), adaptSource(split._2))
 		}
 
 		override def filter(p: E => Boolean, ourTruth: Boolean): This =
 			if (ourTruth) filter(p)
 			else filterNot(p)
 
-		override def filter(p: E => Boolean) :This = fromSource(source filter forSource(p))
-		override def filterNot(p: E => Boolean) :This = fromSource(source filterNot forSource(p))
+		override def filter(p: E => Boolean) :This = adaptSource(source filter forSource(p))
+		override def filterNot(p: E => Boolean) :This = adaptSource(source filterNot forSource(p))
 
-		override def map[@specialized(Fun1Vals) O, C](f: E => O)(implicit bf: CanBuildFrom[This, O, C]) :C = source.map(forSource(f))(breakOut)
-
-		override def flatMap[U, C](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C = source.flatMap(forSource(f))(breakOut)
 
 		/** Unspecialized mapped iterator asking for being overridden. */
 //		override def iterator :FitIterator[E] = new MappedIterator(from)(source.iterator)
 
 		//	override protected[this] def newBuilder: FitBuilder[E, This] = source.fit
 
-		override def head :E = my(source.head)
-		override def last :E = my(source.last)
-
-		override def toSeq :FitSeq[E] = source.toSeq.map(from)
-
-		override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] =
-			source.toFitBuffer[X](source.specialization.asInstanceOf[Specialized[X]]).map(from)
 	}
 
 

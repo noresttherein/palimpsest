@@ -38,7 +38,7 @@ abstract class MappedSetFactory[@specialized(Int, Long) X, @specialized(Byte, Sh
 		extends IterableMapping[X, ValSet[X], Y, Repr] with SetTemplate[Y, Repr] //ValSet[Y] with SetSpecialization[Y, Repr]
 	{ this :Repr =>
 		@inline override final protected def forSource[@specialized(Fun1Res) O](f :Y=>O) = { x :X => f(From(x)) }
-		@inline override final protected def my(x: X): Y = From(x)
+		@inline override final protected def adapt(x: X): Y = From(x)
 		@inline override final protected def from = From
 
 		override def empty :Repr = fromSource(source.empty)

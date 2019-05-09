@@ -1,11 +1,12 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{GenTraversableOnce, IndexedSeqLike, mutable}
+import scala.collection.{mutable, GenTraversableOnce, IndexedSeqLike}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized, arrayFill}
+import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitIterable, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
 
 import scala.annotation.unspecialized
+import scala.reflect.ClassTag
 
 
 /*
@@ -30,6 +31,7 @@ trait FitBuffer[@specialized(Elements) E]
 {
 //	import Specialized.Fun1
 	
+/*
 	//todo: this is here till we find a better place for Subtractable implementatoin
 	protected[seqs] def indicesOf(elems1 :Traversable[E], elems2 :GenTraversableOnce[E]) :mutable.Set[Int] = {
 		var result = mutable.Set[Int]()
@@ -44,7 +46,8 @@ trait FitBuffer[@specialized(Elements) E]
 		elems1.foreach(collect); elems2.foreach(collect)
 		result
 	}
-	
+*/
+
 	
 	
 	
@@ -106,14 +109,18 @@ object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqF
 
 	override protected[this] type RealType[@specialized(Elements) X] = SharedArrayBuffer[X]
 	override protected[this] def default: FitIterableFactory[SharedArrayBuffer] = SharedArrayBuffer
-	
-	def of[E <: AnyVal :Specialized](size :Int) :FitBuffer[E] =
-		SharedArrayBuffer(Specialized.arrayFor[E](size))
 
-	def of[E :Specialized](size :Int, value :E) :FitBuffer[E] =
-		SharedArrayBuffer(arrayFill(Specialized.arrayFor[E](size), value))
-	
-	
+	@inline def emptyOf[E :Specialized](sizeHint :Int) :FitBuffer[E] = SharedArrayBuffer.emptyOf[E](sizeHint)
+
+	@inline def of[E :Specialized] :FitBuffer[E] = SharedArrayBuffer.of[E]
+
+	@inline def of[E <: AnyVal :Specialized](size :Int) :FitBuffer[E] = SharedArrayBuffer.of(size)
+
+	@inline def of[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(Specialized.UnboxedClass(value.getClass))) :FitBuffer[E] =
+		SharedArrayBuffer.of(size, value)
+
+
+
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitBuffer[_], E, FitBuffer[E]]): CanBuildFrom[FitBuffer[_], E, FitBuffer[E]] =
 		fit.cbf
 

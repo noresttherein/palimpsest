@@ -19,7 +19,7 @@ import scala.collection.{IndexedSeqOptimized, LinearSeq, LinearSeqLike}
   * as ''views'' on the parent sequence - any modifications made to one will be visible in the other.
   */
 trait ArrayView[@specialized(Elements) +E]
-	extends LinearSeq[E] with LinearSeqLike[E, ArrayView[E]] with IndexedSeqOptimized[E, ArrayView[E]] //generic interfase extracted so it doesn't override FitIndexedSeq methods
+	extends LinearSeq[E] with LinearSeqLike[E, ArrayView[E]] with IndexedSeqOptimized[E, ArrayView[E]] //generic interface extracted so it doesn't override FitIndexedSeq methods
 			with FitIndexedSeq[E] with ArrayViewLike[E, ArrayView[E]]
 			with SpecializableIterable[E, ArrayView]
 {
@@ -68,13 +68,13 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	val Empty: S[Nothing] = empty
 	
 	
-	/** Creates an empty specialized sequence based on implicitly available specialization information.
-	  * @param elementType specialization defining the component type of the array
-	  * @tparam E array component type
-	  * @return a sequence backed by an empty array of the runtime type defined by `elementType`.
-	  */
-	@inline final override def like[E](implicit elementType :Specialized[E]) :S[E] =
-		emptyOf(elementType.classTag.asInstanceOf[ClassTag[E]])
+//	/** Creates an empty specialized sequence based on implicitly available specialization information.
+//	  * @param elementType specialization defining the component type of the array
+//	  * @tparam E array component type
+//	  * @return a sequence backed by an empty array of the runtime type defined by `elementType`.
+//	  */
+//	@inline final override def like[E](implicit elementType :Specialized[E]) :S[E] =
+//		emptyOf(elementType.classTag.asInstanceOf[ClassTag[E]])
 	
 	/** Creates an empty specialized sequence. If `E` is statically known to be a specializable (primitive) type,
 	  * a proper specialized subclass of `S[E]` will be returned. However, when used from a generic type
@@ -89,21 +89,22 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	
 	
 	/** Creates an empty specialized sequence proper for the given element type.
-	  * Returned sequence will be a specialized variant of `S[E]` iff `elementType` is a syntetic class
-	  * reresenting a specializable primitive (such as `Integer.TYPE` and other java primitives with the exception of `void`).
-      * @param elementType exact component type of the backing array of the created seqeuence.
+	  * Returned sequence will be a specialized variant of `S[E]` iff `elementType` is a synthetic class
+	  * representing a specializable primitive (such as `Integer.TYPE` and other java primitives with the exception of `void`).
+      * @param elementType exact component type of the backing array of the created sequence.
       * @tparam E element type of the created sequence (and array)
       * @return an empty sequence backed by an empty array with component type equal to the given class.
 	  */
-	@inline final def emptyOfClass[E](elementType :Class[E]) :S[E] = emptyOf(ClassTag(elementType))
+	@inline final def emptyOfClass[E](elementType :Class[E]) :S[E] = emptyOf(Specialized.asClass(elementType))
 	
 	
 	/** Creates an empty specialized sequence based on implicit class information for `E`.
-	  * Returned sequence will be a specialized variant of `S[E]` iff `E` is an inbuilt scala 'AnyVal' type.
+	  * Returned sequence will be a specialized variant of `S[E]` '''iff''' `E` is an inbuilt scala 'AnyVal' type.
 	  * @tparam E element type of the created sequence (and array)
 	  * @return an empty sequence backed by an empty array with component type equal to the given class.
 	  */
-	@inline final def emptyOf[E :ClassTag] :S[E] = ForArray(new ArrayBounds(new Array[E](0)))(Specialized.of[E])
+	@inline final override def emptyOf[E :Specialized] :S[E] =
+		ForArray(new ArrayBounds[E])
 
 
 	/** Create a sequence with contents given in this array.
@@ -164,11 +165,11 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @return a specialized sequence backed by the array of the given length.
 	  * @see [[of(Int, _)]]
 	  */
-	@inline final def of[E <:AnyVal :ClassTag](size :Int) :S[E] = {
-		val buffer = new Array[E](size)
+	@inline final def of[E <:AnyVal :Specialized](size :Int) :S[E] = {
+		val buffer = Specialized.arrayFor[E](size)
 		if (!buffer.getClass.getComponentType.isPrimitive)
-			throw new IllegalArgumentException(s"$this.of[${classTag[E]}]: not a primitive component type")
-		shared(ArrayBounds.share[E](buffer))
+			throw new IllegalArgumentException(s"$this.of[${Specialized[E]}]: not a primitive component type")
+		shared(new ArrayBounds[E](buffer, 0, size))
 	}
 	
 	/** Create a specialized sequence backed by an array of the given size, initialized with the given default value.
@@ -182,9 +183,14 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @tparam E element type of the sequence.
 	  * @return a sequence with `size` copies of `value`
 	  */
-	@inline final def of[E](size :Int, value :E)(implicit elementType :ClassTag[E]=ClassTag(Specialized.UnboxedClass(value.getClass))) :S[E] =
-		shared(ArrayBounds.share[E](arrayFill(new Array[E](size), value)))
-	
+	@inline final def of[E](size :Int, value :E)(implicit elementType :ClassTag[E] = ClassTag(Specialized.UnboxedClass(value.getClass))) :S[E] = {
+		val array = new Array[E](size)
+		val spec = Specialized.as(elementType)
+		if (size > 0 && value != spec.default)
+			arrayFill(array, value)
+		shared(new ArrayBounds[E](array, 0, size)(spec))
+	}
+
 	
 	/** Create a specialized sequence backed by an array of the given type, initialized by runtime default value for `E`.
 	  * This method is intended to be used only for primitive types, and calling it for user-defined value types
@@ -194,7 +200,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @return a specialized sequence backed by the array of the given length.
 	  * @see [[of(Int, _)]]
 	  */
-	def ofClass[E<:AnyVal](elementType :Class[E], size :Int) :S[E] = of(size)(ClassTag(elementType))
+	def ofClass[E<:AnyVal](elementType :Class[E], size :Int) :S[E] = of(size)(Specialized.asClass(elementType))
 	
 	/** Create a specialized sequence backed by an array of the given size, initialized with the given default value.
 	  * The component type `E` of the backing array will be determined by either implicit [[ClassTag]] for `E`, or
@@ -207,7 +213,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @tparam E element type of the sequence.
 	  * @return a sequence with `size` copies of `value`
 	  */
-	def ofClass[E](elementType :Class[E], size :Int, value :E) :S[E] = of(size, value)(ClassTag(elementType))
+	def ofClass[E](elementType :Class[E], size :Int, value :E) :S[E] = of(size, value)(ClassTag[E](elementType))
 
 
 	/** Create a sequence of the given elements, backed by a new array with component type equal to the given array.
@@ -274,24 +280,9 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
       * @return a builder for `S[E]` specialized according to the variant of this method.
 	  */
 	@inline override final def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] =
-		specializedBuilder[E]
-	
-	/** A builder of a sequence backed by an array with component type `E` as defined by implicit `ClassTag`,
-	  * but specialized based on the specialization context of the caller.
-	  * Created builder, and the resulting sequence, will be specialized only if a specialized variant
-	  * of this method is called, due to `E` being statically known to be a specializable type,
-	  * or being called from code already specialized for `E`.
-	  * This means that it is possible to create a specialized sequence backed by a boxed type and vice versa,
-	  * an erased sequence backed by a primitive array, if the class tag and specialization information don't coincide.
-	  * While both cases will produce completely valid sequences, it is usually not what you want. For this reason,
-	  * prefer generally either [[newBuilder]] or [[fitBuilder]] over this.
-      * @tparam E
-      * @return
-	  */
-	@deprecated("use fitBuilder", "palimpsest")
-	override def specializedBuilder[@specialized(Elements) E](implicit special :Specialized[E]) :FitBuilder[E, S[E]] =
-		new ArraySeqBuilder[E](special.emptyArray.asInstanceOf[Array[E]])
-	
+		new ArrayViewBuilder[E](Specialized[E].emptyArray.asInstanceOf[Array[E]])
+
+
 	/** A builder for a sequence backed by an array, which specialization - and resulting component type - are given
 	  * implicitly. Note that there will ''always'' be an implicit value for `Specialized[E]`, at worst representing
 	  * a completely erased sequence, backed by an array of 'AnyRef'. However, if any information about type `E`
@@ -302,24 +293,15 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  *                       proper specialized variant of this sequence and backing array component type.
 	  */
 	@inline final override def fitBuilder[E](implicit specialization :Specialized[E]) :FitBuilder[E, S[E]] =
-		specialization.call(NewBuilder)
+		specialization.call(SpecificBuilder)
 	//todo: rename ^this to build[E]
-	
-//	/** Generic, unspecialized builder of associated sequence type.
-//	  * Always prefer [[newBuilder]] or [[fitBuilder]] whenether any information about element type is present.
-//	  * This method exists specifically as the target of unspecialized calls to [[SpecializedTraversableTemplate#genericBuilder]]
-//	  * from unspecialized `CanBuildFrom` factories when operating on specialized sequences through standard, unspecialized
-//	  * scala interfaces. For this reason `FitBuilder` provides two methods which can be used to obtain a specialized
-//	  * version. One is [[FitBuilder#fit]], which will try to provide an appropriate specialized version of itself,
-//	  * the other is [[FitBuilder#source]], wich is a multipurpose identifier allowing colllections to recognize their 'own'
-//	  * builders, if they so implement it.
-//	  *
-//	  * @return an erased version of the builder for element type `E`.
-//	  */
-//	override def genericBuilder[E]: FitBuilder[E, S[E]] = new SharedArrayBuilder[E](Specialized.arrayFor)
-	
-//	protected def erasedBuilder[E] :FitBuilder[E, S[E]]
-	
+
+	private[this] final val SpecificBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
+		override def specialized[@specialized E](implicit spec :Specialized[E]) =
+			new ArrayViewBuilder[E](spec.emptyArray.asInstanceOf[Array[E]])
+	}
+
+
 	/** Builder factory method enforcing the specialization of the resulting sequence based on implicit class
 	  * information for `E`. Returned builder - and built sequence - will be specialized only if `ClassTag[E]`
 	  * represents a specializable primitive.
@@ -328,64 +310,64 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @tparam E element type of the sequence
 	  * @return a specialized builder proper for the given element type.
 	  */
-	@inline final def as[E](implicit elementType :ClassTag[E]) :FitBuilder[E, S[E]] = //CustomBuilder(elementType)
-		NewBuilder()
+	@inline final def buildAs[E](implicit elementType :ClassTag[E]) :FitBuilder[E, S[E]] =
+		SpecificBuilder()
 
 	/** Builder for a sequence backed by an array of the given component type. Returned builder - and built sequence -
 	  * will be specialized if and only if `elementType` is a java primitive (such as `Integer.TYPE`, not `Integer.class`).
 	  * @param elementType component type of the array used by the builder and the final sequence.
 	  * @return a specialized builder proper for the given element type.
 	  */
-	@inline final def asClass[E](elementType :Class[E]) :FitBuilder[E, S[E]] =
-		Specialized.ofClass(elementType).call(NewBuilder)
+	@inline final def buildAsClass[E](elementType :Class[E]) :FitBuilder[E, S[E]] =
+		Specialized.asClass(elementType).call(SpecificBuilder)
 
 
-	
+
 	@inline final def newReverseBuilder[@specialized(Elements) E] :FitBuilder[E, S[E]] = new ReverseArraySeqBuilder[E]()
-	
+
 	@inline final def buildReversed[E](ofType :Specialized[E]) :FitBuilder[E, S[E]] = ofType.call(NewReverseBuilder)
-	
+
 	protected[this] final val NewReverseBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
 		override def specialized[@specialized E : Specialized]: SpecializedBuilder[E] = newReverseBuilder[E]
 	}
 
 
-	
-	
-	implicit def CanBuildArray[E <: AnyRef :ClassTag] :CanFitFrom[S[_], E, S[E]] =
-		new CanBuildArray[E]
 
 
-	protected class CanBuildArray[@specialized E :ClassTag]
-		extends CanFitFrom[S[_], E, S[E]] with CanBuildFrom[S[_], E, S[E]]
+	override def canFitFromRef[E :Specialized] :CanFitFrom[S[_], E, S[E]] =
+		new CanBuildRefArray[E]
+
+
+	protected class CanBuildRefArray[E](implicit override val specialization :Specialized[E])
+		extends CanBuildSpecialized[E] //CanBuildFrom[S[_], E, S[E]] with CanFitFrom[S[_], E, S[E]]
 	{
-		//intermediate method necessary, as `def specialization` is not specialized
-		private[this] def mySpecialization = Specialized[E]
-		
-		override def specialization: Specialized[E] = mySpecialization
 
-		override def elementType :Class[_] = classTag[E].runtimeClass
+		override def elementType :Class[_] = specialization.runType
 
 		override def apply(from: S[_]): FitBuilder[E, S[E]] =
-			from.genericBuilder[E]
-//			from.fitBuilder[E](mySpecialization)
+			from.fitBuilder[E](specialization)
 
-		override def apply(): FitBuilder[E, S[E]] =
-			specializedBuilder[E](mySpecialization)
+		override def apply(): FitBuilder[E, S[E]] = //newBuilder[E]
+			new ArrayViewBuilder[E](specialization.emptyArray.asInstanceOf[Array[E]])
 
-		override def canEqual(that :Any) = that.isInstanceOf[CanBuildArray[_]]
 
-		override def equals(that :Any) = that match {
-			case cbf :CanBuildArray[_] => (cbf eq this) || elementType==cbf.elementType && super.equals(cbf)
+//		override def mapped[O](from :S[_], f :O => E) :FitBuilder[O, S[E]] =
+//
+//		override def mapped[O :Specialized](f :O => E) :FitBuilder[O, S[E]] = ???
+
+		override def canEqual(that :Any) :Boolean = that.isInstanceOf[CanBuildRefArray[_]]
+
+		override def equals(that :Any) :Boolean = that match {
+			case cbf :CanBuildRefArray[_] => (cbf eq this) || elementType==cbf.elementType && super.equals(cbf)
 			case _ => false
 		}
 
-		override def toString = s"$outer.CBF[$classTag]"
+		override def toString = s"$outer.CBF[${specialization.classTag}]"
 	}
 
 
 
-	protected class ArraySeqBuilder[@specialized(Elements) E](protected[this] final var array :Array[E])
+	protected class ArrayViewBuilder[@specialized(Elements) E](protected[this] final var array :Array[E])
 		extends IterableFoundation[E, SharedArrayBuffer[E]] with FitBuilder[E, S[E]] with DefaultArrayBuffer[E]
 	{
 		

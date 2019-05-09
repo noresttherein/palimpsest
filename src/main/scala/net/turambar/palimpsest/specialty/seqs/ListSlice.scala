@@ -293,8 +293,8 @@ object ListSlice extends ImplementationIterableFactory[ListSlice] {
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, ListSlice[E]] = 
 		new ListSliceBuilder
 
-	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ListSlice[E]] =
-		new ListSliceBuilder(new NonEmpty(Specialized[E].Null))
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ListSlice[E]] =
+//		new ListSliceBuilder(new NonEmpty(Specialized[E].Null))
 	
 	override def empty[@specialized(Elements) E] :ListSlice[E] =
 		new ListSlice[E](LinkedList.Empty, LinkedList.Empty, 0)
@@ -320,7 +320,7 @@ object ListSlice extends ImplementationIterableFactory[ListSlice] {
 			private var hat :NonEmpty[E], private var coccyx :NonEmpty[E])
 		extends FitBuilder[E, ListSlice[E]] 
 	{
-		def this(handle :NonEmpty[E] = new NonEmpty(Specialized[E].Null)) =
+		def this(handle :NonEmpty[E] = new NonEmpty(Specialized[E].default)) =
 			this(handle, handle)
 
 		private[this] var length = 0

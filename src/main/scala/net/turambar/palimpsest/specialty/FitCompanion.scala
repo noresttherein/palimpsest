@@ -15,13 +15,13 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq
 /** Base trait for companion objects to specialized collections.
   * It is a root of seeming blown up hierarchy of companion traits, but this one is needed as
   * it is covariant with regard to built collection type, which means that can be returned
-  * by methods of those sequences, and overridden in more specific sequences
+  * by methods of immutable collections, and overridden in more specific collections
   * (invariance towards built type prevents that as part of non `private[this]` api).
   *
   * @author Marcin Mościcki
   */
 trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
-		extends GenericCompanion[S]
+	extends GenericCompanion[S]
 { factory =>
 	
 	/** An empty, unspecialized instance of S[_] and a valid instance of `S[T]` for all immutable (variant) collections `S`. */
@@ -34,11 +34,11 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	/** An empty collection `S[E]` instance specialized in regard to `E` as described by
 	  * implicit specialization information.
 	  */
-	def like[E :Specialized] :S[E] = NewEmpty() //fitBuilder[E].result()
-	
+	def emptyOf[E :Specialized] :S[E] = NewEmpty()
+
 	/** An empty collection `S[E]` instance specialized in regard to `E`.
 	  * Note that this method can rely on local specialization context only.
-	  * Consider using [[like]] which takes an implicit parameter and can create
+	  * Consider using [[emptyOf]] which takes an implicit parameter and can create
 	  * a properly specialized instance in any context where one is available.
 	  */
 	override def empty[@specialized(Elements) E]: S[E] =
@@ -68,29 +68,17 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] //= specializedBuilder[E]
 
 	/** Builder specialized on `E` if any information about type `E` is available (see [[Specialized]]). */
-	def fitBuilder[E :Specialized] :FitBuilder[E, S[E]] = NewBuilder()
+	def fitBuilder[E :Specialized] :FitBuilder[E, S[E]] = NewBuilder() //todo: rename to builder
 	
 	protected[this] type SpecializedBuilder[E] = FitBuilder[E, S[E]]
 
 	protected[this] final val NewBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
-		override def specialized[@specialized E : Specialized]: SpecializedBuilder[E] = specializedBuilder[E]
+		override def specialized[@specialized E : Specialized]: SpecializedBuilder[E] = newBuilder[E] //specializedBuilder[E]
 	}
 //
-	def specializedBuilder[@specialized(Elements) E :Specialized] :FitBuilder[E, S[E]] = newBuilder[E]
+//	def specializedBuilder[@specialized(Elements) E :Specialized] :FitBuilder[E, S[E]] = newBuilder[E]
 	
-	/** Generic, unspecialized builder of the associated sequence type.
-	  * Always prefer [[newBuilder]] or [[fitBuilder]] whenether any information about element type is present.
-	  * This method exists specifically as the target of unspecialized calls to [[SpecializableIterable#genericBuilder]]
-	  * from unspecialized `CanBuildFrom` factories when operating on specialized sequences through standard, unspecialized
-	  * scala interfaces. For this reason [[FitBuilder]] provides two methods which can be used to obtain a specialized
-	  * version. One is [[FitBuilder#typeHint]], which will try to provide an appropriate specialized version of itself,
-	  * the other is [[FitBuilder#source]], which is a multipurpose identifier allowing collections to recognize their 'own'
-	  * builders, if they so implement it.
-      * @return an erased version of the builder for element type `E`.
-	  */
-	@deprecated("this is considered internal api. use newBuilder or fitBuilder", "palimpsest")
-	def genericBuilder[@specialized(Elements) E] :FitBuilder[E, S[E]] = newBuilder[E]
-	//todo: get rid of this
+
 
 }
 
@@ -109,10 +97,17 @@ object FitCompanion {
 	
 	
 	/** A specialized version of the `CanBuildFrom` builder factory interface.
-	  * Doesn't do any real work, but can be queried from collection methods to 'cheat'
-	  * on the dynamic double dispatch in order to perform optimizations.
+	  * Can be queried from collection methods to 'cheat' on the dynamic double dispatch in order to perform optimizations.
 	  */
-	trait CanFitFrom[-From, -E, +To] { this :CanBuildFrom[From, E, To] => //extends CanBuildFrom[From, E, To] {
+	trait CanFitFrom[-From, -E, +To] { outer :CanBuildFrom[From, E, To] => //extends CanBuildFrom[From, E, To] {
+		private[this] type Builder[X] = FitBuilder[X, To]
+		private[this] type MapFun[X] = X => E
+
+		private[this] final val mapper = new Specialize.With2[Builder, MapFun, Specialize.Const[FitBuilder[E, To]]#T]{
+			override def specialized[@specialized X :Specialized](f :X => E, builder :FitBuilder[E, To]) =
+				builder.mapInput(f)
+		}
+
 		def cbf :CanBuildFrom[From, E, To] = this
 //		override def apply(from: From): FitBuilder[E, To]
 //
@@ -122,8 +117,20 @@ object FitCompanion {
 		def apply(): FitBuilder[E, To]
 
 		def copy(from :FitSeq[E]) :To = (apply() ++= from).result()
-		
-		/** If `true`, `this(from)` takes its builder as is customary from [[FitSeq#genericBuilder]] // [[FitSeq#fitBuilder]]. */
+
+		def mapped[O](from :From, f :O => E) :FitBuilder[O, To]
+
+		def mapped[O :Specialized](f :O => E) :FitBuilder[O, To]
+
+		def mapping[O](from :From with FitIterable[O], f :O => E) :FitBuilder[O, To] =
+			mapper[O](f, (this :CanFitFrom[From, E, To]).apply(from))(from.specialization.asInstanceOf[Specialized[O]])
+
+		def mapping[O :Specialized](f :O => E) :FitBuilder[O, To] =
+			mapper(f, (this :CanFitFrom[From, E, To]).apply())
+
+		/** If `true`, `this(from)` takes its builder, as is customary, from
+		  * [[SpecializableIterable#genericBuilder]] / [[SpecializableIterable#fitBuilder]].
+		  */
 		def honorsBuilderFrom = true
 		
 		def elementType :Class[_] = specialization.runType
@@ -146,8 +153,8 @@ object FitCompanion {
 		private[specialty] def companion :Any = this
 	}
 	
-	
-	
+
+
 
 	class CanBreakOut[-From, -E, +To]()(implicit cbf :CanFitFrom[_, E, To])
 		extends CanFitFrom[From, E, To] with CanBuildFrom[From, E, To]
@@ -155,7 +162,22 @@ object FitCompanion {
 		override def apply(from: From): FitBuilder[E, To] = cbf()
 		
 		override def apply(): FitBuilder[E, To] = cbf()
-		
+
+		override def mapped[O](from :From, f :O => E) :FitBuilder[O, To] = from match {
+			case fit :FitTraversableOnce[_] => cbf.mapped(f)(fit.specialization.asInstanceOf[Specialized[O]])
+
+			case _ => cbf().mapInput(f)
+		}
+
+		override def mapped[O :Specialized](f :O => E) :FitBuilder[O, To] = cbf.mapped(f)
+
+
+		override def mapping[O](from :From with FitIterable[O], f :O => E) :FitBuilder[O, To] =
+			cbf.mapped(f)(from.specialization.asInstanceOf[Specialized[O]])
+
+		override def mapping[O :Specialized](f :O => E) :FitBuilder[O, To] =
+			cbf.mapped(f)
+
 		override def specialization: Specialized[_] = cbf.specialization
 		
 		override private[specialty] def companion = cbf.companion

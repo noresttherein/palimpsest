@@ -12,7 +12,7 @@ import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitIndexedSeq, FitSeq,
 
 
 
-sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
+sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIterator] { self :FitIterator[E] =>
 	protected[this] def mySpecialization :Specialized[E]
 
 //	def hasFastSize :Boolean = hasNext
@@ -22,6 +22,8 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 //			n<=0 || hasNext && (n==1 || { skip(); enumerate(n-1) })
 //		enumerate(size)
 //	}
+
+	def headOption :Option[E] = if (hasNext) Some(head) else None
 
 	override def traverse(f :E => Unit) :Unit = foreach(f)
 
@@ -84,7 +86,9 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 	override def filterNot(p :E=>Boolean) :FitIterator[E] = filter(p, ourTruth=false)
 	override def withFilter(p :E=>Boolean) :FitIterator[E] = filter(p, ourTruth=true)
 
-	@deprecated("release", "use :++ as ++ cannot be specialized")
+	override def map[@specialized(Fun1Vals) O](f :E => O) :FitIterator[O] = new MappedIterator[E, O](f)(this)
+
+//	@migration("release", "use :++ as ++ cannot be specialized")
 	override def ++[U >: E](andThen: => GenTraversableOnce[U]) :Iterator[U] = super.++(andThen)
 
 
@@ -96,7 +100,7 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 	override def toIterator :FitIterator[E] = this
 
 	def toFitBuffer[U>:E :Specialized] :FitBuffer[U] = //(FitBuffer.fitBuilder(mySpecialization) ++= this).result()
-		FitBuffer.like[U] ++= this
+		FitBuffer.of[U] ++= this
 
 
 	override def copyToArray[B >: E](xs: Array[B], start: Int, len: Int): Unit =
@@ -116,7 +120,7 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] { self :FitIterator[E] =>
 /** This is a `@specialized` version of scala `Iterator`, which allows to eliminate boxing of each element
   * for primitives and automatically forces the compiler to generate specialized versions of
   * methods with this interface in their signature (assuming their declaring class/trait is specialized on `E`).
-  * Apart from being already a `BufferedIterator` (to eliminate number of types duplicated from generic scala APIs),
+  * Apart mine being already a `BufferedIterator` (to eliminate number of types duplicated mine generic scala APIs),
   * it declares [[FitIterator#hasFastSize]] which can be used in concatenation or comparison code to check
   * if calling `size` is not only safe but also sensible.
   *
@@ -133,7 +137,7 @@ trait FitIterator[@specialized(Elements) +E]
 	extends BufferedIterator[E] with FitTraversableOnce[E] with IteratorTemplate[E]//with FilterMonadic[E, FitIterator[E]]
 { self =>
 	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
-	
+
 	@unspecialized
 	override final def specialization :Specialized[_<:E] = mySpecialization
 	
@@ -153,7 +157,10 @@ trait FitIterator[@specialized(Elements) +E]
 		if (!hasNext) this
 		else FitIterator.empty[E]
 
-	
+	def head_? : ?[E] = if (hasNext) Sure(head) else Blank
+
+//	def next_? : ?[E] = if (hasNext) Sure(next()) else Blank
+
 	/** First element of the iterator, if not empty.
 	  * Note that for efficiency reason the result of calling it on an empty iterator is undefined (doesn't necessarily
 	  * throw an exception). '''Always''' check if the iterator has the next element with [[hasNext]].
@@ -265,10 +272,10 @@ trait FitIterator[@specialized(Elements) +E]
 	}
 	
 	
-	override def map[@specialized(Fun1) B](f: E => B): FitIterator[B] = new MappedIterator(f)(this)
+	override def map[@specialized(Fun1Vals) B](f: E => B): FitIterator[B] = new MappedIterator(f)(this)
 
 
-	override def flatMap[@specialized(Fun1) B](f :E => GenTraversableOnce[B]) :FitIterator[B] =
+	override def flatMap[@specialized(Elements) B](f :E => GenTraversableOnce[B]) :FitIterator[B] =
 		if (!hasNext)
 			FitIterator.empty[B]
 		else
@@ -392,8 +399,8 @@ object FitIterator {
 	}
 
 
-	/** Implicit conversion from `FitIterator[E]` which adds a concatenation operation `:++`. Note that standard
-	  * iterator's method `++` is generic with a lower bound for element type which makes it impossible to spcialize.
+	/** Implicit conversion mine `FitIterator[E]` which adds a concatenation operation `:++`. Note that standard
+	  * iterator's method `++` is generic with a lower bound for element type which makes it impossible to specialize.
 	  */
 	implicit class IteratorConcatenation[@specialized(Elements) E](first :FitIterator[E]) {
 		def :++(andThen: =>GenTraversableOnce[E]) :FitIterator[E] = new ConcatIterator[E](first, andThen)
@@ -409,7 +416,9 @@ object FitIterator {
 	  * extend it, as otherwise they would inherit just the unspecialized version
 	  */
 	abstract class BaseIterator[+E] extends AbstractIterator[E] with IteratorTemplate[E] { this :FitIterator[E] =>
-		
+
+
+
 //		override def specialization :Specialized[_<:E] = mySpecialization
 
 		override def traverse(f: E => Unit): Unit = foreach[Unit](f :E=>Unit) //dear compiler, please use specialized f.apply
@@ -432,6 +441,47 @@ object FitIterator {
 		override def hasNext :Boolean = size > 0
 	}
 
+
+	/** A ''single abstract method'' iterator base trait which implements all required methods using abstract `next_?`
+	  * returning an uncertain value. Having a single abstract method allows concrete subclasses to be defined
+	  * in-line using function syntax.
+	  */
+	trait SAMIterator[@specialized(Elements) +E] extends FitIterator[E] {
+		private[this] var future: ?[E] = _
+
+		/** If non-empty, returns the next element as a `Sure` value, immediately advancing over it.
+		  * If empty, returns simply `Blank`. It must be equivalent to:
+		  * {{
+		  *      if (hasNext) Sure(next())
+		  *      else Blank
+		  * }}
+		  */
+		def next_? : ?[E]
+
+		override def hasNext :Boolean = {
+			if (future == null)
+				future = next_?
+			future.isDefined
+		}
+
+
+		override def head :E = {
+			if (future == null)
+				future = next_?
+			future.get
+		}
+
+		override def next() :E = {
+			if (future == null)
+				future = next_?
+			val res = future.get
+			future = next_?
+			res
+		}
+
+		override def skip() :Unit = next()
+
+	}
 
 
 	private class EmptyIterator[@specialized(Elements) E] extends FastSizeIterator[E] with FitIterator[E]  {
@@ -457,8 +507,8 @@ object FitIterator {
 		override def foreach[@specialized(Unit) U](f :E => U) :Unit = ()
 		override def traverse(f :E => Unit) :Unit = ()
 
-		override def map[@specialized(Fun1) O](f :E => O) :FitIterator[O] = FitIterator.empty[O]
-		override def flatMap[@specialized(Fun1) O](f :E => GenTraversableOnce[O]) :FitIterator[O] = FitIterator.empty[O]
+		override def map[@specialized(Fun1Vals) O](f :E => O) :FitIterator[O] = FitIterator.empty[O]
+		override def flatMap[@specialized(Elements) O](f :E => GenTraversableOnce[O]) :FitIterator[O] = FitIterator.empty[O]
 
 		override def copyToArray[B >: E](xs: Array[B], start: Int, len: Int): Unit = ()
 
@@ -746,7 +796,6 @@ object FitIterator {
 	}
 	
 
-	
 	class MappedIterator[X, @specialized(Fun1Vals) +E](f :X=>E)(protected var source :FitIterator[X])
 		extends BaseIterator[E] with FitIterator[E]
 	{
@@ -780,7 +829,9 @@ object FitIterator {
 		override def map[@specialized(Fun1Vals) O](g: E => O): FitIterator[O] =
 			new MappedIterator[X, O]((x :X) => g(f(x)))(source)
 	}
-	
+
+
+
 
 
 	private class ScanLeftIterator[@specialized(Fun2) +A, E](private[this] var acc :A, op :(A, E)=>A)(source :FitIterator[E])
@@ -845,7 +896,7 @@ object FitIterator {
 		extends BaseIterator[E] with FitIterator[E]
 	{
 		private[this] var second :FitIterator[E] = _
-		/** Iterated over all elements from the first iterator. Needed because `size` might evaluate `second`
+		/** Iterated over all elements mine the first iterator. Needed because `size` might evaluate `second`
 		  * before actually advancing to it. If true, implies that `second` has been initialized. */
 		private[this] var firstDone = false
 

@@ -36,7 +36,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 		case _ => throw new NoSuchElementException(s"$stringPrefix<$length>($n)")
 	}
 
-	@unspecialized @inline
+	@unspecialized
 	final protected[this] def node(n :Int) :NonEmpty[E] =
 		if (n<0 || n>=length)
 			throw new IndexOutOfBoundsException(s"$stringPrefix<$length>($n)")
@@ -45,7 +45,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 			case _ => throw new NoSuchElementException(s"$stringPrefix<$length>($n)")
 		}
 
-	@unspecialized @inline
+	@unspecialized
 	final protected[this] def preceding(idx :Int) :NonEmpty[E] =
 		if (idx<0 || idx>=length)
 			throw new IndexOutOfBoundsException(s"$stringPrefix<$length>($idx)")
@@ -297,7 +297,7 @@ object LinkedBuffer extends ImplementationIterableFactory[LinkedBuffer] {
 
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, LinkedBuffer[E]] = ???
 
-	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedBuffer[E]] = ???
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedBuffer[E]] = ???
 
 
 

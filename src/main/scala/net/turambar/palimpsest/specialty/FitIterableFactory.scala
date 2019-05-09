@@ -2,15 +2,15 @@ package net.turambar.palimpsest.specialty
 
 import scala.annotation.tailrec
 import scala.collection.generic.{CanBuildFrom, GenTraversableFactory}
-
 import net.turambar.palimpsest.specialty.FitBuilder.RetardedFitBuilder
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.Specialize.SpecializeIndividually
 
 
 
 /** Specialized counterpart of scala `GenTraversableFactory` to be extended by companions of specialized collections.
   * Provides specialized versions of standard factory methods as well as a default specialized [[net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom]] implementation.
- *
+  *
   * @tparam S type constructor for specialized collections.
   * @author Marcin Mościcki
   */
@@ -73,8 +73,6 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X,
 		override def toString = companion+".ReusableCBF"
 	}*/
 
-	override val ReusableCBF = //new ErasedCanBuildFrom[Nothing]
-		new CanBuildSpecialized[Nothing]
 
 
 
@@ -83,15 +81,29 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X,
 	  * build a specialized instance of `To =:= S[E]`.
       * @tparam E specialized element type of target collection.
 	  */
-	class CanBuildSpecialized[@specialized(Elements) E]
+	class CanBuildSpecialized[@specialized(Elements) E](implicit override val specialization :Specialized[E])
 		extends GenericCanBuildFrom[E] with CanFitFrom[S[_], E, S[E]]
-	{
+	{ outer =>
+
+		private[this] final val mapper = new Specialize.With2[
+			({ type L[X] = FitBuilder[X, S[E]]})#L, ({ type L[X] = X => E})#L, ({ type L[X] = FitBuilder[E, S[E]]})#L
+		]{
+			override def specialized[@specialized X :Specialized](f :X => E, builder :FitBuilder[E, S[E]]) =
+				builder.mapInput(f)
+		}
+
+
 		override def apply(from: S[_]): FitBuilder[E, S[E]] = from.genericBuilder[E]
 
 		override def apply(): FitBuilder[E, S[E]] = newBuilder[E]
 
+		override def mapped[O](from :S[_], f :O => E) :FitBuilder[O, S[E]] =
+			mapper(f, apply(from))(from.specialization.asInstanceOf[Specialized[O]])
 
-		override def specialization: Specialized[E] = Specialized[E]
+		override def mapped[O :Specialized](f :O => E) :FitBuilder[O, S[E]] =
+			mapper(f, apply())
+
+//		override def specialization: Specialized[E] = Specialized[E]
 
 
 		override private[specialty] def companion: Any = factory
@@ -121,16 +133,40 @@ trait FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X,
 	}
 
 
-	type CBF[E] = CanFitFrom[S[_], E, S[E]]
 
-	protected[this] val CBF = new Specialize[CBF] {
-		override def specialized[@specialized E: Specialized]: CBF[E] = canBuildSpecialized[E] //new CanBuildSpecialized[E]
+
+	override val ReusableCBF :CanBuildSpecialized[Nothing] = new CanBuildSpecialized[Nothing]()(Specialized.generic[Nothing]) {
+		override def mapped[O](from :S[_], f :O => Nothing)= from.genericBuilder[Nothing].mapInput(f)
+
+		override def mapped[O :Specialized](f :O => Nothing) = newBuilder[Nothing].mapInput(f)
 	}
-	protected def canBuildSpecialized[@specialized E :Specialized] = new CanBuildSpecialized[E]
+
+
+	type CBF[E] = CanFitFrom[S[_], E, S[E]]
 
 
 	implicit def CanBuildSpecialized[E :Specialized] :CBF[E] = CBF()
 
+//	private[this] val CBF = new Specialize[CBF] {
+//		override def specialized[@specialized E: Specialized]: CBF[E] = canBuildSpecialized[E] //new CanBuildSpecialized[E]
+//	}
+//	protected def canBuildSpecialized[@specialized E :Specialized] = new CanBuildSpecialized[E]
+
+	private[this] val CBF = new SpecializeIndividually[CBF] {
+		override val forByte = new CanBuildSpecialized[Byte]
+		override val forShort = new CanBuildSpecialized[Short]
+		override val forChar = new CanBuildSpecialized[Char]
+		override val forInt = new CanBuildSpecialized[Int]
+		override val forLong = new CanBuildSpecialized[Long]
+		override val forFloat = new CanBuildSpecialized[Float]
+		override val forDouble = new CanBuildSpecialized[Double]
+		override val forBoolean = new CanBuildSpecialized[Boolean]
+		override val forUnit = new CanBuildSpecialized[Unit]
+		override def forRef[E :Specialized] = canFitFromRef[E]
+	}
+
+	/** Default `CanFitFrom` used for reference types and erased types. */
+	protected def canFitFromRef[E :Specialized] :CBF[E] = ReusableCBF.asInstanceOf[CBF[E]]
 
 
 
@@ -156,15 +192,16 @@ trait SpecializedIterableFactory[S[@specialized(Elements) X] <: SpecializableIte
 	implicit def canBuildFrom[E](implicit fit :CanFitFrom[S[_], E, S[E]]) :CanBuildFrom[S[_], E, S[E]] //=
 //		fit.cbf
 	
-	implicit val CanBuildBytes: CBF[Byte] = CanBuildSpecialized[Byte]
-	implicit val CanBuildShorts: CBF[Short] = CanBuildSpecialized[Short]
-	implicit val CanBuildInts: CBF[Int] = CanBuildSpecialized[Int]
-	implicit val CanBuildLongs: CBF[Long] = CanBuildSpecialized[Long]
-	implicit val CanBuildFloats: CBF[Float] = CanBuildSpecialized[Float]
-	implicit val CanBuildDoubles: CBF[Double] = CanBuildSpecialized[Double]
-	implicit val CanBuildChars: CBF[Char] = CanBuildSpecialized[Char]
-	implicit val CanBuildBooleans: CBF[Boolean] = CanBuildSpecialized[Boolean]
-	
+	implicit val CanBuildBytes: CBF[Byte] = new CanBuildSpecialized[Byte]
+	implicit val CanBuildShorts: CBF[Short] = new CanBuildSpecialized[Short]
+	implicit val CanBuildInts: CBF[Int] = new CanBuildSpecialized[Int]
+	implicit val CanBuildLongs: CBF[Long] = new CanBuildSpecialized[Long]
+	implicit val CanBuildFloats: CBF[Float] = new CanBuildSpecialized[Float]
+	implicit val CanBuildDoubles: CBF[Double] = new CanBuildSpecialized[Double]
+	implicit val CanBuildChars: CBF[Char] = new CanBuildSpecialized[Char]
+	implicit val CanBuildBooleans: CBF[Boolean] = new CanBuildSpecialized[Boolean]
+
+
 }
 
 
@@ -181,7 +218,7 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 	protected[this] def default :FitIterableFactory[RealType]
 	private[this] val impl = default
 	
-	@inline final override def like[E :Specialized] :S[E] = impl.like[E]
+	@inline final override def emptyOf[E :Specialized] :S[E] = impl.emptyOf[E]
 	
 	@inline final override def empty[@specialized(Elements) E]: S[E] = impl.empty[E]
 
@@ -189,7 +226,7 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 
 	@inline final override def fitBuilder[E: Specialized]: FitBuilder[E, S[E]] = impl.fitBuilder[E]
 	
-	@inline override final def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, S[E]] = impl.specializedBuilder[E]
+//	@inline override final def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, S[E]] = impl.specializedBuilder[E]
 
 
 	override def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E] = impl.fill(n)(elem)

@@ -7,6 +7,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, SortedSet, SortedSetLike}
 import OrderedSet.{Mutable, Stable}
 import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals}
+import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
 
 /** A counterpart of `SortedSetLike`, it brings together the declarations from the latter and [[OrderedAs]]. As this
   * trait lacks specialization, its sole purpose is  to resolve conflicts from inheriting identical method declarations
@@ -38,6 +39,8 @@ trait OrderedSetTemplate[E, +This<:OrderedSetTemplate[E, This] with OrderedSet[E
 	def --(elems :GenTraversableOnce[E]) :This
 
 	override def contains(key :E) :Boolean
+
+//	protected[this] override def newBuilder :FitBuilder[E, This] = super[SetSpecialization].newBuilder
 }
 
 
@@ -67,27 +70,40 @@ trait OrderedSet[@specialized(Elements) E] //todo: mix-in order of OrderedVals a
 
 
 	override def typeStringPrefix = "OrderedSet"
+
 }
 
 
+
+
+
 //todo: possibly doesn't need specialization
-trait MutableOrderedSet[@specialized(Elements) E] extends MutableSet[E] with OrderedSet[E]
+trait MutableOrderedSet[@specialized(Elements) E] extends OrderedSet[E] with MutableSet[E]
 	with MutableSetSpecialization[E, MutableOrderedSet[E]] with OrderedSetTemplate[E, MutableOrderedSet[E]]
 {
 	override def mutable :Mutable[E] = this
-	override def stable :Stable[E] = (Stable.newBuilder[E] ++= this).result
+	override def stable :Stable[E] = (Stable.newBuilder[E] ++= this).result()
 	override def empty :MutableOrderedSet[E] = OrderedSet.Mutable.empty[E]
-	override def newBuilder :FitBuilder[E, MutableOrderedSet[E]] = empty //SortedFitSet.Mutable.newBuilder
+//	override def newBuilder :FitBuilder[E, MutableOrderedSet[E]] = empty //SortedFitSet.Mutable.newBuilder
 }
+
+
+
 
 //todo: possibly doesn't need specialization
-trait StableOrderedSet[@specialized(Elements) E] extends StableSet[E] with OrderedSet[E]
-			with SetSpecialization[E, StableOrderedSet[E]] with OrderedSetTemplate[E, StableOrderedSet[E]]
+trait StableOrderedSet[@specialized(Elements) E] extends OrderedSet[E] with StableSet[E]
+	with SetSpecialization[E, StableOrderedSet[E]] with OrderedSetTemplate[E, StableOrderedSet[E]]
 {
 	override def empty :StableOrderedSet[E] = OrderedSet.Stable.empty
-	override def stable :Stable[E] = this
+	override def stable :StableOrderedSet[E] = this
 
+//	override protected[this] def newBuilder :FitBuilder[E, StableOrderedSet[E]] = new ImmutableSetBuilder(empty)
 }
+
+
+
+
+
 
 
 object OrderedSet  {

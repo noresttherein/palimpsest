@@ -2,12 +2,12 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{IndexedSeqLike, mutable}
+import scala.collection.{mutable, IndexedSeqLike}
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, FitTraversableOnce, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, FitIterable, FitTraversableOnce, SpecializableIterable, Specialized}
 
 
 
@@ -42,7 +42,7 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 
 
 
-	@inline final def length = len
+	@inline final def length :Int = len
 //	@inline final protected[this] def end = headIdx + len
 
 
@@ -204,7 +204,7 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 		minus(FitSeq.pair(elem1, elem2), elems)
 
 	//can be extracted to unspecialized class
-	override def --=(xs: TraversableOnce[E]): this.type = minus(Seq(), xs)
+	override def --=(xs: TraversableOnce[E]): this.type = minus(FitSeq.Empty, xs)
 
 
 
@@ -222,14 +222,14 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 	}
 
 	/** Lazybones variant of `clear()` returning this instance. */
-	def cleared() :this.type = {
+	final def cleared() :this.type = {
 		clear(); this
 	}
 
 
 
 	//can be extracted to unspecialized class
-	protected[this] def minus(elems1 :Traversable[E], elems2 :TraversableOnce[E]) :this.type = {
+	protected[this] def minus(elems1 :FitSeq[E], elems2 :TraversableOnce[E]) :this.type = {
 		val removedIndices = indicesOf(elems1, elems2)
 		if (removedIndices.nonEmpty) {
 			val cuts = removedIndices.toList.sorted
@@ -459,7 +459,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 	
 	/** A flag which, when set, prohibits this instance from any modification of the underlying array.
 	  * This is usually a result of either buffer passing or initial reusing of the underlying array for
-	  * slices of this buffer. All 'reserve' methods should honour it and resign to reallocation of data.
+	  * slices of this buffer. All 'reserve' methods should honor it and resort to reallocation of data.
 	  */
 	protected var unmodifiable :Boolean
 	
@@ -518,7 +518,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 
 	
 	
-	override protected[this] def minus(elems1: Traversable[E], elems2: TraversableOnce[E]): this.type = {
+	override protected[this] def minus(elems1: FitSeq[E], elems2: TraversableOnce[E]): this.type = {
 		val removedIndices = indicesOf(elems1, elems2)
 		if (removedIndices.nonEmpty) {
 			val cuts = removedIndices.toList.sorted
@@ -556,7 +556,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 //	}
 
 
-	override def transform(f: (E) => E) = {
+	override def transform(f: E => E) :this.type = {
 		reserve(0)
 		var i = headIdx; val lim = i+len; val a = array
 		while(i<lim) {
@@ -588,12 +588,13 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
   * @tparam E element type before erasure.
   */
 class GrowingArrayBuffer[@specialized(Elements) E](
-													  protected[this] final var array :Array[E],
-													  protected[seqs] final var headIdx :Int,
-													  protected[this] final var len :Int,
-													  protected final var unmodifiable :Boolean=false)
+		protected[this] final var array :Array[E],
+		protected[seqs] final var headIdx :Int,
+		protected[this] final var len :Int,
+		protected final var unmodifiable :Boolean=false)
 	extends IterableFoundation[E, SharedArrayBuffer[E]] with DefaultArrayBuffer[E]
 {
+
 	def this(array :Array[E]) = this(array, 0, array.length)
 
 	def this(storageType :Class[E]) = this(Array.empty[E](ClassTag(storageType)))
@@ -610,14 +611,17 @@ class GrowingArrayBuffer[@specialized(Elements) E](
 
 /** Factory for specialized growing buffers backed by arrays. */
 object SharedArrayBuffer extends ArrayViewFactory[SharedArrayBuffer] {
-	
+
+	/** Create an empty buffer of the given specialization. This is the same as `emptyOf[E]`. */
+	def of[E :Specialized] :SharedArrayBuffer[E] = shared(new ArrayBounds[E])
+
 	/** Create an empty buffer with the given capacity, using as the element type implicit class information for `E`.
 	  * @param sizeHint predicted future size of the buffer
 	  * @tparam E element type
 	  * @return an empty buffer specialized accordingly to the given class tag.
 	  */
-	def emptyOf[E :ClassTag](sizeHint :Int) :SharedArrayBuffer[E] =
-		shared(new ArrayBounds(new Array[E](sizeHint), 0, 0))
+	def emptyOf[E :Specialized](sizeHint :Int) :SharedArrayBuffer[E] =
+		shared(new ArrayBounds(Specialized.arrayFor[E](sizeHint), 0, 0))
 	
 	/** Create an empty buffer reusing the given array.
 	  * Created buffer will start appending from index `0` in the array, but reallocate it when its capacity is exceeded.
@@ -626,7 +630,7 @@ object SharedArrayBuffer extends ArrayViewFactory[SharedArrayBuffer] {
 	  * @return an empty buffer specialized accordingly to the component type of the given array.
 	  */
 	def upon[E](array :Array[E]) :SharedArrayBuffer[E] =
-		shared(new ArrayBounds(array, 0, 0))
+		shared(ArrayBounds.share(array, 0, 0))
 	
 	/** Create an empty buffer reusing the given array.
 	  * Created buffer will start appending from index `offset`, which makes it possible to ensure free

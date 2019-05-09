@@ -286,14 +286,14 @@ object FitList extends ImplementationIterableFactory[FitList] {
 
 	override def empty[@specialized(Elements) E]: FitList[E] = new FitList(0, Terminus)
 	
-	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, FitList[E]] =
-		new FitListBuilder[E]
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, FitList[E]] =
+//		new FitListBuilder[E]
 	
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, FitList[E]] = new FitListBuilder[E]
 
 	def newReverseBuilder[@specialized(Elements) E] :FitBuilder[E, FitList[E]] = new ReverseFitListBuilder[E]
 	
-	def reverseBuilder[E :Specialized] = ReverseBuilder()
+	def reverseBuilder[E :Specialized] :ReverseFitListBuilder[E] = ReverseBuilder()
 	
 	private[this] final val ReverseBuilder = new Specialize[ReverseFitListBuilder] {
 		override def specialized[@specialized E : Specialized] = new ReverseFitListBuilder[E]
@@ -348,7 +348,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 	
 	private[seqs] class FitListBuilder[@specialized(Elements) E] extends FitBuilder[E, FitList[E]] {
 		private[this] var length :Int=0
-		private[this] var tail :FullLink[E] = new FullLink(Specialized[E].Null)
+		private[this] var tail :FullLink[E] = new FullLink(Specialized[E].default)
 		private[this] var head :FullLink[E] = tail
 		
 		def count = length
@@ -370,7 +370,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 		
 		override def result(): FitList[E] = {
 			val res = head
-			head = new FullLink(Specialized[E].Null)
+			head = new FullLink(Specialized[E].default)
 			tail = head
 			length = 0
 			new FitList(length, res)
@@ -378,7 +378,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 			
 		
 		override def clear(): Unit = {
-			head = new FullLink(Specialized[E].Null); tail = head; length=0
+			head = new FullLink(Specialized[E].default); tail = head; length=0
 		}
 	}
 	

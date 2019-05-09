@@ -79,7 +79,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	/** Highest precedence implicit `CanBuildFrom` for the whole `FitSeq[_]` hierarchy - without this level of indirection
 	  * we can't override implicits from `IndexedSeq`.
 	  */
-	implicit override def canBuildFrom[E](implicit fit :CanFitFrom[FitSeq[_], E, FitSeq[E]]) :CanBuildFrom[FitSeq[_], E, FitSeq[E]] =
+	@inline implicit override def canBuildFrom[E](implicit fit :CanFitFrom[FitSeq[_], E, FitSeq[E]]) :CanBuildFrom[FitSeq[_], E, FitSeq[E]] =
 		fit.cbf
 //	implicit def canBuildFrom[F[X]<:FitSeq[X], E](implicit fitCBF :FitCanBuildFrom[F[_], E, F[E]]) :CanBuildFrom[F[_], E, F[E]] =
 //		fitCBF.cbf

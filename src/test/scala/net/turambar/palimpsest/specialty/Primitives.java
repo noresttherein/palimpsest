@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty;
 /**
  * @author Marcin Mościcki
  */
-public class Java {
+public class Primitives {
     final static Class<?> Byte = java.lang.Byte.TYPE;
     final static Class<?> Short = java.lang.Short.TYPE;
     final static Class<?> Int = Integer.TYPE;

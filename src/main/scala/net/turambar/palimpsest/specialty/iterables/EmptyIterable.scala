@@ -97,7 +97,7 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 
 	override def inverse :FitSeq[E] = FitSeq.Empty
 	override def toFitSeq :FitSeq[E] = FitSeq.Empty
-	override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] = FitBuffer.like[U]
+	override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] = FitBuffer.of[U]
 	override def toSeq :FitSeq[E] = FitSeq.Empty
 
 	override def sameElements[U >: E](that: GenIterable[U]) :Boolean = that.isEmpty

@@ -14,5 +14,10 @@ object playground extends App {
 	}
 
 
-	new C
+//	new C
+	val unit = ()
+	unit match {
+		case () => println("unit")
+		case _ :Unit => println("Unit")
+	}
 }

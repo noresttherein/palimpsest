@@ -4,11 +4,11 @@ import java.lang.Math
 
 import scala.annotation.unspecialized
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
-import scala.collection.{breakOut, GenIterable, GenTraversableOnce, IterableLike, mutable}
-
+import scala.collection.{breakOut, mutable, GenIterable, GenTraversableOnce, IterableLike}
 import net.turambar.palimpsest.specialty.FitIterable.{FilterIterable, SpecializedFilter}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1Vals, Fun1Res, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun1Vals, Fun2, Fun2Vals}
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitBuffer, FitList, FitSeq}
+import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 
 
 /** Partial specialization of the `IterableLike` trait containing methods which can be implemented
@@ -111,7 +111,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	//todo: traverse(f.asInstanceOf[E=>Unit])
 	override def foreach[@specialized(Unit) U](f: E => U): Unit = iterator.foreach(f)
 
-	//todo: consider renaming inverseForeach/foreachReversed. why is it protected? its useful
+	//todo: consider renaming inverseForeach/foreachReversed. why is it protected? it's useful
 	protected def reverseForeach(f :E=>Unit) :Unit
 
 	/** Equals - and usually implemented as - [[IterableSpecialization#foreach(f)]], but enforces `Unit` as
@@ -125,6 +125,10 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 	@inline final private[palimpsest] def reverseTraverse(f :E=>Unit) :Unit = reverseForeach(f)
 
+	def fitMap[O, That](f :E => O)(implicit cbf :CanBuildFrom[Repr, O, That]) :That = cbf match {
+		case fit :CanFitFrom[Repr, O, That] =>
+			(fit.mapped(repr, f) ++= this).result()
+	}
 
 	override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]): That = {
 		val b = FitBuilder(bf(repr)).mapInput(f)
@@ -262,7 +266,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  */
 	override def toBuffer[B >: E]: FitBuffer[B] = toFitBuffer //todo: optimistic buffer for primitive collections
 
-	def toFitBuffer[U >: E :Specialized] :FitBuffer[U] = FitBuffer.like[U] ++= this
+	def toFitBuffer[U >: E :Specialized] :FitBuffer[U] = FitBuffer.of[U] ++= this
 
 //	@deprecated("what does it even mean to inverse a set...", "")
 	def inverse :FitIterable[E] = (FitList.reverseBuilder(mySpecialization) ++= this).result()

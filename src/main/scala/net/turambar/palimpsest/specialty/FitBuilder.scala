@@ -276,8 +276,6 @@ object FitBuilder {
 	/** A useful idiot, unspecialized builder which doesn't do any real work, but stores all appended elements
 	  * internally as-is (including collections as whole), and requires implementing classes to provide a [[RetardedFitBuilder#realBuilder]]
 	  * to do the real work when [[RetardedFitBuilder#result]] is eventually called.
-	  *
-	  * @tparam E
 	  */
 	trait RetardedFitBuilder[-E, +To] extends FitBuilder[E, To] {
 		//			protected def build :FitBuilder[E, To]
@@ -324,7 +322,7 @@ object FitBuilder {
 		
 		override def clear(): Unit = elems = Nil
 		
-		override def count = {
+		override def count :Int = {
 			var total = 0; var parts = elems
 			while (parts.nonEmpty) {
 				total += parts.size
@@ -336,63 +334,157 @@ object FitBuilder {
 	}
 
 
-	class OptimisticFitBuilder[@specialized(Elements) E, To<:TraversableOnce[E]](fit :FitBuilder[E, To], unfit : =>FitBuilder[E, To])
+	/** A builder for collections `To` of elements `E` which optimistically assumes that all elements will actually be
+	  * of subtype `O &lt;: E`. It appends all added elements to the first builder `optimist` for as long as the
+	  * operation doesn't throw a `ClassCastException` or `ArrayStoreException`. If one of these exceptions is encountered,
+	  * it falls back to the second builder `pessimist`, starting with adding `optimist.result()`. Note that if the
+	  * collection types built by both builders are different, this will ''not'' be equivalent to appending all elements
+	  * directly to `pessimist` in the same order, as `optimist` might have reordered them or dropped duplicates.
+	  *
+	  * This class is primarily useful when building collections containing elements of several other collections:
+	  * while the method signature might accept any element type and declare the result as the least upper type bound of all
+	  * elements, it will often be the case that all added elements are of the same type. Thus, the final element type
+	  * can be initially predicted as the element type of the first added element(s). This makes it possible to build
+	  * specialized collections where otherwise an erased variant would be required for type safety. It is still
+	  * somewhat a hack however and should not be treated as a general purpose class, but used only in context where
+	  * the types of both builders given as arguments guarantee correct behaviour.
+	  *
+	  * @param optimist an empty builder accepting narrowed elements.
+	  * @param pessimist a fallback builder to use when an element of type other than `O` is added to this builder.
+	  * @tparam O a subtype of declared element type guessed to be the actual upper bound for all elements.
+	  * @tparam E declared element type of the built collection.
+	  * @tparam To built collection type.
+	  */
+	class OptimisticFitBuilder[@specialized(Elements) O <: E, E, To <: Traversable[E]](optimist :FitBuilder[O, To], pessimist :FitBuilder[E, To])
 		extends FitBuilder[E, To]
 	{
-		private[this] var optimistic = true
-		private[this] var b = fit
-		
+		private[this] var target :FitBuilder[E, To] = try {
+			optimist.asInstanceOf[FitBuilder[E, To]]
+		} catch {
+			case _ :Exception => pessimist
+		}
+
+		private[this] var sizeHint :Int = Int.MinValue
+		private[this] var size = 0
+
+
+		override def count :Int = size
+
+		override def sizeHint(expect :Int) :Unit = {
+			sizeHint = expect
+			target.sizeHint(expect)
+		}
+
+		override def ++=(xs :TraversableOnce[E]) :this.type = xs match {
+			case vals :Traversable[E] if ofKnownSize(vals) =>
+				try {
+					target ++= vals
+					size += vals.size
+				} catch {
+					case ex @ (_ :ClassCastException | _ :ArrayStoreException) if !(target eq pessimist) =>
+						val init = target.result()
+						val added = init.size
+						if (added < size)
+							throw ex
+						if (sizeHint >= 0)
+							pessimist.sizeHint(sizeHint)
+						pessimist ++= init
+						pessimist ++= vals.toIterator.drop(added - size)
+						size = size + vals.size
+						target = pessimist
+				}
+				this
+//			case head::tail =>
+//				this += head; this ++= tail
+			case _ =>
+				xs.foreach(+=)
+				this
+		}
+
+		override def +=(x :E) :this.type = {
+			try {
+				target += x
+			} catch {
+				case ex @ (_ :ClassCastException | _ :ArrayStoreException) if !(target eq pessimist) =>
+					val init = target.result()
+					if (init.size != size)
+						throw ex
+					if (sizeHint > 0)
+						pessimist.sizeHint(sizeHint)
+					pessimist ++= init
+					pessimist += x
+					target = pessimist
+			}
+			size += 1
+			this
+		}
+
+		override def result() :To = { size = 0; target.result() }
+
+		override def clear() :Unit = { target.clear(); size = 0 }
+
+	}
+
+
+
+
+/*
+	class OldOptimisticFitBuilder[@specialized(Elements) E, To<:TraversableOnce[E]](optimist :FitBuilder[E, To], pessimist :FitBuilder[E, To])
+		extends FitBuilder[E, To]
+	{
+		private[this] var target = optimist
+
 		var count = 0
-		
-		override def sizeHint(expect: Int): Unit = b.sizeHint(expect)
-		
+
+		override def sizeHint(expect: Int): Unit = target.sizeHint(expect)
+
 		override def ++=(xs: TraversableOnce[E]): this.type = xs match {
 			case col :Traversable[E] =>
 				try {
-					b ++= xs
-					count = b.count
+					target ++= xs
+					count = target.count
 					this
 				} catch {
-					case e @ (_ :ClassCastException | _ :ArrayStoreException) if optimistic =>
-						optimistic = false
-						val added = b.count - count
+					case e @ (_ :ClassCastException | _ :ArrayStoreException) if !(target eq pessimist) =>
+						val added = target.count - count
 						if (added < 0)
 							throw e
-						val collected = b.result()
-						b = unfit
-						b ++= collected
+						val collected = target.result()
+						target = pessimist
+						target ++= collected
 						//							throw new Exception(s"OptimisticFitBuilder[${mySpecialization}] failed to add $col;")
-						b ++= col.toIterator.drop(added)
-						count = b.count
+						target ++= col.toIterator.drop(added)
+						count = target.count
 						this
 				}
 			case col :FitIterator[E] => col foreach { this += _ }; this
 			case _ => super.++=(xs) //xs foreach { this += _}
 		}
-		
-		
-		
+
+
+
 		override def +=(elem: E): this.type = try {
-			b += elem; count += 1; this
+			target += elem; count += 1; this
 		} catch {
 			case e @ (_ :ClassCastException | _ :ArrayStoreException) if optimistic =>
-				if (b.count!=count)
+				if (target.count!=count)
 					throw e
 				count += 1
 				optimistic = false
-				val collected = b.result()
-				b = unfit; b ++= collected; b += elem
+				val collected = target.result()
+				target = pessimist; target ++= collected; target += elem
 				this
 		}
 		
-		override def result(): To = b.result()
+		override def result(): To = target.result()
 		
-		override def clear(): Unit = b.clear()
+		override def clear(): Unit = target.clear()
 		
 
 //		override def reverseResult: FitBuilder[E, To] = b.reverseResult
 	}
-	
+*/
+
 	
 	
 

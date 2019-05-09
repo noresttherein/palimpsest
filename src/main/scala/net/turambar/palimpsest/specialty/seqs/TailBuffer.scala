@@ -1,9 +1,8 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
-
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitIterable, FitTraversableOnce, Specialized}
 
 
 /** A mutable view of the tail of a buffer which allows to modify its contents only past some specified index.
@@ -100,11 +99,11 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 		else buffer.insertAll(offset+n, elems)
 	
 
-	override def -=(elem1: E, elem2: E, elems: E*): this.type = remove(Seq(elem1, elem2), elems)
+	override def -=(elem1: E, elem2: E, elems: E*): this.type = remove(FitSeq.pair(elem1, elem2), elems)
 
-	override def --=(xs: TraversableOnce[E]): this.type = remove(Seq(), xs)
+	override def --=(xs: TraversableOnce[E]): this.type = remove(FitSeq.Empty, xs)
 
-	private def remove(first :Seq[E], second :TraversableOnce[E]) :this.type = {
+	private def remove(first :FitSeq[E], second :TraversableOnce[E]) :this.type = {
 		val indices = indicesOf(first, second)
 		var oldPos=offset; var newPos=offset; val len = buffer.length
 		while(oldPos<len)

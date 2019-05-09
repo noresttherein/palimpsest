@@ -34,7 +34,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 //	@inline
 //	final protected[this] def storageType :Class[E] = array.getClass.getComponentType.asInstanceOf[Class[E]]
 
-	def boxClass: Class[_] = Specialized.BoxClass(storageClass)
+	def boxClass: Class[_] = Specialized.BoxedClass(storageClass)
 
 	@inline
 	implicit final protected[this] def storageClassTag :ClassTag[E] = ClassTag(storageClass.asInstanceOf[Class[E]])
@@ -85,7 +85,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 
 	@inline final override def foreach[@specialized(Unit) O](f: E => O): Unit = {
 		val a = array; var i = headIdx; val e = i + length
-		while(i<e) { f(a(i)); i+=1 }
+		while (i<e) { f(a(i)); i+=1 }
 	}
 
 
@@ -176,7 +176,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 	override def toFitBuffer[U >: E: Specialized]: SharedArrayBuffer[U] =
 		if (storageClass isAssignableFrom Specialized[U].runType)
 			new GrowingArrayBuffer[E](array, headIdx, length, true).asInstanceOf[SharedArrayBuffer[U]]
-		else SharedArrayBuffer.like[U] ++= this
+		else SharedArrayBuffer.of[U] ++= this
 
 
 //	override def toIndexedSeq: collection.immutable.IndexedSeq[E] =
@@ -215,7 +215,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 
 	
 	@unspecialized
-	protected[this] def newBuffer :SharedArrayBuffer[E] = SharedArrayBuffer.like[E](mySpecialization)
+	protected[this] def newBuffer :SharedArrayBuffer[E] = SharedArrayBuffer.of[E](mySpecialization)
 
 
 	/** Includes the component type of the underlying array instead of specialization. */

@@ -3,11 +3,12 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized, ofKnownSize}
+import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.sets.{MutableSet, ValSet}
 
 import scala.annotation.unspecialized
 import scala.collection.generic.{CanBuildFrom, Subtractable}
-import scala.collection.{GenTraversableOnce, mutable}
+import scala.collection.{mutable, GenTraversableOnce}
 
 
 
@@ -71,8 +72,8 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	}
 
 
-	protected[seqs] def indicesOf(elems1 :FitSeq[E], elems2 :GenTraversableOnce[E]) :Iterable[Int] = {
-		var result = mutable.Set[Int]() //todo: ValSet
+	protected[seqs] def indicesOf(elems1 :FitSeq[E], elems2 :GenTraversableOnce[E]) :ValSet[Int] = {
+		var result = MutableSet[Int]() //todo: ValSet
 		var searchOffsets = mutable.Map[E, Int]().withDefaultValue(0) //todo: AptMap
 		def collect(e :E) :Unit = {
 			val i = indexOf(e, searchOffsets(e))

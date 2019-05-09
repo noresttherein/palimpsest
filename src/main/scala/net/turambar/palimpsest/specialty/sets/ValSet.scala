@@ -18,7 +18,7 @@ import scala.collection.{GenIterable, GenSet, GenTraversableOnce, SetLike, mutab
 //todo: is this needed at all?
 trait SpecializableSet[@specialized(Elements) E, +S[@specialized(Elements) X]<:SpecializableSet[X, S] with ValSet[X]]
 	extends GenericSetTemplate[E, S] with SetLike[E, S[E]]
-			with SpecializableIterable[E, S] with SetSpecialization[E, S[E]]
+	   with SpecializableIterable[E, S] with SetSpecialization[E, S[E]]
 {
 //	override def newBuilder :FitBuilder[E, S[E]] = new ImmutableSetBuilder[E, S[E]](empty)
 	override def empty :S[E] = companion.empty
@@ -81,8 +81,8 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 	def newBuilder[@specialized(Elements) E] :FitBuilder[E, ValSet[E]] = SetBuilder()
 
-	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ValSet[E]] =
-		SetBuilder()
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ValSet[E]] =
+//		SetBuilder()
 
 	override def fitBuilder[E: Specialized]: FitBuilder[E, ValSet[E]] = SetBuilder()
 

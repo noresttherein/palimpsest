@@ -1,7 +1,6 @@
-
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, FitTraversableOnce, Specialized, Sure, Var}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, Specialized, Sure, Var}
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.StableLongSet.{flipSign, LongElementCounter}
 import net.turambar.palimpsest.specialty.tries.{IterableTriePotFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
@@ -152,8 +151,11 @@ final class StableLongSet private[sets] (keys :LongTrie, keyCount :Int = -1)
 
 	override def stable :StableLongSet = this
 
-//	override def mutable :MutableLongSet = new MutableLongSet(MutableLongTrie.newRoot(trie), unsureSize)
+	override def mutable :MutableLongSet = new MutableLongSet(MutableLongTrie.newRoot(trie), unsureSize)
+
 }
+
+
 
 
 
@@ -193,9 +195,8 @@ object StableLongSet {
 
 
 /** A mutable set of `Long` values backed by a trie. */
-/*
 class MutableLongSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
-	extends IterableTriePotFoundation[Long, MutableLongTrie, Long, MutableLongSet](keys, keyCount)
+	extends IterableTriePotFoundation[Long, LongTrie, MutableLongTrie, Long, MutableLongSet](keys, keyCount)
 	   with MutableOrderedSet[Long] with MutableSetSpecialization[Long, MutableLongSet]
 	   with MutableTrieKeySetSpecialization[Long, LongTrie, MutableLongTrie, Long, MutableLongSet] //override default mutable methods
 //	   with MutableLongTrieSet[Long, MutableLongSet] //get mutable trie patches and operations for MutableLongTrie
@@ -226,7 +227,11 @@ class MutableLongSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 	override def stable :StableLongSet = new StableLongSet(trie.stable, unsureSize)
 
 	override def mutable :MutableLongSet = new MutableLongSet(trie.copy, unsureSize)
+
+//	override def newBuilder :FitBuilder[Long, MutableLongSet] = empty
 }
+
+
 
 
 
@@ -236,4 +241,4 @@ object MutableLongSet {
 	@inline def apply(single :Long) :MutableLongSet = new MutableLongSet(new LongTrieLeaf(flipSign(single)), 1)
 
 }
-*/
+

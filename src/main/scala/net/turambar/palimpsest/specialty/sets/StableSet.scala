@@ -41,7 +41,7 @@ object StableSet extends ImplementationIterableFactory[StableSet] {
 
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, StableSet[E]] = ???
 
-	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, StableSet[E]] = ???
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, StableSet[E]] = ???
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableSet[_], E, StableSet[E]]): CanBuildFrom[StableSet[_], E, StableSet[E]] =
 		fit.cbf

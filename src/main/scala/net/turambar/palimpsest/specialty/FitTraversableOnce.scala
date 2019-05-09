@@ -50,6 +50,10 @@ trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[
 
 }
 
+
+
+
+
 object FitTraversableOnce {
 	def unapply[E](col :GenTraversableOnce[E]) :Option[FitTraversableOnce[E]] =
 		col match {

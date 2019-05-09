@@ -10,7 +10,7 @@ import net.turambar.palimpsest.specialty.Specialized.Primitives
   * to end names of methods returning an uncertain value with `_?`, ''i.e'' `head_? : ?[E]` for analogues of `headOpt`.
   * @author Marcin Mościcki marcin@moscicki.net
   */
-sealed trait Unsure[@specialized(Primitives) +T] extends Serializable {
+sealed trait Unsure[@specialized(Primitives) +T] extends FunctorLike[T, Unsure] with Serializable {
 	def toOption :Option[T]
 
 	def isEmpty :Boolean
@@ -37,6 +37,8 @@ sealed trait Unsure[@specialized(Primitives) +T] extends Serializable {
 
 	@inline final def orNull[U >: T](implicit ev: Null <:< U): U = this getOrElse ev(null)
 
+	//todo: does the specialization below make sense for types functions are not specialized for?
+
 	@inline final def map[@specialized(Primitives) O](f: T => O): Unsure[O] =
 		if (isEmpty) Blank else Sure(f(this.get))
 
@@ -48,8 +50,8 @@ sealed trait Unsure[@specialized(Primitives) +T] extends Serializable {
 		if (isEmpty) Blank else ev(this.get)
 
 	/** If the given condition is false, return a `Blank` instance. Otherwise return `this`.
-	  * Note that importing implicit conversion [[Unsure$.?:]] will lift any value to a `Sure` instance which can
-	  * be then emptied with this method, creating a conditional expression producing an `Unsure` instance.
+	  * Note that importing implicit conversion [[Unsure$.?:]] will patch any type with the same method,
+	  * creating a conditional expression producing an `Unsure` instance.
 	  */
 	@inline final def ?:(condition :Boolean) :Unsure[T] =
 		if (condition && !isEmpty) this
@@ -95,6 +97,10 @@ sealed trait Unsure[@specialized(Primitives) +T] extends Serializable {
 
 	def canEqual(that :Any) :Boolean = that.isInstanceOf[Unsure[_]]
 }
+
+
+
+
 
 
 /** Companion object for [[Unsure]] serving as a factory. */
@@ -149,7 +155,6 @@ class Sure[@specialized(Primitives) +T] private[specialty] (private[this] val x 
 	/** This is the same as `get`, but is not declared by the parent trait, meaning it can only be called
 	  * if this instance is statically known to be `Sure`. For this reason it is always preferable to `get`,
 	  * as refactors can easily make the latter call unsafe in code which was previously safe.
-	  * @return
 	  */
 	@inline final def value :T = x
 

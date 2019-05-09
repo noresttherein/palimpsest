@@ -60,7 +60,11 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	def mutate :ValSet.Mutable[E] = mutable
 
 
-	protected[this] override def newBuilder :FitBuilder[E, This] = empty.newBuilder
+	/** Default set builder delegating to a wrapped set's `+` and `++` methods. This implementation is ''not'' specialized
+	  * and must be overriden.
+	  */
+	protected[this] override def newBuilder :FitBuilder[E, This] = new ImmutableSetBuilder[E, This](empty)
+
 }
 
 
@@ -87,7 +91,7 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 
 	override def -(elem :E) :This
 
-	def ^(elem :E) :This
+	def ^(elem :E) :This = if (contains(elem)) this - elem else this + elem
 
 	override def +(elem1: E, elem2: E, elems: E*) :This = this + elem1 + elem2 ++ elems
 
@@ -175,6 +179,9 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 	def mutable :ValSet.Mutable[E]
 
  //= newBuilder.result()
+	/** Default set builder delegating to a wrapped set's `+` and `++` methods. Good for most immutable sets,
+	  * overriden by [[MutableSetSpecialization]] for mutable sets.
+	  */
 	override def newBuilder :FitBuilder[E, This] = new ImmutableSetBuilder[E, This](empty)
 
 

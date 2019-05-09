@@ -135,6 +135,7 @@ trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] 
 
 	override def clone() :This = (this :SetSpecialization[E, This]).empty ++= this
 
+	/** Default mutable builder simply repurposing `this.empty`. Should be good for all set implementations. */
 	override def newBuilder :FitBuilder[E, This] = (this :SetSpecialization[E, This]).empty
 
 	override def count :Int = size
@@ -206,8 +207,8 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, MutableSet[E]] = from(ValSet.empty[E])
 
 
-	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, MutableSet[E]] =
-		ValSet.specializedBuilder[E].mapResult(from[E](_))
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, MutableSet[E]] =
+//		ValSet.specializedBuilder[E].mapResult(from[E](_))
 
 
 

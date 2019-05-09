@@ -377,8 +377,8 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, LinkedList[E]] =
 		new LinkedListBuilder[E]
 
-	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedList[E]] =
-		new LinkedListBuilder[E]
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedList[E]] =
+//		new LinkedListBuilder[E]
 
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedList[_], E, LinkedList[E]]): CanBuildFrom[LinkedList[_], E, LinkedList[E]] =

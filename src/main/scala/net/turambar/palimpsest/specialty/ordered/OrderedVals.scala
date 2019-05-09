@@ -40,8 +40,8 @@ trait OrderedAs[@specialized(Elements) K, +This <: OrderedAs[K, This]] extends I
 
 	def iteratorFrom(start :K) :FitIterator[K] = keysIteratorFrom(start)
 
-	override protected[this] def newBuilder :FitBuilder[K, This] =
-		FitBuffer.newBuilder.mapResult { buffer :FitBuffer[K] => empty ++ buffer }
+//	override protected[this] def newBuilder :FitBuilder[K, This] =
+//		FitBuffer.newBuilder.mapResult { buffer :FitBuffer[K] => empty ++ buffer }
 }
 
 
@@ -90,7 +90,6 @@ trait OrderedVals[@specialized(Elements) E]
 //	def +(elem1 :E, elem2 :E, elems :E*) :Self// = this + elem1 + elem2 ++ elems
 //
 //	def ++(elems :GenTraversableOnce[E]) :Self
-
-//	override protected[this] def newBuilder :FitBuilder[E, OrderedVals[E]] = OrderedSeq.newBuilder
+	override protected[this] def newBuilder :FitBuilder[E, OrderedVals[E]] = OrderedSeq.newBuilder
 }
 

@@ -42,17 +42,17 @@ object SpecializedSpec extends Properties("Specialized") {
 	
 	//sanity checks to verify scala performs AnyVal - java primitive conversion as we expect
 	
-	property("scala.Byte") = (Java.Byte is classOf[Byte]) && (Java.Byte is classTag[Byte].runtimeClass)
-	property("scala.Short") = (Java.Short is classOf[Short]) && (Java.Short is classTag[Short].runtimeClass)
-	property("scala.Int") = (Java.Int is classOf[Int]) && (Java.Int is classTag[Int].runtimeClass)
-	property("scala.Long") = (Java.Long is classOf[Long]) && (Java.Long is classTag[Long].runtimeClass)
-	property("scala.Char") = (Java.Char is classOf[Char]) && (Java.Char is classTag[Char].runtimeClass)
-	property("scala.Float") = (Java.Float is classOf[Float]) && (Java.Float is classTag[Float].runtimeClass)
-	property("scala.Double") = (Java.Double is classOf[Double]) && (Java.Double is classTag[Double].runtimeClass)
-	property("scala.Boolean") = (Java.Boolean is classOf[Boolean]) && (Java.Boolean is classTag[Boolean].runtimeClass)
-	property("scala.Unit") = (Java.Unit is classOf[Unit]) && (Java.Unit is classTag[Unit].runtimeClass)
-	property("scala.Any") = (Java.Any is classOf[Any]) && (Java.Any is classTag[Any].runtimeClass)
-	property("scala.AnyRef") = (Java.Any is classOf[AnyRef]) && (Java.Any is classTag[AnyRef].runtimeClass)
+	property("scala.Byte") = (Primitives.Byte is classOf[Byte]) && (Primitives.Byte is classTag[Byte].runtimeClass)
+	property("scala.Short") = (Primitives.Short is classOf[Short]) && (Primitives.Short is classTag[Short].runtimeClass)
+	property("scala.Int") = (Primitives.Int is classOf[Int]) && (Primitives.Int is classTag[Int].runtimeClass)
+	property("scala.Long") = (Primitives.Long is classOf[Long]) && (Primitives.Long is classTag[Long].runtimeClass)
+	property("scala.Char") = (Primitives.Char is classOf[Char]) && (Primitives.Char is classTag[Char].runtimeClass)
+	property("scala.Float") = (Primitives.Float is classOf[Float]) && (Primitives.Float is classTag[Float].runtimeClass)
+	property("scala.Double") = (Primitives.Double is classOf[Double]) && (Primitives.Double is classTag[Double].runtimeClass)
+	property("scala.Boolean") = (Primitives.Boolean is classOf[Boolean]) && (Primitives.Boolean is classTag[Boolean].runtimeClass)
+	property("scala.Unit") = (Primitives.Unit is classOf[Unit]) && (Primitives.Unit is classTag[Unit].runtimeClass)
+	property("scala.Any") = (Primitives.Any is classOf[Any]) && (Primitives.Any is classTag[Any].runtimeClass)
+	property("scala.AnyRef") = (Primitives.Any is classOf[AnyRef]) && (Primitives.Any is classTag[AnyRef].runtimeClass)
 	
 	/** All possible values, different from each other. */
 	property("Specializations") = Specialized.Specializations.size == 10
