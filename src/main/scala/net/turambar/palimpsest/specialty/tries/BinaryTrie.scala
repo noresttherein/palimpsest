@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.{?, Elements, FitIterator, Var}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementOf, EmptyElements, LeafElement}
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie._
 import net.turambar.palimpsest.specialty.tries.Trie.{FoldPath, KeyTypes, MutableTrieParent}

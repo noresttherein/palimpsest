@@ -3,11 +3,11 @@ package net.turambar.palimpsest.specialty.sets
 import java.lang
 
 import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, EmptyIterable, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, Specialized, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure}
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, FastSizeIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.BooleanSet.{BooleanSetIterator, IsTrue}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.ordered.OrderedBy.OrderedEmpty
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.ValSet.{ImmutableSetBuilder, Mutable, Stable}
@@ -25,7 +25,7 @@ import scala.collection.generic.CanBuildFrom
 final class BooleanSet protected (private[this] var bitmap :Int) extends MutableOrderedSet[Boolean] with OfKnownSize {
 	@inline private def toBitset :Int = bitmap
 
-	protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
+	protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 	override implicit def ordering: ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 
 	override def empty = new BooleanSet(0)
@@ -351,7 +351,7 @@ private[sets] object BooleanSet {
 	  */
 	case object Empty extends /*EmptyIterable[Boolean, StableOrderedSet[Boolean]] with */StableOrderedSet[Boolean] with EmptyIterableTemplate[Boolean, StableOrderedSet[Boolean]]/*with OrderedEmpty[Boolean, StableOrderedSet[Boolean]]*/ {
 		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
-		protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
+		protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
 
 		override def empty :Empty.type = this
@@ -399,7 +399,7 @@ private[sets] object BooleanSet {
 				with SingletonSpecialization[Boolean, StableOrderedSet[Boolean]]
 	{
 		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
-		protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
+		protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
 
 		override def empty :Empty.type = Empty
@@ -492,7 +492,7 @@ private[sets] object BooleanSet {
 	{
 
 		override implicit def ordering: ValOrdering[Boolean] = ValOrdering.BooleanOrdering
-		protected[this] override def mySpecialization: Specialized[Boolean] = Specialized.SpecializedBoolean
+		protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
 
 		override def empty :StableOrderedSet[Boolean] = Empty

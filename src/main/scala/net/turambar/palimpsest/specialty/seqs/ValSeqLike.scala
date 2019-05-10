@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, ValSet}
 
 import scala.annotation.unspecialized
@@ -20,7 +20,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	extends IterableSpecialization[E, Repr] with SeqTemplate[E, Repr] with Subtractable[E, Repr] with mutable.Cloneable[Repr]
 {
 
-	@inline override final def specialization :Specialized[E] = Specialized[E]
+	@inline override final def specialization :RuntimeType[E] = RuntimeType[E]
 
 
 	override def -(elem: E): Repr = {

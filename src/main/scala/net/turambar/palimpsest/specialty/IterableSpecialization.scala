@@ -6,7 +6,7 @@ import scala.annotation.unspecialized
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 import scala.collection.{breakOut, mutable, GenIterable, GenTraversableOnce, IterableLike}
 import net.turambar.palimpsest.specialty.FitIterable.{FilterIterable, SpecializedFilter}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Res, Fun1Vals, Fun2, Fun2Vals}
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitBuffer, FitList, FitSeq}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 
@@ -44,7 +44,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 //	override protected[this] def thisCollection :FitIterable[E] = this.asInstanceOf[FitIterable[E]]
 
 	/** Specialization of this iterable. Double call necessary to enforce specialized call and covariance type clash. */
-	protected[this] def mySpecialization :Specialized[E]
+	protected[this] def mySpecialization :RuntimeType[E]
 
 	/** Underlying representation of element type and preferred version of `@specialized` methods to use.
 	  * It will generally reflect the type used to store the values in runtime. If this instance is an erased,
@@ -53,7 +53,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  * especially dedicated subclasses for `AnyRef` subtypes, may internally store their contents as strict subclasses
 	  * of `AnyRef`, making casts risky! Infer as little as possible - you have been warned.
 	  */
-	override def specialization :Specialized[_<:E] = mySpecialization
+	override def specialization :RuntimeType[_<:E] = mySpecialization
 
 
 
@@ -266,7 +266,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  */
 	override def toBuffer[B >: E]: FitBuffer[B] = toFitBuffer //todo: optimistic buffer for primitive collections
 
-	def toFitBuffer[U >: E :Specialized] :FitBuffer[U] = FitBuffer.of[U] ++= this
+	def toFitBuffer[U >: E :RuntimeType] :FitBuffer[U] = FitBuffer.of[U] ++= this
 
 //	@deprecated("what does it even mean to inverse a set...", "")
 	def inverse :FitIterable[E] = (FitList.reverseBuilder(mySpecialization) ++= this).result()
@@ -318,7 +318,7 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 
 	
 	/** Specialization of this iterable. Double call necessary to enforce specialized call and covariance type clash. */
-	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
+	protected[this] def mySpecialization :RuntimeType[E] = RuntimeType[E]
 	
 
 	override def head: E = iterator.head

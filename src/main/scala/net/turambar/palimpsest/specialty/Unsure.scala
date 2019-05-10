@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty
 
-import net.turambar.palimpsest.specialty.Specialized.Primitives
+import net.turambar.palimpsest.specialty.RuntimeType.Primitives
 
 
 

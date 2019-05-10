@@ -7,7 +7,7 @@ import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableTemplate
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.seqs.ValList.{Link, ListBuilder, ListIterator}
-import net.turambar.palimpsest.specialty.Specialized.Fun2
+import net.turambar.palimpsest.specialty.RuntimeType.Fun2
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.immutable.LinearSeq
@@ -430,13 +430,13 @@ object ValList extends ImplementationIterableFactory[ValList] {
 
 		override def clear() :Unit = { hat.tail = nil; last = hat }
 
-		override def typeHint[L <: E](implicit specialization :Specialized[L]) :FitBuilder[E, ValList[E]] = ListBuilder()
+		override def typeHint[L <: E](implicit specialization :RuntimeType[L]) :FitBuilder[E, ValList[E]] = ListBuilder()
 	}
 
 
 
 	object ListBuilder extends Specialize[SpecializedBuilder] {
-		override def specialized[@specialized E](implicit s :Specialized[E]) :SpecializedBuilder[E] =
+		override def specialized[@specialized E](implicit s :RuntimeType[E]) :SpecializedBuilder[E] =
 			new ListBuilder[E](s.default)
 	}
 }

@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, Sure}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
 import net.turambar.palimpsest.specialty.tries.TrieElements.ElementOf
 import net.turambar.palimpsest.specialty.tries.Trie.KeyTypes
 

@@ -5,7 +5,7 @@ import java.lang.Double.{doubleToLongBits, doubleToRawLongBits, longBitsToDouble
 import net.turambar.palimpsest.specialty.tries.{IterableTriePotFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
 import net.turambar.palimpsest.specialty.tries.LongTrie.{EmptyLongTrie, LongTrieLeaf}
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
-import net.turambar.palimpsest.specialty.{?, Blank, FitTraversableOnce, Specialized, Sure, Var}
+import net.turambar.palimpsest.specialty.{?, Blank, FitTraversableOnce, RuntimeType, Sure, Var}
 import net.turambar.palimpsest.specialty.sets.StableDoubleSet.{doubleToKey, DoubleElementCounter}
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries.MutableLongTrie.{EmptyMutableLongTrie, MutableLongTrieBranch, MutableLongTrieLeaf}
@@ -27,7 +27,7 @@ sealed trait DoubleSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Va
 
 
 	
-	override protected[this] def mySpecialization :Specialized[Double] = Specialized.SpecializedDouble
+	override protected[this] def mySpecialization :RuntimeType[Double] = RuntimeType.OfDouble
 
 
 //	@inline final override protected[this] def elements :ElementOf[Double, LongTrie] = this

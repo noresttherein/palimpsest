@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, SortedSet, SortedSetLike}
@@ -136,5 +136,5 @@ object OrderedSet  {
 
 	def newBuilder[@specialized(Elements) E](implicit ord :Ordering[E]): FitBuilder[E, OrderedSet[E]] = ???
 
-	def specializedBuilder[@specialized(Elements) E: Specialized :Ordering]: FitBuilder[E, OrderedSet[E]] = ???
+	def specializedBuilder[@specialized(Elements) E: RuntimeType :Ordering]: FitBuilder[E, OrderedSet[E]] = ???
 }

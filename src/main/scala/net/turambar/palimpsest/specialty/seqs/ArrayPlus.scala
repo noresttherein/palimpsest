@@ -5,7 +5,7 @@ import scala.collection.{GenTraversableOnce, breakOut, immutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.seqs.StableSeq.MakeStableIndexed
-import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, Specialized, SpecializableIterable, ofKnownSize}
+import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, RuntimeType, SpecializableIterable, ofKnownSize}
 
 import scala.annotation.unspecialized
 
@@ -237,7 +237,7 @@ class ArrayPlus[@specialized(Elements) E] protected[seqs](
   * the ownership of the backing array on concatenation, making
   */
 object ArrayPlus extends ArrayViewFactory[ArrayPlus] { factory =>
-	@inline def Acc[E :Specialized] :ArrayPlus[E] = using(Specialized.arrayFor[E], 0, 0)
+	@inline def Acc[E :RuntimeType] :ArrayPlus[E] = using(RuntimeType.arrayFor[E], 0, 0)
 	
 	
 	

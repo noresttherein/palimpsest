@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, Specialized, Sure, Var}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure, Var}
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.StableLongSet.{flipSign, LongElementCounter}
 import net.turambar.palimpsest.specialty.tries.{IterableTriePotFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
@@ -58,7 +58,7 @@ sealed trait LongSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Orde
 
 	override implicit def ordering :ValOrdering[Long] = ValOrdering.LongOrdering
 
-	override protected[this] def mySpecialization :Specialized[Long] = Specialized.SpecializedLong
+	override protected[this] def mySpecialization :RuntimeType[Long] = RuntimeType.OfLong
 
 
 	@inline final override protected[this] def elements :ElementOf[Long, LongTrie] = this

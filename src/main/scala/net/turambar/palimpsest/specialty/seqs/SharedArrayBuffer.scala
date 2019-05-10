@@ -7,7 +7,7 @@ import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, FitIterable, FitTraversableOnce, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, FitIterable, FitTraversableOnce, SpecializableIterable, RuntimeType}
 
 
 
@@ -570,8 +570,8 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 		new GrowingArrayBuffer[E](array, headIdx + from, until - from, unmodifiable)
 
 
-	override def toFitBuffer[U >: E : Specialized]: SharedArrayBuffer[U] =
-		if (storageClass isAssignableFrom Specialized[U].runType)
+	override def toFitBuffer[U >: E : RuntimeType]: SharedArrayBuffer[U] =
+		if (storageClass isAssignableFrom RuntimeType[U].runType)
 			new GrowingArrayBuffer[E](array, headIdx, length).asInstanceOf[SharedArrayBuffer[U]]
 		else new GrowingArrayBuffer[U]() ++= this
 
@@ -599,7 +599,7 @@ class GrowingArrayBuffer[@specialized(Elements) E](
 
 	def this(storageType :Class[E]) = this(Array.empty[E](ClassTag(storageType)))
 
-	def this() = this(Specialized.arrayFor[E])
+	def this() = this(RuntimeType.arrayFor[E])
 	
 }
 
@@ -613,15 +613,15 @@ class GrowingArrayBuffer[@specialized(Elements) E](
 object SharedArrayBuffer extends ArrayViewFactory[SharedArrayBuffer] {
 
 	/** Create an empty buffer of the given specialization. This is the same as `emptyOf[E]`. */
-	def of[E :Specialized] :SharedArrayBuffer[E] = shared(new ArrayBounds[E])
+	def of[E :RuntimeType] :SharedArrayBuffer[E] = shared(new ArrayBounds[E])
 
 	/** Create an empty buffer with the given capacity, using as the element type implicit class information for `E`.
 	  * @param sizeHint predicted future size of the buffer
 	  * @tparam E element type
 	  * @return an empty buffer specialized accordingly to the given class tag.
 	  */
-	def emptyOf[E :Specialized](sizeHint :Int) :SharedArrayBuffer[E] =
-		shared(new ArrayBounds(Specialized.arrayFor[E](sizeHint), 0, 0))
+	def emptyOf[E :RuntimeType](sizeHint :Int) :SharedArrayBuffer[E] =
+		shared(new ArrayBounds(RuntimeType.arrayFor[E](sizeHint), 0, 0))
 	
 	/** Create an empty buffer reusing the given array.
 	  * Created buffer will start appending from index `0` in the array, but reallocate it when its capacity is exceeded.

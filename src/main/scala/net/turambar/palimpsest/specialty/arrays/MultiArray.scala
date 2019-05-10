@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.arrays
 
 
-import net.turambar.palimpsest.specialty.Specialized.MultiValue
+import net.turambar.palimpsest.specialty.RuntimeType.MultiValue
 import net.turambar.palimpsest.specialty.arrays.MultiArray.{ArrayAccessor, ArrayDimension}
 import net.turambar.palimpsest.specialty.arrays.MultiArray.ArrayDimension.{_1, _2, _3, Inc}
 

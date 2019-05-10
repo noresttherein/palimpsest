@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized, arrayFill}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType, arrayFill}
 
 import scala.annotation.unspecialized
 
@@ -94,11 +94,11 @@ object MutableSeq extends InterfaceIterableFactory[MutableSeq] {
 
 	override protected[this] final def default: FitIterableFactory[SharedArray] = SharedArray
 
-	def of[E <: AnyVal :Specialized](size :Int) :MutableSeq[E] =
-		SharedArray(Specialized.arrayFor[E](size))
+	def of[E <: AnyVal :RuntimeType](size :Int) :MutableSeq[E] =
+		SharedArray(RuntimeType.arrayFor[E](size))
 
-	def of[E :Specialized](size :Int, value :E) :MutableSeq[E] =
-		SharedArray(arrayFill(Specialized.arrayFor[E](size), value))
+	def of[E :RuntimeType](size :Int, value :E) :MutableSeq[E] =
+		SharedArray(arrayFill(RuntimeType.arrayFor[E](size), value))
 	
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSeq[_], E, MutableSeq[E]]): CanBuildFrom[MutableSeq[_], E, MutableSeq[E]] =

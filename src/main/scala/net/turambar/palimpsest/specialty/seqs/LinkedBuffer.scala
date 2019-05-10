@@ -4,7 +4,7 @@ import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListIterator, NonEmpty}
 import net.turambar.palimpsest.specialty.seqs.ListSlice.ListSliceIterator
-import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom

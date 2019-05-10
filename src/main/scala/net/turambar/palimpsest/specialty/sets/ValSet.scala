@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.sets
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterable, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, Specialize, Specialized, SpecializedIterableFactory}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterable, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, Specialize, RuntimeType, SpecializedIterableFactory}
 
 import scala.annotation.unspecialized
 import scala.collection.immutable.LongMap
@@ -84,7 +84,7 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 //	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ValSet[E]] =
 //		SetBuilder()
 
-	override def fitBuilder[E: Specialized]: FitBuilder[E, ValSet[E]] = SetBuilder()
+	override def fitBuilder[E: RuntimeType]: FitBuilder[E, ValSet[E]] = SetBuilder()
 
 
 
@@ -112,7 +112,7 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 		override def forDouble :SetBuilder[Double] = ??? //DoubleSet.newBuilder
 		override def forChar :SetBuilder[Char] = ??? //CharSet.newBuilder
 		override def forUnit = ???
-		override def forRef[E :Specialized] = ???
+		override def forRef[E :RuntimeType] = ???
 	}
 
 	final private val EmptySet = new Specialize.Individually[ValSet] {
@@ -125,7 +125,7 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 		override def forFloat = ??? //FloatSet.Empty
 		override def forDouble = ??? //DoubleSet.Empty
 		override def forUnit = ???
-		override def forRef[E :Specialized] = ???
+		override def forRef[E :RuntimeType] = ???
 	}
 
 

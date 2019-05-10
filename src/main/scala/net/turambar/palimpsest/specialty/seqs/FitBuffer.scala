@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, IndexedSeqLike}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitIterable, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitIterable, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
 
 import scala.annotation.unspecialized
 import scala.reflect.ClassTag
@@ -110,13 +110,13 @@ object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqF
 	override protected[this] type RealType[@specialized(Elements) X] = SharedArrayBuffer[X]
 	override protected[this] def default: FitIterableFactory[SharedArrayBuffer] = SharedArrayBuffer
 
-	@inline def emptyOf[E :Specialized](sizeHint :Int) :FitBuffer[E] = SharedArrayBuffer.emptyOf[E](sizeHint)
+	@inline def emptyOf[E :RuntimeType](sizeHint :Int) :FitBuffer[E] = SharedArrayBuffer.emptyOf[E](sizeHint)
 
-	@inline def of[E :Specialized] :FitBuffer[E] = SharedArrayBuffer.of[E]
+	@inline def of[E :RuntimeType] :FitBuffer[E] = SharedArrayBuffer.of[E]
 
-	@inline def of[E <: AnyVal :Specialized](size :Int) :FitBuffer[E] = SharedArrayBuffer.of(size)
+	@inline def of[E <: AnyVal :RuntimeType](size :Int) :FitBuffer[E] = SharedArrayBuffer.of(size)
 
-	@inline def of[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(Specialized.UnboxedClass(value.getClass))) :FitBuffer[E] =
+	@inline def of[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :FitBuffer[E] =
 		SharedArrayBuffer.of(size, value)
 
 

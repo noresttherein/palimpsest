@@ -4,7 +4,7 @@ package net.turambar.palimpsest.specialty
 import java.lang.Math
 import scala.annotation.tailrec
 import scala.collection.{GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce, mutable}
-import Specialized.{Fun1, Fun1Vals}
+import RuntimeType.{Fun1, Fun1Vals}
 import net.turambar.palimpsest.specialty.FitBuilder.{BuilderAdapter, BuilderWrapper}
 import net.turambar.palimpsest.specialty.seqs.FitSeq
 
@@ -92,7 +92,7 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 //	def reverseResult :FitBuilder[E, To]
 	
 	
-	def typeHint[L<:E](implicit specialization :Specialized[L]) :FitBuilder[E, To] = this
+	def typeHint[L<:E](implicit specialization :RuntimeType[L]) :FitBuilder[E, To] = this
 	
 	def origin :Any = this
 	
@@ -294,19 +294,19 @@ object FitBuilder {
 				case _ => Int.MinValue
 			}
 		
-		protected[this] def guessSpecialization :Specialized[E] = {
-			@tailrec def rec(soFar :Specialized[E], remaining :List[TraversableOnce[E]]) :Specialized[E] =
+		protected[this] def guessSpecialization :RuntimeType[E] = {
+			@tailrec def rec(soFar :RuntimeType[E], remaining :List[TraversableOnce[E]]) :RuntimeType[E] =
 				remaining match {
 					case Nil => soFar
 					case FitTraversableOnce(col)::rest if col.specialization == soFar =>
 						rec(soFar, rest)
 					case hd::rest if hd.isEmpty => rec(soFar, rest)
-					case _ => Specialized.generic
+					case _ => RuntimeType.erased
 				}
 			elems match {
-				case FitTraversableOnce(col)::rest if col.specialization!=Specialized.SpecializedAnyRef =>
-					rec(col.specialization.asInstanceOf[Specialized[E]], rest)
-				case _ => Specialized.generic[E]
+				case FitTraversableOnce(col)::rest if col.specialization!=RuntimeType.OfAnyRef =>
+					rec(col.specialization.asInstanceOf[RuntimeType[E]], rest)
+				case _ => RuntimeType.erased[E]
 			}
 		}
 		

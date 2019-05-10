@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.{?, FitIterable, FitIterator, IterableSpecialization, IterableTemplate, Var}
-import net.turambar.palimpsest.specialty.Specialized.Fun2
+import net.turambar.palimpsest.specialty.RuntimeType.Fun2
 import net.turambar.palimpsest.specialty.seqs.ValList
 import net.turambar.palimpsest.specialty.tries.Trie.MutableTrieParent
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}

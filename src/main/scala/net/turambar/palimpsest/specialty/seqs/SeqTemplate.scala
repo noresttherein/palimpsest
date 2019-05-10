@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.Specialized.Fun1Vals
+import net.turambar.palimpsest.specialty.RuntimeType.Fun1Vals
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, IterableSpecialization, IterableTemplate}
 
 import scala.collection.SeqLike

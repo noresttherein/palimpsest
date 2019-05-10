@@ -28,13 +28,13 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 //	val Empty :S[Nothing] //= empty[Nothing]
 	
 	protected[this] final val NewEmpty :Specialize[S] = new Specialize[S] {
-		override def specialized[@specialized E : Specialized]: S[E] = empty[E]
+		override def specialized[@specialized E : RuntimeType]: S[E] = empty[E]
 	}
 	
 	/** An empty collection `S[E]` instance specialized in regard to `E` as described by
 	  * implicit specialization information.
 	  */
-	def emptyOf[E :Specialized] :S[E] = NewEmpty()
+	def emptyOf[E :RuntimeType] :S[E] = NewEmpty()
 
 	/** An empty collection `S[E]` instance specialized in regard to `E`.
 	  * Note that this method can rely on local specialization context only.
@@ -67,13 +67,13 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] //= specializedBuilder[E]
 
-	/** Builder specialized on `E` if any information about type `E` is available (see [[Specialized]]). */
-	def fitBuilder[E :Specialized] :FitBuilder[E, S[E]] = NewBuilder() //todo: rename to builder
+	/** Builder specialized on `E` if any information about type `E` is available (see [[RuntimeType]]). */
+	def fitBuilder[E :RuntimeType] :FitBuilder[E, S[E]] = NewBuilder() //todo: rename to builder
 	
 	protected[this] type SpecializedBuilder[E] = FitBuilder[E, S[E]]
 
 	protected[this] final val NewBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
-		override def specialized[@specialized E : Specialized]: SpecializedBuilder[E] = newBuilder[E] //specializedBuilder[E]
+		override def specialized[@specialized E : RuntimeType]: SpecializedBuilder[E] = newBuilder[E] //specializedBuilder[E]
 	}
 //
 //	def specializedBuilder[@specialized(Elements) E :Specialized] :FitBuilder[E, S[E]] = newBuilder[E]
@@ -90,7 +90,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
   * @author Marcin Moscicki
   */
 object FitCompanion {
-	import Specialized.{Fun1, Fun1Vals}
+	import RuntimeType.{Fun1, Fun1Vals}
 	
 	
 	
@@ -104,7 +104,7 @@ object FitCompanion {
 		private[this] type MapFun[X] = X => E
 
 		private[this] final val mapper = new Specialize.With2[Builder, MapFun, Specialize.Const[FitBuilder[E, To]]#T]{
-			override def specialized[@specialized X :Specialized](f :X => E, builder :FitBuilder[E, To]) =
+			override def specialized[@specialized X :RuntimeType](f :X => E, builder :FitBuilder[E, To]) =
 				builder.mapInput(f)
 		}
 
@@ -120,12 +120,12 @@ object FitCompanion {
 
 		def mapped[O](from :From, f :O => E) :FitBuilder[O, To]
 
-		def mapped[O :Specialized](f :O => E) :FitBuilder[O, To]
+		def mapped[O :RuntimeType](f :O => E) :FitBuilder[O, To]
 
 		def mapping[O](from :From with FitIterable[O], f :O => E) :FitBuilder[O, To] =
-			mapper[O](f, (this :CanFitFrom[From, E, To]).apply(from))(from.specialization.asInstanceOf[Specialized[O]])
+			mapper[O](f, (this :CanFitFrom[From, E, To]).apply(from))(from.specialization.asInstanceOf[RuntimeType[O]])
 
-		def mapping[O :Specialized](f :O => E) :FitBuilder[O, To] =
+		def mapping[O :RuntimeType](f :O => E) :FitBuilder[O, To] =
 			mapper(f, (this :CanFitFrom[From, E, To]).apply())
 
 		/** If `true`, `this(from)` takes its builder, as is customary, from
@@ -135,7 +135,7 @@ object FitCompanion {
 		
 		def elementType :Class[_] = specialization.runType
 		
-		def specialization :Specialized[_]
+		def specialization :RuntimeType[_]
 
 		def canEqual(that :Any) :Boolean = that.isInstanceOf[CanFitFrom[_, _, _]]
 
@@ -164,21 +164,21 @@ object FitCompanion {
 		override def apply(): FitBuilder[E, To] = cbf()
 
 		override def mapped[O](from :From, f :O => E) :FitBuilder[O, To] = from match {
-			case fit :FitTraversableOnce[_] => cbf.mapped(f)(fit.specialization.asInstanceOf[Specialized[O]])
+			case fit :FitTraversableOnce[_] => cbf.mapped(f)(fit.specialization.asInstanceOf[RuntimeType[O]])
 
 			case _ => cbf().mapInput(f)
 		}
 
-		override def mapped[O :Specialized](f :O => E) :FitBuilder[O, To] = cbf.mapped(f)
+		override def mapped[O :RuntimeType](f :O => E) :FitBuilder[O, To] = cbf.mapped(f)
 
 
 		override def mapping[O](from :From with FitIterable[O], f :O => E) :FitBuilder[O, To] =
-			cbf.mapped(f)(from.specialization.asInstanceOf[Specialized[O]])
+			cbf.mapped(f)(from.specialization.asInstanceOf[RuntimeType[O]])
 
-		override def mapping[O :Specialized](f :O => E) :FitBuilder[O, To] =
+		override def mapping[O :RuntimeType](f :O => E) :FitBuilder[O, To] =
 			cbf.mapped(f)
 
-		override def specialization: Specialized[_] = cbf.specialization
+		override def specialization: RuntimeType[_] = cbf.specialization
 		
 		override private[specialty] def companion = cbf.companion
 		

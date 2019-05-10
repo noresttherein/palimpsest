@@ -20,6 +20,6 @@ trait SpecializableIterable[@specialized(Elements) +E, +S[@specialized(Elements)
 	override def genericBuilder[@specialized(Elements) T]: FitBuilder[T, S[T]] = companion.newBuilder[T]
 	
 
-	def fitBuilder[T :Specialized] :FitBuilder[T, S[T]] = companion.fitBuilder[T] //todo: rename to build?
+	def fitBuilder[T :RuntimeType] :FitBuilder[T, S[T]] = companion.fitBuilder[T] //todo: rename to build?
 
 }

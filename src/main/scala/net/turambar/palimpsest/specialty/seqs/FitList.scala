@@ -27,7 +27,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 	) extends SeqFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
 			  with IterableSpecialization[E, FitList[E]] with StableSeq[E] with SliceLike[E, FitList[E]] with SpecializableIterable[E, FitList] with OfKnownSize
 {
-	import Specialized.Fun2Vals
+	import RuntimeType.Fun2Vals
 
 //	override def isEmpty :Boolean = length == 0
 //	override def nonEmpty :Boolean = length > 0
@@ -293,10 +293,10 @@ object FitList extends ImplementationIterableFactory[FitList] {
 
 	def newReverseBuilder[@specialized(Elements) E] :FitBuilder[E, FitList[E]] = new ReverseFitListBuilder[E]
 	
-	def reverseBuilder[E :Specialized] :ReverseFitListBuilder[E] = ReverseBuilder()
+	def reverseBuilder[E :RuntimeType] :ReverseFitListBuilder[E] = ReverseBuilder()
 	
 	private[this] final val ReverseBuilder = new Specialize[ReverseFitListBuilder] {
-		override def specialized[@specialized E : Specialized] = new ReverseFitListBuilder[E]
+		override def specialized[@specialized E : RuntimeType] = new ReverseFitListBuilder[E]
 	}
 	
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitList[_], E, FitList[E]]): CanBuildFrom[FitList[_], E, FitList[E]] =
@@ -348,7 +348,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 	
 	private[seqs] class FitListBuilder[@specialized(Elements) E] extends FitBuilder[E, FitList[E]] {
 		private[this] var length :Int=0
-		private[this] var tail :FullLink[E] = new FullLink(Specialized[E].default)
+		private[this] var tail :FullLink[E] = new FullLink(RuntimeType[E].default)
 		private[this] var head :FullLink[E] = tail
 		
 		def count = length
@@ -370,7 +370,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 		
 		override def result(): FitList[E] = {
 			val res = head
-			head = new FullLink(Specialized[E].default)
+			head = new FullLink(RuntimeType[E].default)
 			tail = head
 			length = 0
 			new FitList(length, res)
@@ -378,7 +378,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 			
 		
 		override def clear(): Unit = {
-			head = new FullLink(Specialized[E].default); tail = head; length=0
+			head = new FullLink(RuntimeType[E].default); tail = head; length=0
 		}
 	}
 	

@@ -7,7 +7,7 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic, GenericCompanion}
 import scala.collection.{GenIterable, GenTraversableOnce, IterableLike, breakOut, mutable}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterator.MappedIterator
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Res, Fun1Vals, Fun2, Fun2Vals}
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitList, FitSeq, SharedArray}
 
@@ -111,9 +111,9 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		override def forDouble :S[Double] = (os :OOS, elem :Double) => os.writeDouble(elem)
 		override def forBoolean :S[Boolean] = (os :OOS, elem :Boolean) => os.writeBoolean(elem)
 		override def forUnit :S[Unit] = (os :OOS, elem :Unit) => ()
-		override def forNothing :S[Nothing] = (os :OOS, elem :Nothing) => ()
+//		override def forNothing :S[Nothing] = (os :OOS, elem :Nothing) => ()
 //		override def forNull :S[Null] = (os :OOS, elem :Null) => ()//os.writeObject(null) //todo: what do
-		override def forRef[E: Specialized]: S[E] = (os :OOS, elem :E) => os.writeObject(elem)
+		override def forRef[E: RuntimeType]: S[E] = (os :OOS, elem :E) => os.writeObject(elem)
 	}
 
 	abstract class ElementDeserializer[@specialized(Elements) E] {
@@ -133,9 +133,9 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		override def forDouble :D[Double] = (is :OIS) => is.readDouble
 		override def forBoolean :D[Boolean] = (is :OIS) => is.readBoolean
 		override def forUnit :D[Unit] = (is :OIS) => ()
-		override def forNothing :D[Nothing] = (is :OIS) => throw new NoSuchElementException(s"Attempted to deserialize Nothing")
+//		override def forNothing :D[Nothing] = (is :OIS) => throw new NoSuchElementException(s"Attempted to deserialize Nothing")
 //		override def forNull :D[Null] = (is: OIS) => null
-		override def forRef[@specialized E: Specialized]: D[E] = (is :OIS) => is.readObject.asInstanceOf[E]
+		override def forRef[@specialized E: RuntimeType]: D[E] = (is :OIS) => is.readObject.asInstanceOf[E]
 	}
 
 
@@ -232,7 +232,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 			source.map(mine)(forceFit)
 //			(FitSeq.fitBuilder[E](mySpecialization).mapInput(mine) ++= source).result()
 
-		override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] =
+		override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] =
 			(FitBuffer.fitBuilder[U].mapInput(mine) ++= source).result()
 	}
 
@@ -341,7 +341,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	  */
 	abstract class IterableAdapter[+Source<:IterableSpecialization[E, Source], +E, +This] extends IterableFoundation[E, This] {
 
-		override def specialization :Specialized[_<:E] = source.specialization
+		override def specialization :RuntimeType[_<:E] = source.specialization
 
 		protected[this] def source :Source
 		protected[this] def fromSource(other :Source) :This
@@ -433,7 +433,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 		override def toSeq :FitSeq[E] = source.toSeq
 
-		override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] =
+		override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] =
 			source.toFitBuffer[U]
 
 		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int) :Unit = source.copyToArray(xs, start, len)

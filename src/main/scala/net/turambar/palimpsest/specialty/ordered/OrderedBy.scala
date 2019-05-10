@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.ordered
 
 import net.turambar.palimpsest.specialty.sets.{OrderedSet, ValSet}
 import net.turambar.palimpsest.specialty.{?, some_?, FitIterator, Sure, Blank}
-import net.turambar.palimpsest.specialty.Specialized.MultiValue
+import net.turambar.palimpsest.specialty.RuntimeType.MultiValue
 
 import scala.collection.generic.Sorted
 

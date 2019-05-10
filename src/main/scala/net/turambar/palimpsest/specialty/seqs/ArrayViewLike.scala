@@ -7,7 +7,7 @@ import scala.reflect.ClassTag
 import scala.collection.{immutable, IndexedSeqLike, IndexedSeqOptimized, LinearSeqLike}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.Specialized.Fun2Vals
+import net.turambar.palimpsest.specialty.RuntimeType.Fun2Vals
 import net.turambar.palimpsest.specialty._
 
 import scala.compat.Platform
@@ -34,7 +34,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 //	@inline
 //	final protected[this] def storageType :Class[E] = array.getClass.getComponentType.asInstanceOf[Class[E]]
 
-	def boxClass: Class[_] = Specialized.BoxedClass(storageClass)
+	def boxClass: Class[_] = RuntimeType.BoxedClass(storageClass)
 
 	@inline
 	implicit final protected[this] def storageClassTag :ClassTag[E] = ClassTag(storageClass.asInstanceOf[Class[E]])
@@ -173,8 +173,8 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 //	override def toBuffer[U >: E]: FitBuffer[U] =
 
 	@unspecialized
-	override def toFitBuffer[U >: E: Specialized]: SharedArrayBuffer[U] =
-		if (storageClass isAssignableFrom Specialized[U].runType)
+	override def toFitBuffer[U >: E: RuntimeType]: SharedArrayBuffer[U] =
+		if (storageClass isAssignableFrom RuntimeType[U].runType)
 			new GrowingArrayBuffer[E](array, headIdx, length, true).asInstanceOf[SharedArrayBuffer[U]]
 		else SharedArrayBuffer.of[U] ++= this
 

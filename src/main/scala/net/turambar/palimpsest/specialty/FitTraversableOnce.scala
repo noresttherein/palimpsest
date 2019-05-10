@@ -16,7 +16,7 @@ import scala.collection.{BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike
 //todo: rename to `Vals`
 trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[E] { //with FilterMonadic[E, FitTraversableOnce[E]] {
 //	protected[this] def mySpecialization :Specialized[E]
-	def specialization :Specialized[_<:E] //= mySpecialization
+	def specialization :RuntimeType[_<:E] //= mySpecialization
 
 	@unspecialized
 	def traverse(f :E=>Unit) :Unit //= foreach(f)

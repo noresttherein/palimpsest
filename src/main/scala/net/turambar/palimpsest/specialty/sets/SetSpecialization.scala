@@ -5,7 +5,7 @@ import java.lang.Math
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableTemplate
 import net.turambar.palimpsest.specialty.ordered.OrderedAs
 import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate, RuntimeType}
 
 import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
@@ -77,7 +77,7 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 	extends SetTemplate[E, This] with IterableSpecialization[E, This]
 {
 
-	override def specialization :Specialized[E] = mySpecialization
+	override def specialization :RuntimeType[E] = mySpecialization
 
 	override def empty :This
 

@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.EmptyIterable
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitTraversableOnce, ImplementationIterableFactory, Specialize, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitTraversableOnce, ImplementationIterableFactory, Specialize, RuntimeType}
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenTraversableOnce, SetLike, immutable}
@@ -60,7 +60,7 @@ object StableSet extends ImplementationIterableFactory[StableSet] {
 		override def forChar :SetBuilder[Char] = ??? //CharSet.newBuilder
 		override def forUnit :SetBuilder[Unit] = ???
 
-		override def forRef[E :Specialized] :SetBuilder[E] = ???
+		override def forRef[E :RuntimeType] :SetBuilder[E] = ???
 
 	}
 
@@ -76,7 +76,7 @@ object StableSet extends ImplementationIterableFactory[StableSet] {
 
 		override def forUnit = ???
 
-		override def forRef[E :Specialized] = ???
+		override def forRef[E :RuntimeType] = ???
 	}
 
 

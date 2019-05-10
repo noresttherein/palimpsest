@@ -6,7 +6,7 @@ import scala.collection.{immutable, mutable, GenTraversableOnce, SeqLike}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, IterableFoundation, SingletonFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.seqs.StableSeq.{MakeStableIndexed, Seq1, Seq2}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
 
 
 /** A scala `Seq` (either mutable or immutable underneath) which is specialized on its element type.
@@ -62,7 +62,7 @@ trait FitSeq[@specialized(Elements) +E]
 
 /** Factory for sequences specialized on their element type. */
 object FitSeq extends InterfaceIterableFactory[FitSeq] {
-	import Specialized.Fun1Vals
+	import RuntimeType.Fun1Vals
 
 	type Stable[@specialized(Elements) +E] = StableSeq[E]
 	type Mutable[@specialized(Elements) E] = MutableSeq[E]
@@ -70,7 +70,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 
 	final val Empty :FitSeq[Nothing] = ArrayPlus.Empty
 
-	@inline def Acc[E :Specialized] :StableSeq[E] = ArrayPlus.Acc[E]
+	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.Acc[E]
 	
 	protected[this] type RealType[@specialized(Elements) X] = StableArray[X]
 

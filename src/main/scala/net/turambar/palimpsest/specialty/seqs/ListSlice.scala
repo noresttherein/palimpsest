@@ -12,7 +12,7 @@ import scala.annotation.unspecialized
 import scala.collection.LinearSeqLike
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
-import net.turambar.palimpsest.specialty.Specialized.Fun2
+import net.turambar.palimpsest.specialty.RuntimeType.Fun2
 import net.turambar.palimpsest.specialty.FitIterable.{ElementDeserializer, ElementSerializer}
 import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
@@ -320,7 +320,7 @@ object ListSlice extends ImplementationIterableFactory[ListSlice] {
 			private var hat :NonEmpty[E], private var coccyx :NonEmpty[E])
 		extends FitBuilder[E, ListSlice[E]] 
 	{
-		def this(handle :NonEmpty[E] = new NonEmpty(Specialized[E].default)) =
+		def this(handle :NonEmpty[E] = new NonEmpty(RuntimeType[E].default)) =
 			this(handle, handle)
 
 		private[this] var length = 0

@@ -29,7 +29,7 @@ class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val si
 	override def hasFastSize = true
 	override def hasDefiniteSize = true
 
-	override protected[this] def mySpecialization: Specialized[Int] = Specialized.SpecializedInt
+	override protected[this] def mySpecialization: Specialized[Int] = Specialized.OfInt
 	override def empty = IntSet.Empty
 
 	override def foreach[@specialized(Unit) U](f: (Int) => U) = {

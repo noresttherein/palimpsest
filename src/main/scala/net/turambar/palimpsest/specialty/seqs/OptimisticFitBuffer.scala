@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import net.turambar.palimpsest.specialty.{Elements, FitIterator, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.FitIterable.IterableViewFoundation
-import net.turambar.palimpsest.specialty.Specialized.Fun1Res
+import net.turambar.palimpsest.specialty.RuntimeType.Fun1Res
 
 import scala.collection.{mutable, GenTraversableOnce}
 

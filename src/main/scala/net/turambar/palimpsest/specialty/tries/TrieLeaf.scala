@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.iterables.{SingletonFoundation, SingletonTemplate}
-import net.turambar.palimpsest.specialty.Specialized.Fun1
+import net.turambar.palimpsest.specialty.RuntimeType.Fun1
 import net.turambar.palimpsest.specialty.{?, Sure, Var}
 import net.turambar.palimpsest.specialty.tries.Trie.KeyTypes
 

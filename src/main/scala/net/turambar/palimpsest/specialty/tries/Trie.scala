@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.slang.Nullable
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
 import net.turambar.palimpsest.specialty.tries.Trie._
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, IterableSpecialization, IterableTemplate, Specialize, Specialized, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, IterableSpecialization, IterableTemplate, Specialize, RuntimeType, Sure}
 import net.turambar.palimpsest.specialty.Var
 
 import scala.annotation.{tailrec, unspecialized}

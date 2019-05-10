@@ -5,7 +5,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.{immutable, IndexedSeqLike}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{DoubletonSpecialization, IterableFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 
 
@@ -42,7 +42,7 @@ trait StableSeq[@specialized(Elements) +E]
 
 /** Factory of immutable, specialized indexed sequences. */
 object StableSeq extends InterfaceIterableFactory[StableSeq] {
-	@inline def Acc[E :Specialized] :StableSeq[E] = ArrayPlus.Acc[E]
+	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.Acc[E]
 
 	def single[@specialized(Elements) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
 

@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.Specialized.Fun1
+import net.turambar.palimpsest.specialty.RuntimeType.Fun1
 import net.turambar.palimpsest.specialty.tries.BinaryTrie.{BinaryTrieBranch, BinaryTriePatch}
 import net.turambar.palimpsest.specialty.tries._
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}

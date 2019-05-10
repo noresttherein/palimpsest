@@ -77,12 +77,12 @@ object ArrayIterator {
 		
 	
 	private[this] final val Wrap = new Specialize.With[ArrayIterator, Array] {
-		override def specialized[@specialized E : Specialized](param: Array[E]): ArrayIterator[E] =
+		override def specialized[@specialized E : RuntimeType](param: Array[E]): ArrayIterator[E] =
 			new ArrayIterator[E](param, 0, param.length)
 	}
 	
 	private[this] final val Reversed = new Specialize.With[ReverseArrayIterator, Array] {
-		override def specialized[@specialized E : Specialized](param: Array[E]): ReverseArrayIterator[E] =
+		override def specialized[@specialized E : RuntimeType](param: Array[E]): ReverseArrayIterator[E] =
 			new ReverseArrayIterator[E](param, param.length-1, 0)
 	}
 }

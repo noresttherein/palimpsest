@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty
 
-import Specialized.{All, Primitives, Fun2, Fun2Vals}
+import RuntimeType.{All, Primitives, Fun2, Fun2Vals}
 import ValFun.{ArgTypes, ResTypes, =>:}
 
 trait FunctionArgumentSpecialization[-X, +Y] extends (X => Y) {
@@ -11,9 +11,9 @@ trait FunctionArgumentSpecialization[-X, +Y] extends (X => Y) {
 trait ValFun[@specialized(Primitives) -X, @specialized(All) +Y] extends (X => Y) {
 	override def apply(x :X) :Y
 
-	def accepts :Specialized[_] = domain
+	def accepts :RuntimeType[_] = domain
 
-	def returns :Specialized[_] = range
+	def returns :RuntimeType[_] = range
 
 	def *:[W](g :W => X) :W => Y
 
@@ -24,9 +24,9 @@ trait ValFun[@specialized(Primitives) -X, @specialized(All) +Y] extends (X => Y)
 //	override def andThen[A](g :Y => A) :X => A = super.andThen(g)
 
 
-	protected[this] def domain :Specialized[X] = Specialized[X]
+	protected[this] def domain :RuntimeType[X] = RuntimeType[X]
 
-	protected[this] def range :Specialized[Y] = Specialized[Y]
+	protected[this] def range :RuntimeType[Y] = RuntimeType[Y]
 
 	override def toString = s"${domain.typeName} => ${range.typeName}"
 
@@ -34,8 +34,8 @@ trait ValFun[@specialized(Primitives) -X, @specialized(All) +Y] extends (X => Y)
 
 
 object ValFun {
-	val ArgTypes = Specialized.Primitives
-	val ResTypes = Specialized.All
+	val ArgTypes = RuntimeType.Primitives
+	val ResTypes = RuntimeType.All
 
 //	type =>:[@specialized(ArgTypes) -X, @specialized(ResTypes) +Y] = ValFun[X, Y]
 

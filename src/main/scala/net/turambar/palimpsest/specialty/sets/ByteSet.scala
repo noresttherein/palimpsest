@@ -7,8 +7,8 @@ import scala.collection.{GenIterable, GenSet, GenTraversableOnce}
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, Specialized, Sure}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.OrderedSet.Mutable
 
@@ -35,7 +35,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 {
 	@inline final private[ByteSet] def bitmap :ByteSetBitmap = bytes
 
-	override final protected[this] def mySpecialization  :Specialized[Byte] = Specialized.SpecializedByte
+	override final protected[this] def mySpecialization  :RuntimeType[Byte] = RuntimeType.OfByte
 
 	override implicit def ordering: ValOrdering[Byte] = ByteSet.UnsignedOrdering
 

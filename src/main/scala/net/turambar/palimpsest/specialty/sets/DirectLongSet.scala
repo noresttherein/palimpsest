@@ -22,7 +22,7 @@ import scala.collection.generic.CanBuildFrom
   */
 @deprecated("to be replaced with LongTrieSet")
 trait DirectLongSet extends ValSet[Long] with SetSpecialization[Long, DirectLongSet] {
-	override protected[this] def mySpecialization = Specialized.SpecializedLong
+	override protected[this] def mySpecialization = Specialized.OfLong
 	override def hasFastSize = true
 
 	override def empty :DirectLongSet = DirectLongSet.Empty
@@ -1190,7 +1190,7 @@ object DirectLongSet {
 	private[DirectLongSet] class LongTrieIterator(stack :Array[DirectLongSet], private[this] var top :Int)
 		extends BaseIterator[Long] with FitIterator[Long]
 	{
-		override protected[this] def mySpecialization = Specialized.SpecializedLong
+		override protected[this] def mySpecialization = Specialized.OfLong
 
 		def this(trie: DirectLongSet) = {
 			this(new Array[DirectLongSet](64), 0)

@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.Specialized.Fun2Vals
+import net.turambar.palimpsest.specialty.RuntimeType.Fun2Vals
 import net.turambar.palimpsest.specialty.{Elements, FitIterator}
 
 /** A backwards view of another [[FitSeq]].

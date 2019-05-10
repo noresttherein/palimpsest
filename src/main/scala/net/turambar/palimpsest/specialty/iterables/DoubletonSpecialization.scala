@@ -4,7 +4,7 @@ import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.{?, ofKnownSize, Blank, Elements, FitIterable, FitIterator, IterableSpecialization, IterableTemplate, Sure}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Res, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
 
 import scala.collection.{mutable, GenIterable, GenTraversableOnce, LinearSeq}

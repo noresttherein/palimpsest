@@ -7,13 +7,13 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 import scala.collection.{immutable, mutable, AbstractIterator, BufferedIterator, GenTraversableOnce, Iterator}
 import net.turambar.palimpsest.{IndexedIteratorLike, ReverseIndexedIteratorLike}
 import net.turambar.palimpsest.specialty.FitIterator.{ConcatIterator, FilterIterator, LimitedIterator, MappedIterator, ScanLeftIterator, TakeWhileIterator}
-import Specialized.{Fun1, Fun1Vals, Fun2, Fun2Vals}
+import RuntimeType.{Fun1, Fun1Vals, Fun2, Fun2Vals}
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitIndexedSeq, FitSeq, StableArray}
 
 
 
 sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIterator] { self :FitIterator[E] =>
-	protected[this] def mySpecialization :Specialized[E]
+	protected[this] def mySpecialization :RuntimeType[E]
 
 //	def hasFastSize :Boolean = hasNext
 
@@ -99,7 +99,7 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIte
 
 	override def toIterator :FitIterator[E] = this
 
-	def toFitBuffer[U>:E :Specialized] :FitBuffer[U] = //(FitBuffer.fitBuilder(mySpecialization) ++= this).result()
+	def toFitBuffer[U>:E :RuntimeType] :FitBuffer[U] = //(FitBuffer.fitBuilder(mySpecialization) ++= this).result()
 		FitBuffer.of[U] ++= this
 
 
@@ -136,10 +136,10 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIte
 trait FitIterator[@specialized(Elements) +E]
 	extends BufferedIterator[E] with FitTraversableOnce[E] with IteratorTemplate[E]//with FilterMonadic[E, FitIterator[E]]
 { self =>
-	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
+	protected[this] def mySpecialization :RuntimeType[E] = RuntimeType[E]
 
 	@unspecialized
-	override final def specialization :Specialized[_<:E] = mySpecialization
+	override final def specialization :RuntimeType[_<:E] = mySpecialization
 	
 
 	
@@ -515,7 +515,7 @@ object FitIterator {
 		override def toSeq :FitSeq[E] = FitSeq.empty[E]
 		override def toIndexedSeq :immutable.IndexedSeq[E] = StableArray.empty[E]
 		override def toBuffer[U >: E]: FitBuffer[U] = FitBuffer.empty[U]
-		override def toFitBuffer[U >: E : Specialized]: FitBuffer[U] = FitBuffer.empty[U]
+		override def toFitBuffer[U >: E : RuntimeType]: FitBuffer[U] = FitBuffer.empty[U]
 
 		override def sameElements(that: Iterator[_]): Boolean = that.isEmpty
 
@@ -524,9 +524,7 @@ object FitIterator {
 
 
 	/** An empty, erased iterator. */
-	val Empty :FitIterator[Nothing] = new EmptyIterator[Nothing] { //todo: do we need this specialization info?
-		override val mySpecialization :Specialized[Nothing] = Specialized[Nothing]
-	}
+	val Empty :FitIterator[Nothing] = new EmptyIterator[Nothing]
 
 	
 	

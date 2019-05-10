@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.reflect.ClassTag
 
-import net.turambar.palimpsest.specialty.{forceFit, Elements, FitCompanion, Specialized, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{forceFit, Elements, FitCompanion, RuntimeType, SpecializableIterable}
 import net.turambar.palimpsest.testutil._
 import org.scalacheck.Prop._
 import org.scalacheck.Properties
@@ -38,8 +38,8 @@ object FitSeqProps extends App {
 		
 	}
 	
-	class BasicSeqProperties[E :Specialized](seq :FitSeq[E], values :Int=>E, size :Int, dummy :E) extends Properties(seq.toString) {
-		implicit def classTag = Specialized[E].classTag.asInstanceOf[ClassTag[E]]
+	class BasicSeqProperties[E :RuntimeType](seq :FitSeq[E], values :Int=>E, size :Int, dummy :E) extends Properties(seq.toString) {
+		implicit def classTag = RuntimeType[E].classTag.asInstanceOf[ClassTag[E]]
 		
 		def valueSeq :Seq[E] = Stream.tabulate(size)(values)
 		
@@ -80,7 +80,7 @@ object FitSeqProps extends App {
 		
 		property("copyToArray") = {
 //			val ints = new Array[Int](10); (0 until 10).foreach { i => ints(i) = -1 }
-			val buff = Specialized.arrayFor(10)
+			val buff = RuntimeType.arrayFor(10)
 			buff.indices foreach { buff(_) = dummy }
 			seq.copyToArray(buff, 1, 8)
 			val copied = seq.length min 8

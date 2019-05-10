@@ -7,8 +7,8 @@ import scala.collection.{GenIterable, GenSeq, GenTraversableOnce, IndexedSeqLike
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
-import net.turambar.palimpsest.specialty.Specialized.Fun1Vals
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterable, IterableSpecialization, FitIterator, IterableTemplate, Specialized, ofKnownSize}
+import net.turambar.palimpsest.specialty.RuntimeType.Fun1Vals
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterable, IterableSpecialization, FitIterator, IterableTemplate, RuntimeType, ofKnownSize}
 
 
 /** An interface base trait for sequence-like collections which provide reasonably efficient slicing

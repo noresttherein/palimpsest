@@ -18,7 +18,7 @@ trait Specialize[R[X]] {
 	  * @param specialization information about runtime specialization requested for this call.
 	  * @return result of calling the most appropriately specialized variant of `this.specialized[E]`.
 	  */
-	@inline final def apply[E]()(implicit specialization :Specialized[E]) :R[E] =
+	@inline final def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
 		specialization.call(this)
 
 	/** Callback specialized method to be implemented by subclasses.
@@ -27,7 +27,7 @@ trait Specialize[R[X]] {
 	  * of this method will be invoked.
 	  * @tparam E original type parameter as defined in runtime by the call to [[Specialize#apply]].
 	  */
-	def specialized[@specialized E :Specialized] :R[E]
+	def specialized[@specialized E :RuntimeType] :R[E]
 }
 
 
@@ -57,11 +57,11 @@ object Specialize {
 		  * @tparam E type on which the call is specialized.
 		  * @return result of calling [[With#specialized]]`(param)`.
 		  */
-		@inline final def apply[E](param :P[E])(implicit specialization :Specialized[E]) :R[E] =
+		@inline final def apply[E](param :P[E])(implicit specialization :RuntimeType[E]) :R[E] =
 			specialization.call(this)(param)
 
 		/** Specialized callback invoked from [[With#apply]] based on the requested specialization type. */
-		def specialized[@specialized E :Specialized](param :P[E]) :R[E]
+		def specialized[@specialized E :RuntimeType](param :P[E]) :R[E]
 	}
 
 
@@ -81,11 +81,11 @@ object Specialize {
 		  * @tparam E type on which the call is specialized
 		  * @return result of calling [[With#specialized]]`(param)`.
 		  */
-		@inline final def apply[E](param1 :P1[E], param2 :P2[E])(implicit specialization :Specialized[E]) :R[E] =
+		@inline final def apply[E](param1 :P1[E], param2 :P2[E])(implicit specialization :RuntimeType[E]) :R[E] =
 			specialization.call(this)(param1, param2)
 
 		/** Specialized callback invoked from this instances `apply` method based on the requested specialization type. */
-		def specialized[@specialized E :Specialized](param1 :P1[E], param2 :P2[E]) :R[E]
+		def specialized[@specialized E :RuntimeType](param1 :P1[E], param2 :P2[E]) :R[E]
 	}
 
 
@@ -113,13 +113,13 @@ object Specialize {
 		  * all these methods simply forward to [[SpecializeIndividually#specialized]]. If `E` is not a primitive type
 		  * or no specialization information is available/a generic implicit value is provided it instead delegates
 		  * directly to [[SpecializeIndividually#specialized]].
- *
 		  * @param specialization implicit specialization information for type `E`
 		  * @tparam E type specialized for
 		  * @return
 		  */
-		@inline final def apply[E]()(implicit specialization :Specialized[E]) :R[E] =
+		@inline final def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
 			specialization.call(this)
+
 
 		/** Invoked from `this[E]()` if `E` is specified to be `Byte` by the implicit argument to [[SpecializeIndividually#apply]]. */
 		def forByte :R[Byte]
@@ -147,17 +147,11 @@ object Specialize {
 
 		/** Invoked from `this[E]()` if `E` is specified to be `Unit` by the implicit argument to [[SpecializeIndividually#apply]]. */
 		def forUnit :R[Unit]
-		//todo: are these two of any use?
-		/** Invoked from `this[E]()` if `E` is specified to be `Nothing` by the implicit argument to [[SpecializeIndividually#apply]]. */
-		def forNothing :R[Nothing] = forRef[Nothing]
-
-		/** Invoked from `this[E]()` if `E` is specified to be `Null` by the implicit argument to [[SpecializeIndividually#apply]]. */
-		def forNull :R[Null] = forRef[Null]
 
 		/** Invoked from `this[E]()` if `E` is either a reference type or is erased and boxed at the point of calling.
 		  * Implicit argument gives all available information about type `E`.
 		  */
-		def forRef[E :Specialized] :R[E]
+		def forRef[E :RuntimeType] :R[E]
 	}
 
 
@@ -186,17 +180,13 @@ object Specialize {
 
 		override def forUnit :R[Unit] = specialized
 
-		override def forNothing :R[Nothing] = specialized[Nothing]
-
-		override def forNull :R[Null] = specialized[Null]
-
-		override def forRef[E :Specialized] :R[E] = specialized[E]
+		override def forRef[E :RuntimeType] :R[E] = specialized[E]
 
 		/** Default callback implementation called when no specialization information is available, the specified type
 		  * is not a primitive type or the appropriate `forE` method for the given type `E` was not overridden.
 		  * @tparam E type specialized for
 		  */
-		def specialized[@specialized E :Specialized] :R[E]
+		def specialized[@specialized E :RuntimeType] :R[E]
 
 	}
 

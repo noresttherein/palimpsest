@@ -7,7 +7,7 @@ import scala.Specializable.SpecializedGroup
 import scala.collection.{mutable, BitSet, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.FitCompanion.{CanBreakOut, CanFitFrom}
-import net.turambar.palimpsest.specialty.Specialized.Primitives
+import net.turambar.palimpsest.specialty.RuntimeType.Primitives
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.ListSet
@@ -60,12 +60,12 @@ package object specialty {
 //		new CanBreakOut[F, E, T]
 	
 	
-	def specializeFrom[E](col :TraversableOnce[E]) :Specialized[E] = (col match {
+	def specializeFrom[E](col :TraversableOnce[E]) :RuntimeType[E] = (col match {
 		case i :FitIterable[E] => i.specialization
 		case i :FitIterator[E] => i.specialization
-		case a :mutable.WrappedArray[E] => Specialized.asClass(a.array.getClass.getComponentType)
-		case _ => Specialized.SpecializedAnyRef
-	}).asInstanceOf[Specialized[E]]
+		case a :mutable.WrappedArray[E] => RuntimeType.ofClass(a.array.getClass.getComponentType)
+		case _ => RuntimeType.OfAnyRef
+	}).asInstanceOf[RuntimeType[E]]
 	
 	
 	@inline
@@ -179,19 +179,19 @@ package object specialty {
 	
 	/** A simple wrapper over an array and validated index range, used as a common parameter for many factory methods of specialized collections. */
 	private[specialty] class ArrayBounds[E] private[specialty](val array :Array[E], val start :Int, val length :Int)
-	                                                          (implicit val specialization :Specialized[E])
+	                                                          (implicit val specialization :RuntimeType[E])
 	{
 		def this(array :Array[E]) =
-			this(array, 0, array.length)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+			this(array, 0, array.length)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 
-		def this()(implicit specialization :Specialized[E]) =
+		def this()(implicit specialization :RuntimeType[E]) =
 			this(specialization.emptyArray.asInstanceOf[Array[E]], 0, 0)
 		
 		def end :Int = start+length
 		
 		def copy = new ArrayBounds[E](arrayCopy(array, start, length), 0, length)
 		
-//		implicit def specialization :Specialized[E] = Specialized.asClass(array.getClass.getComponentType).asInstanceOf[Specialized[E]]
+//		implicit def specialization :Specialized[E] = Specialized.ofClass(array.getClass.getComponentType).asInstanceOf[Specialized[E]]
 		
 		
 		override def toString = s"${array.getClass.getName}[${array.length}]($start..$end)"
@@ -202,10 +202,10 @@ package object specialty {
 	/** Validates and creates [[ArrayBounds]] instances defining the contents of created specialized sequences. */
 	private[specialty] object ArrayBounds {
 		@inline final def share[E](array :Array[E]) :ArrayBounds[E] =
-			new ArrayBounds(array, 0, array.length)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+			new ArrayBounds(array, 0, array.length)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 		
 		@inline final def copy[E](array :Array[E]) :ArrayBounds[E] =
-			new ArrayBounds(arrayCopy(array), 0, array.length)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+			new ArrayBounds(arrayCopy(array), 0, array.length)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 		
 		
 		
@@ -213,16 +213,16 @@ package object specialty {
 			if (start < 0)
 				throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start")
 			else if (start >= array.length)
-				new ArrayBounds(array, array.length, 0)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds(array, array.length, 0)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			else
-				new ArrayBounds(array, start, array.length-start)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds(array, start, array.length-start)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 
 
 		def copy[E](array :Array[E], start :Int) :ArrayBounds[E] =
 			if (start < 0)
 				throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start")
 			else if (start >= array.length)
-				new ArrayBounds[E]()(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds[E]()(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			else
 				new ArrayBounds(arrayCopy(array, start, array.length - start))
 		
@@ -232,14 +232,14 @@ package object specialty {
 			if (start<0)
 				throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start, $length")
 			else if (start >= array.length)
-				new ArrayBounds(array, array.length, 0)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds(array, array.length, 0)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			else {
 				val available = array.length-start
 				new ArrayBounds(array, start,
 					if (length >= available) available
 					else if (length < 0) 0
 					else length
-				)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			}
 		
 		
@@ -247,11 +247,11 @@ package object specialty {
 			if (start < 0)
 				throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start, $length")
 			else if (start >= array.length || length <= 0)
-				new ArrayBounds[E]()(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds[E]()(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			else {
 				val available = array.length-start
 				val total = if (length > available) available else length
-				new ArrayBounds(arrayCopy(array, start, total), 0, total)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds(arrayCopy(array, start, total), 0, total)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			}
 		
 
@@ -260,18 +260,18 @@ package object specialty {
 			if (from < 0)
 				throw new IndexOutOfBoundsException(s"ArrayBounds.copy($from, ${arrayString(array)}, $until")
 			else if (from >= array.length || until <= from)
-				new ArrayBounds(array, array.length, 0)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds(array, array.length, 0)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			else if (until >= array.length)
-				new ArrayBounds(array, from, array.length - from)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds(array, from, array.length - from)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			else
-				new ArrayBounds(array, from, until - from)(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds(array, from, until - from)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 
 
 		def copy[E](from :Int, array :Array[E], until :Int) :ArrayBounds[E] =
 			if (from<0)
 				throw new IndexOutOfBoundsException(s"ArrayBounds.copy($from, ${arrayString(array)}, $until")
 			else if (from >= array.length || until <= from)
-				new ArrayBounds[E]()(Specialized.asClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+				new ArrayBounds[E]()(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 			else if (until >= array.length)
 				new ArrayBounds(arrayCopy(array, from, array.length - from))
 			else

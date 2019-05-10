@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, IterableSpecialization, IterableTemplate, Specialized}
-import net.turambar.palimpsest.specialty.Specialized.{Fun1Vals, Fun1Res, Fun2}
+import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, IterableSpecialization, IterableTemplate, RuntimeType}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Vals, Fun1Res, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
 
 import scala.collection.{GenIterable, GenTraversableOnce}
@@ -97,7 +97,7 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 
 	override def inverse :FitSeq[E] = FitSeq.Empty
 	override def toFitSeq :FitSeq[E] = FitSeq.Empty
-	override def toFitBuffer[U >: E : Specialized] :FitBuffer[U] = FitBuffer.of[U]
+	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] = FitBuffer.of[U]
 	override def toSeq :FitSeq[E] = FitSeq.Empty
 
 	override def sameElements[U >: E](that: GenIterable[U]) :Boolean = that.isEmpty

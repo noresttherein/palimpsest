@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitIterable, FitTraversableOnce, Specialized}
+import net.turambar.palimpsest.specialty.{Elements, FitIterable, FitTraversableOnce, RuntimeType}
 
 
 /** A mutable view of the tail of a buffer which allows to modify its contents only past some specified index.
@@ -40,7 +40,7 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 		else buffer.overwrite(offset+start, length)
 
 	@unspecialized
-	override def toFitBuffer[U >: E : Specialized]: FitBuffer[U] =
+	override def toFitBuffer[U >: E : RuntimeType]: FitBuffer[U] =
 		buffer.drop(offset).toFitBuffer[U]
 
 

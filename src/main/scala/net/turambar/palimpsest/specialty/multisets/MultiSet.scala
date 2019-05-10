@@ -5,8 +5,8 @@ import java.util
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, Specialized}
-import net.turambar.palimpsest.specialty.Specialized.{Fun2, Fun2Res}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun2, Fun2Res}
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitSeq, SharedArray, SharedArrayBuffer}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, MutableSetSpecialization, SetSpecialization, SpecializableSet, StableSet, ValSet}
 

@@ -10,7 +10,7 @@ import specialty._
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{LinearSeq, LinearSeqLike}
-import Specialized.Fun2
+import RuntimeType.Fun2
 import net.turambar.palimpsest.specialty.FitIterable.{ElementDeserializer, ElementSerializer}
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
