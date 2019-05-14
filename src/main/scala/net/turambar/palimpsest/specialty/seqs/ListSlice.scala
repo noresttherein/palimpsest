@@ -13,9 +13,10 @@ import scala.collection.LinearSeqLike
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
 import net.turambar.palimpsest.specialty.RuntimeType.Fun2
-import net.turambar.palimpsest.specialty.FitIterable.{ElementDeserializer, ElementSerializer}
+import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer}
 import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, SpecializableIterable, SpecializedIterableFactory}
 import net.turambar.palimpsest.specialty.seqs.ListSlice.{ListSliceBuilder, ListSliceIterator, SerializedListSlice}
 
 /**
@@ -259,7 +260,7 @@ class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], 
 		}
 
 
-	override protected[this] def uncheckedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+	override protected[this] def trustedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
 		var i = start; val count = Math.min(total, length); val end = start + count
 		var l = this.start
 		while (i < end) { xs(i) = l.head; i+=1; l = l.tail }
@@ -283,12 +284,13 @@ class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], 
 
 
 
-object ListSlice extends ImplementationIterableFactory[ListSlice] {
+object ListSlice extends SpecializedIterableFactory[ListSlice] {
 	final val Empty = empty[Nothing]
 
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[ListSlice[_], E, ListSlice[E]]): CanBuildFrom[ListSlice[_], E, ListSlice[E]] =
 		fit.cbf
+
 
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, ListSlice[E]] = 
 		new ListSliceBuilder
@@ -382,8 +384,6 @@ object ListSlice extends ImplementationIterableFactory[ListSlice] {
 			res
 		}
 
-		override def count: Int = length
-		
 	}
 	
 	private[seqs] class ReverseListSliceBuilder[@specialized(Elements) E](
@@ -409,7 +409,6 @@ object ListSlice extends ImplementationIterableFactory[ListSlice] {
 			l
 		} 
 
-		override def count: Int = length
 	}
 
 

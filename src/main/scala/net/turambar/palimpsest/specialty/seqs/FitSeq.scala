@@ -1,12 +1,11 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{immutable, mutable, GenTraversableOnce, SeqLike}
+import scala.collection.SeqLike
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, IterableFoundation, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.seqs.StableSeq.{MakeStableIndexed, Seq1, Seq2}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables._
+import net.turambar.palimpsest.specialty.seqs.StableSeq.{Seq1, Seq2}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, RuntimeType}
 
 
 /** A scala `Seq` (either mutable or immutable underneath) which is specialized on its element type.
@@ -70,7 +69,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 
 	final val Empty :FitSeq[Nothing] = ArrayPlus.Empty
 
-	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.Acc[E]
+	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.emptyOf[E]
 	
 	protected[this] type RealType[@specialized(Elements) X] = StableArray[X]
 
@@ -120,7 +119,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	abstract class SeqFoundation[+E, +Repr<:FitSeq[E]] extends IterableFoundation[E, Repr] with SeqTemplate[E, Repr] {
 
 		override def indexOf[U >: E](elem: U, from: Int): Int =
-			if (mySpecialization.boxType isAssignableFrom elem.getClass)
+			if (specialization.boxType isAssignableFrom elem.getClass)
 				positionOf(elem.asInstanceOf[E], from)
 			else
 				iterator.indexOf(elem, from)
@@ -128,7 +127,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 		override protected[this] def positionOf(elem :E, from :Int) :Int = iterator.indexOf(elem, from)
 
 		override def lastIndexOf[U >: E](elem: U, end: Int): Int =
-			if (mySpecialization.boxType isAssignableFrom elem.getClass)
+			if (specialization.boxType isAssignableFrom elem.getClass)
 				lastPositionOf(elem.asInstanceOf[E], end)
 			else
 				iterator.indexOf(elem, end)

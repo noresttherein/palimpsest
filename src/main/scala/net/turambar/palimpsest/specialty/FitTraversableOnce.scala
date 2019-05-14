@@ -1,10 +1,32 @@
 package net.turambar.palimpsest.specialty
 
+import net.turambar.palimpsest.specialty.iterables.FitIterable
 import net.turambar.palimpsest.specialty.seqs.SharedArray
 
 import scala.annotation.unspecialized
 import scala.collection.immutable.ListSet
-import scala.collection.{BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike, mutable}
+import scala.collection.{mutable, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
+
+
+/** A base trait for everything that is specialized. It exists to avoid numerous overrides caused by inheriting
+  * declarations from unrelated base types (such as `MutableSet` from `FitIterable` and FitBuilder), especially
+  * unresolvable conflicts when inheriting a final definition. It should be considered an implementation detail
+  * and possible to change without notice.
+  */
+trait SpecializedGeneric {
+
+	/** The runtime type this object uses to reference the values it works on. This will in general be some super type
+	  * of actual type parameter.
+	  */
+	def runtimeType :RuntimeType[_] = specialization
+
+	/** Target of `runtimeType` intended to be specialized in the implementing classes. */
+	protected[this] def specialization :RuntimeType[_]
+}
+
+
+
+
 
 
 /** Root trait for specialized collections and iterators.
@@ -14,23 +36,27 @@ import scala.collection.{BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike
   * @tparam E
   */
 //todo: rename to `Vals`
-trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[E] { //with FilterMonadic[E, FitTraversableOnce[E]] {
-//	protected[this] def mySpecialization :Specialized[E]
-	def specialization :RuntimeType[_<:E] //= mySpecialization
+trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[E] with SpecializedGeneric {
+//	protected[this] def specialization :Specialized[E]
+	override def runtimeType :RuntimeType[_<:E] = specialization
+
+	protected[this] override def specialization :RuntimeType[E]
 
 	@unspecialized
 	def traverse(f :E=>Unit) :Unit //= foreach(f)
 
 //	override def foreach[@specialized(Unit) U](f :E=>U) :Unit
 
-	/**  Declares if this collection is finite and provides reasonably fast (i.e. {{o(n)}}) `size` method.
+	/**  Declares if this collection is finite and provides reasonably fast (i.e. `o(n)`) `size` method, which additionally
+	  *  doesn't affect the state of this object (i.e., doesn't advance an iterator).
 	  *  Returning `true` will cause various modification methods of other collections and builders to pre-reserve
 	  *  required space or use otherwise more efficient algorithms.
 	  */
 	def hasFastSize :Boolean
 
-	/**  Declares that this collection contains at least {{size}} items.
+	/** Declares that this collection contains at least {{size}} items.
 	  * This can be more efficient than simply comparing it to `this.size`, especially for infinite and stream-like collections.
+	  * Note that in case of iterators and other `TraversableOnce` this will likely change the state of the collection.
 	  */
 	def ofAtLeast(size :Int) :Boolean //= this.size >= size
 

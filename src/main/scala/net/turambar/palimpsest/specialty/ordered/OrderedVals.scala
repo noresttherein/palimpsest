@@ -1,14 +1,9 @@
 package net.turambar.palimpsest.specialty.ordered
 
-import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
-import net.turambar.palimpsest.specialty.iterables.EmptyIterableTemplate
-import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
-import net.turambar.palimpsest.specialty.sets.OrderedSet
-import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterable, FitIterator, IterableSpecialization, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableSpecialization}
+import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator}
 
-import scala.collection.generic.Sorted
-import Ordering.Implicits.infixOrderingOps
-import scala.collection.{GenTraversableOnce, SortedSet}
+import scala.collection.GenTraversableOnce
 
 
 /** A template for collections ordered directly by its elements. The difference from [[OrderedBy]]

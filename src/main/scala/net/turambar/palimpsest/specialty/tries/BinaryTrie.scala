@@ -4,7 +4,7 @@ import net.turambar.palimpsest.specialty.{?, Elements, FitIterator, Var}
 import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementOf, EmptyElements, LeafElement}
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie._
-import net.turambar.palimpsest.specialty.tries.Trie.{FoldPath, KeyTypes, MutableTrieParent}
+import net.turambar.palimpsest.specialty.tries.Trie.{FoldPath, KeyTypes, MutableTrieOwner}
 
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 
@@ -261,10 +261,10 @@ trait MutableBinaryTrie[@specialized(KeyTypes) K, S <: GenericBinaryTrie[K, S, S
 	  *        of this operation. Note that patch implementations which change a node without replacing it (such as
 	  *        modifying a value associated with the key in a `Map` implementation) will return `false`.
 	  */
-	def patchKey(patch :BinaryTriePatch[K, S, T], parent :MutableTrieParent[T])(key :K) :Boolean = {
+	def patchKey(patch :BinaryTriePatch[K, S, T], parent :MutableTrieOwner[T])(key :K) :Boolean = {
 		val replacement = patchKey[S, T](patch)(key)
 		if (!(replacement eq this)){
-			parent.setSubtrie(replacement)
+			parent.updateTrie(replacement)
 			true
 		}else
 			false
@@ -284,10 +284,10 @@ trait MutableBinaryTrie[@specialized(KeyTypes) K, S <: GenericBinaryTrie[K, S, S
 	  * @param parent holder of the reference to this trie - either a parent node in a larger trie, or a wrapper such
 	  *               as [[TriePot]].
 	  */
-	def patchAll(patch :BinaryTriePatch[K, S, T], parent :MutableTrieParent[T]) :Unit = {
+	def patchAll(patch :BinaryTriePatch[K, S, T], parent :MutableTrieOwner[T]) :Unit = {
 		var root :T = this
 		foreach(new TrieElements.TrieKeys[K, S]) { key => root = root.patchKey(patch)(key) }
-		parent.setSubtrie(root)
+		parent.updateTrie(root)
 	}
 
 
@@ -299,8 +299,8 @@ trait MutableBinaryTrie[@specialized(KeyTypes) K, S <: GenericBinaryTrie[K, S, S
 	  * @param f predicate which must be satisfied by a leaf to remain in the trie
 	  * @tparam E element type used for this operation.
 	  */
-	def retain[E](elements :ElementOf[E, S], parent :MutableTrieParent[T])(f :E => Boolean) :Unit =
-		parent.setSubtrie(filter(elements)(f))
+	def retain[E](elements :ElementOf[E, S], parent :MutableTrieOwner[T])(f :E => Boolean) :Unit =
+		parent.updateTrie(filter(elements)(f))
 
 
 
@@ -400,15 +400,15 @@ object GenericBinaryTrie {
 //		@unspecialized
 //		override def asEmpty :Nullable[MutableEmptyBinaryTrie[K, S, T] with T] = new Nullable(this)
 
-		override def patchKey(patch :BinaryTriePatch[K, S, T], parent :MutableTrieParent[T])(key :K) :Boolean =
+		override def patchKey(patch :BinaryTriePatch[K, S, T], parent :MutableTrieOwner[T])(key :K) :Boolean =
 			patch.whenTrieEmpty(key, this) match {
 				case empty if empty.isEmpty => false
-				case leaf => parent.setSubtrie(leaf); true
+				case leaf => parent.updateTrie(leaf); true
 			}
 
-		override def patchAll(patch :BinaryTriePatch[K, S, T], parent :MutableTrieParent[T]) :Unit = ()
+		override def patchAll(patch :BinaryTriePatch[K, S, T], parent :MutableTrieOwner[T]) :Unit = ()
 
-		override def retain[E](elements :ElementOf[E, S], parent :MutableTrieParent[T])(f :E => Boolean) :Unit = ()
+		override def retain[E](elements :ElementOf[E, S], parent :MutableTrieOwner[T])(f :E => Boolean) :Unit = ()
 	}
 
 
@@ -498,28 +498,28 @@ object GenericBinaryTrie {
 			else { idx.--; emptyTrie }
 
 
-		override def patchKey(patch :BinaryTriePatch[K, S, T], root :MutableTrieParent[T])(key :K) :Boolean =
+		override def patchKey(patch :BinaryTriePatch[K, S, T], root :MutableTrieOwner[T])(key :K) :Boolean =
 			if (key == this.key) {
 				val replacement = patch.whenKeyExists(key, this)
 				if (!(replacement eq this)) {
-					root.setSubtrie(replacement); true
+					root.updateTrie(replacement); true
 				} else false
 			} else {
 				val replacement = patch.whenNoKey(key, this)
 				if (!(replacement eq this)) {
-					root.setSubtrie(replacement); true
+					root.updateTrie(replacement); true
 				} else false
 			}
 
-		override def patchAll(patch :BinaryTriePatch[K, S, T], parent :MutableTrieParent[T]) :Unit = {
+		override def patchAll(patch :BinaryTriePatch[K, S, T], parent :MutableTrieOwner[T]) :Unit = {
 			val substitute = patch.whenKeyExists(key, this)
 			if (!(substitute eq this))
-				parent.setSubtrie(substitute)
+				parent.updateTrie(substitute)
 		}
 
-		override def retain[E](elements :ElementOf[E, S], parent :MutableTrieParent[T])(f :E => Boolean) :Unit =
+		override def retain[E](elements :ElementOf[E, S], parent :MutableTrieOwner[T])(f :E => Boolean) :Unit =
 			if (!elements.satisfies(this, f))
-				parent.setSubtrie(emptyTrie)
+				parent.updateTrie(emptyTrie)
 	}
 
 
@@ -585,11 +585,11 @@ object GenericBinaryTrie {
 
 		protected[this] def cloneLeaf(leaf :S) :T //= leaf
 
-		protected[this] def leafLike(leaf :S) :T //= leaf
+		protected[this] def likeLeaf(leaf :S) :T //= leaf
 
 
 		/* The following abundance of factory/copy methods is motivated by the desire to avoid copying,
-		 * or even calls to potentially no-op methods like leafLike if possible. Methods like take/drop and others
+		 * or even calls to potentially no-op methods like likeLeaf if possible. Methods like take/drop and others
 		 * defined here implemented so that if there is a need for copying, it will be done by the subclass.
 		 * This achieves almost zero performance impact associated with sharing mutable and immutable nodes for
 		 * the immutable tries.
@@ -646,11 +646,11 @@ object GenericBinaryTrie {
 		  * should share all information with `branch` except for its subtries; it is caller's responsibility to
 		  * ensure that `left` and `right` are valid children and any other invariants of `T` will hold after
 		  * creating the copy.
-		  * This method is in general called as the result of filtering a node in this trie, 
+		  * This method is in general called as the result of filtering a node in this trie,
 		  * @param branch a node in this trie
 		  * @param left a replacement for the left node of `branch`, with the same longest common key prefix as `branch.left`.
 		  * @param right a replacement for the right node of `branch`, with the same longest common key prefix as `branch.right`.
-		  * @return a new branch with `left` and `right` as its children of the same class as this instance, or simply `branch` 
+		  * @return a new branch with `left` and `right` as its children of the same class as this instance, or simply `branch`
 		  *         if this trie is immutable and `left == branch.left && right == branch.right`.
 		  */
 		protected[this] def patchBranch(branch :SuperBranch)(left :S, right :S) :T =
@@ -723,7 +723,7 @@ object GenericBinaryTrie {
 
 
 
-		override def headNode :T = leafLike(viewHead(left))
+		override def headNode :T = likeLeaf(viewHead(left))
 
 		override def viewHead :S = viewHead(left)
 
@@ -733,7 +733,7 @@ object GenericBinaryTrie {
 		}
 
 
-		override def lastNode :T = leafLike(viewLast)
+		override def lastNode :T = likeLeaf(viewLast)
 
 		override def viewLast :S = {
 			@tailrec def rec(node :S) :S = node match {
@@ -744,7 +744,7 @@ object GenericBinaryTrie {
 		}
 
 
-		override def keyNode(n :Var[Int]) :T = leafLike(viewNode(n)) //todo: handle empty trie if n out of bounds
+		override def keyNode(n :Var[Int]) :T = likeLeaf(viewNode(n)) //todo: handle empty trie if n out of bounds
 
 		override def viewNode(n :Var[Int]) :S = {
 			def rec(node :S, i :Var[Int]) :S = node match {
@@ -760,12 +760,12 @@ object GenericBinaryTrie {
 		}
 
 
-//		override def nodeFor(key :K) :T = leafLike(viewNode(key))
+//		override def nodeFor(key :K) :T = likeLeaf(viewNode(key))
 
 
 		override def tail :T = left match { //manually inlined to guarantee correct mutability of the root node
 			case branch :SuperBranch => swapLeft(this, tail(branch))
-			case _ => leafLike(right)
+			case _ => likeLeaf(right)
 		}
 
 		protected[this] final def tail(subtrie :SuperBranch) :S = subtrie.left match {
@@ -776,7 +776,7 @@ object GenericBinaryTrie {
 
 		override def init :T = right match { //inlined to guarantee returned root node has correct mutability
 			case branch :SuperBranch => swapRight(this, init(branch))
-			case _ => leafLike(left)
+			case _ => likeLeaf(left)
 		}
 
 		protected[this] final def init(subtrie :SuperBranch) :S = subtrie.right match {
@@ -813,7 +813,7 @@ object GenericBinaryTrie {
 			else takeTrie(this, count) //result is a branch created by patchRight/patchBranch
 
 		protected[this] final def takeTrie(branch :SuperBranch, count :Var[Int]) :T = branch.left match {
-			//longer than necessary in order to avoid calling leafLike for every leaf
+			//longer than necessary in order to avoid calling likeLeaf for every leaf
 			case lbranch :SuperBranch =>
 				val l = takeTrie(lbranch, count)
 				if (count.get <= 0)
@@ -825,7 +825,7 @@ object GenericBinaryTrie {
 						count.--; patchLeft(branch, l)
 				}
 			case lleaf if count.get == 1 =>
-				count := 0; leafLike(lleaf)
+				count := 0; likeLeaf(lleaf)
 
 			case _ => branch.right match {
 				case rbranch :SuperBranch =>
@@ -874,7 +874,7 @@ object GenericBinaryTrie {
 						count.--; patchRight(branch, r)
 				}
 			case rleaf if count.get == 1 =>
-				count := 0; leafLike(rleaf)
+				count := 0; likeLeaf(rleaf)
 
 			case _ => branch.left match {
 				case lbranch :SuperBranch =>
@@ -903,7 +903,7 @@ object GenericBinaryTrie {
 					dropTake(branch.right, dropKeys, takeKeys) //dropped  whole left, more to drop
 				else if (l eq Empty) branch.right match { //dropping ends now, start taking
 					case rbranch :SuperBranch => takeTrie(rbranch, takeKeys)
-					case rleaf => leafLike(rleaf)
+					case rleaf => likeLeaf(rleaf)
 				} else branch.right match {//started taking already somewhere in branch.left
 					case rbranch :SuperBranch => patchBranch(branch)(l, takeTrie(rbranch, takeKeys))
 					case _ => takeKeys.--; patchLeft(branch, l)
@@ -930,7 +930,7 @@ object GenericBinaryTrie {
 				} else //idx falls inside branch.left
 					(lsplit._1, swapLeft(branch, lsplit._2))
 
-			case _ => idx.--; (leafLike(subtrie), Empty) //leaf
+			case _ => idx.--; (likeLeaf(subtrie), Empty) //leaf
 		}
 
 
@@ -946,7 +946,7 @@ object GenericBinaryTrie {
 					if (l eq Empty) dropWhile(branch.right)
 					else patchLeft(branch, l)
 				case _ if elements.satisfies(node, f) => Empty
-				case _ => leafLike(node) //this case is executed at most once
+				case _ => likeLeaf(node) //this case is executed at most once
 			}
 
 
@@ -963,7 +963,7 @@ object GenericBinaryTrie {
 					if (r eq Empty) l
 					else patchRight(branch, r)
 				} else l
-			case _ if elements.satisfies(node, f) => leafLike(node) //todo:
+			case _ if elements.satisfies(node, f) => likeLeaf(node) //todo:
 			case _ => Empty
 		}
 
@@ -988,9 +988,9 @@ object GenericBinaryTrie {
 					} else
 						(l1, patchLeft(branch, l2))
 				case _ if elements.satisfies(node, f) =>
-					(leafLike(node), Empty)
+					(likeLeaf(node), Empty)
 				case _ =>
-					(Empty, leafLike(node))
+					(Empty, likeLeaf(node))
 			}
 
 
@@ -1012,8 +1012,8 @@ object GenericBinaryTrie {
 						else if (rf eq Empty) (branchLike(node)(lt, rt), lf)
 						else (branchLike(node)(lt, rt), branchLike(node)(lf, rf))
 				//leaf cases
-				case _ if elements.satisfies(node, f) => (leafLike(node), Empty) //todo: copy() required only for mutable maps
-				case _ => (Empty, leafLike(node))
+				case _ if elements.satisfies(node, f) => (likeLeaf(node), Empty) //todo: copy() required only for mutable maps
+				case _ => (Empty, likeLeaf(node))
 			}
 			rec(this)
 		}
@@ -1029,7 +1029,7 @@ object GenericBinaryTrie {
 				if (l eq Empty) r
 				else if (r eq Empty) l
 				else branchLike(node)(l, r) //patchBranch(branch)(l, r)
-			case _ if elements.satisfies(node, f) == where => leafLike(node) //todo: copy is only needed for mutable maps
+			case _ if elements.satisfies(node, f) == where => likeLeaf(node) //todo: copy is only needed for mutable maps
 			case _ => Empty
 		}
 
@@ -1179,7 +1179,7 @@ object GenericBinaryTrie {
 			else branchLike(branch.asTrie)(left, right)
 
 
-		
+
 		override def dropTrie(count :Var[Int]) :S =
 			if (count.get <= 0) this
 			else dropTrie(this, count)(emptyTrie).view
@@ -1191,7 +1191,7 @@ object GenericBinaryTrie {
 		override def dropRightTrie(count :Var[Int]) :S =
 			if (count.get <= 0) this
 			else dropRightTrie(this, count)(emptyTrie).view
-		
+
 		override def takeRightTrie(count :Var[Int]) :S =
 			if (count.get <= 0) emptyTrie
 			else takeRightTrie(this, count).view
@@ -1223,7 +1223,7 @@ object GenericBinaryTrie {
 	  * by any extending classes. Overrides the `drop/take` family of methods to safely reuse contents from under this trie.
 	  */
 	trait MutableBinaryTrieBranch[K, S <: GenericBinaryTrie[K, S, S], T <: GenericBinaryTrie[K, S, T] with S]
-		extends GenericBinaryTrieBranch[K, S, T] with MutableBinaryTrie[K, S, T] with MutableTrieParent[S]
+		extends GenericBinaryTrieBranch[K, S, T] with MutableBinaryTrie[K, S, T] with MutableTrieOwner[S]
 	{ this :T =>
 
 //		@inline final override def asBranch :Nullable[MutableBinaryTrieBranch[K, S, T] with T] = Nullable(this)
@@ -1237,7 +1237,7 @@ object GenericBinaryTrie {
 			else right = replacement
 
 
-		
+
 		override protected[this] def branchLike(branch :S)(left :S, right :S) :T //with MutableBinaryTrieBranch[K, T]
 
 		override protected[this] def branchLike(branch :SuperBranch) :T =
@@ -1270,7 +1270,7 @@ object GenericBinaryTrie {
 				branch.freeze()
 				branchLike(subtrie)(branch.left, branch.right)
 			case _ =>
-				leafLike(subtrie)
+				likeLeaf(subtrie)
 		}
 
 
@@ -1303,21 +1303,21 @@ object GenericBinaryTrie {
 
 
 
-		override protected[this] def leafLike(leaf :S) :T
+		override protected[this] def likeLeaf(leaf :S) :T
 
 		protected[this] def trieLike(subtrie :S) :T = subtrie match {
 			case mutable :MutableBinaryTrieBranch[K, S, T] => mutable.asTrie
 			case branch :SuperBranch => branchLike(subtrie)(branch.left, branch.right)
-			case _ => leafLike(subtrie)
+			case _ => likeLeaf(subtrie)
 		}
 
 
-		override def patchAll(patch :BinaryTriePatch[K, S, T], root :MutableTrieParent[T]) :Unit = {
+		override def patchAll(patch :BinaryTriePatch[K, S, T], root :MutableTrieOwner[T]) :Unit = {
 			//fixme all wrong - rewrite based on retain, but maybe better after it's tested...
 		}
 
 
-		override def retain[E](elements :ElementOf[E, S], root :MutableTrieParent[T])(f :E => Boolean) :Unit =
+		override def retain[E](elements :ElementOf[E, S], root :MutableTrieOwner[T])(f :E => Boolean) :Unit =
 		{   //yes, this method length is unholy, but all cases are that slightly different from each other
 			//and the alternative is a couple of functions with lengthy argument lists and complex contracts. Sorry.
 			val Empty = emptyTrie
@@ -1343,7 +1343,7 @@ object GenericBinaryTrie {
 							child = stack(top).right //child becomes its next sibling
 						} else { //deleting the child
 							if (top < 0) { //we have just deleted the only/last leaf of the trie
-								root.setSubtrie(Empty)
+								root.updateTrie(Empty)
 								return //caution: function return
 							} else {
 								val parent = stack(top)
@@ -1351,13 +1351,13 @@ object GenericBinaryTrie {
 								if (parent.left eq child) {
 									child = parent.right //next node to consider
 									if (top < 0) //substitute parent with the sibling of the deleted leaf
-										root.setSubtrie(trieLike(child))
+										root.updateTrie(trieLike(child))
 									else
 										stack(top).replace(parent.asTrie, child)
 								} else {
 									child = parent.left //already processed sibling
 									if (top < 0) {
-										root.setSubtrie(trieLike(child))
+										root.updateTrie(trieLike(child))
 										return //caution: function return
 									} else {
 										val granny = stack(top)
@@ -1379,7 +1379,7 @@ object GenericBinaryTrie {
 						}
 					case _ => //immutable branch: switch to the ground-up filter
 						if (top < 0) {
-							root.setSubtrie(filter(child)(elements, Empty, f, true)) //todo: specialize this
+							root.updateTrie(filter(child)(elements, Empty, f, true)) //todo: specialize this
 							return //caution: function return
 						} else {
 							val substitute = filter(child)(elements, Empty, f, true) //todo: specialize this!
@@ -1391,7 +1391,7 @@ object GenericBinaryTrie {
 								else { //delete parent.left from the trie
 									top -= 1
 									if (top < 0)
-										root.setSubtrie(trieLike(child))
+										root.updateTrie(trieLike(child))
 									else
 										stack(top).replace(parent.asTrie, child)
 								}
@@ -1407,7 +1407,7 @@ object GenericBinaryTrie {
 								} else { //already visited parent.left will replace parent
 									top -= 1
 									if (top < 0) {
-										root.setSubtrie(trieLike(parent.left))
+										root.updateTrie(trieLike(parent.left))
 										return //caution: function return
 									} else if (stack(top).left eq parent) {
 										stack(top).setLeft(parent.left)

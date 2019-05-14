@@ -4,7 +4,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitTraversableOnce, SpecializableIterable, arrayFill, ofKnownSize}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitTraversableOnce, arrayFill, ofKnownSize}
 
 import scala.collection.mutable
 
@@ -17,7 +17,7 @@ trait SharedArray[@specialized(Elements) E]
 	extends mutable.IndexedSeq[E] with MutableSeq[E] with ValSeqLike[E, SharedArray[E]]
 			with ArrayView[E] with SharedArrayLike[E, SharedArray]
 {
-	override protected[seqs] def arr :Array[E] = array
+	override protected[palimpsest] def arr :Array[E] = array
 	
 	override def overwrite: FitBuffer[E] = LentArrayBuffer.upon(array, headIdx, length)
 	
@@ -72,24 +72,28 @@ trait SharedArray[@specialized(Elements) E]
 object SharedArray extends ArrayViewFactory[SharedArray] {
 
 
-	
-	
+	override implicit def canBuildFrom[E](implicit fit: CanFitFrom[SharedArray[_], E, SharedArray[E]]): CanBuildFrom[SharedArray[_], E, SharedArray[E]] =
+		fit.cbf
+
+	object implicits {
+		@inline final def wrapArrayInView[@specialized E](array :Array[E]) :SharedArray[E] =
+			new MutableArrayView[E](array, 0, array.length)
+	}
+
+
 	@inline
 	final override protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): SharedArray[E] =
-		new DopeArray[E](array, offset, length)
+		new MutableArrayView[E](array, offset, length)
 
 
-	private[seqs] class DopeArray[@specialized(Elements) E](protected[this] final val array :Array[E], protected[seqs] final val headIdx :Int, final val length :Int)
+	private[seqs] class MutableArrayView[@specialized(Elements) E](protected[this] final val array :Array[E], protected[palimpsest] final val headIdx :Int, final val length :Int)
 		extends IterableFoundation[E, SharedArray[E]] with SharedArray[E]
 	{
 		override protected def section(from: Int, until: Int): SharedArray[E] =
-			new DopeArray[E](array, headIdx + from, until-from)
+			new MutableArrayView[E](array, headIdx + from, until-from)
 
 		override def companion: FitCompanion[SharedArray] = SharedArray
 	}
 	
-
-	override implicit def canBuildFrom[E](implicit fit: CanFitFrom[SharedArray[_], E, SharedArray[E]]): CanBuildFrom[SharedArray[_], E, SharedArray[E]] =
-		fit.cbf
 }
 

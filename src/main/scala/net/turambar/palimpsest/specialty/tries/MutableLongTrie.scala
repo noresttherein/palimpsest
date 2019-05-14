@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.tries
 import net.turambar.palimpsest.specialty.tries.BinaryTrie.{BinaryTrieBranch, BinaryTrieNode, MutableBinaryTrieLeaf, MutableEmptyBinaryTrie}
 import net.turambar.palimpsest.specialty.tries.LongTrie.{LongTrieBranch, LongTrieLeaf}
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.{centerLabel, EmptyLongKeys, GenericEmptyLongKeys, GenericLongKeyBranch, GenericLongKeyLeaf, LongKeyBranch, LongKeyLeaf, MutableLongKeyBranch}
-import net.turambar.palimpsest.specialty.tries.BinaryTrieOps.{BinaryTrieOp, TrieKeyPatch}
+import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrieKeyPatch}
 import net.turambar.palimpsest.specialty.tries.MutableLongTrie.EmptyMutableLongTrie
 
 
@@ -24,7 +24,7 @@ sealed trait MutableLongTrie
 
 
 
-object MutableLongTrie extends MutableBinaryTrieOps[Long, LongTrie, MutableLongTrie] {
+object MutableLongTrie extends MutableBinaryTrieKeySetFactory[Long, LongTrie, MutableLongTrie] {
 
 
 	object EmptyMutableLongTrie extends GenericEmptyLongKeys[LongTrie, MutableLongTrie]
@@ -65,7 +65,7 @@ object MutableLongTrie extends MutableBinaryTrieOps[Long, LongTrie, MutableLongT
 			case _ => new MutableLongTrieLeaf(subtrie.key)
 		}
 
-		protected override def leafLike(leaf :LongTrie) :MutableLongTrie = leaf match {
+		protected override def likeLeaf(leaf :LongTrie) :MutableLongTrie = leaf match {
 			case mutable :MutableLongTrieLeaf => mutable
 			case _ => new MutableLongTrieLeaf(leaf.key)
 		}

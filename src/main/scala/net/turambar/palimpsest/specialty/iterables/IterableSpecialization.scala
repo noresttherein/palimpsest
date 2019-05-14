@@ -1,14 +1,12 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.iterables
 
-import java.lang.Math
-
-import scala.annotation.unspecialized
-import scala.collection.generic.{CanBuildFrom, FilterMonadic}
-import scala.collection.{breakOut, mutable, GenIterable, GenTraversableOnce, IterableLike}
-import net.turambar.palimpsest.specialty.FitIterable.{FilterIterable, SpecializedFilter}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Res, Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty._
+import net.turambar.palimpsest.specialty.iterables.FitIterable.{FilterIterable, SpecializedFilter}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitBuffer, FitList, FitSeq}
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+
+import scala.collection.{GenIterable, GenTraversableOnce, IterableLike}
+import scala.collection.generic.CanBuildFrom
 
 
 /** Partial specialization of the `IterableLike` trait containing methods which can be implemented
@@ -37,14 +35,15 @@ import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
   * @see [[net.turambar.palimpsest.specialty.iterables.IterableFoundation]] - unspecialized base class implementing most methods
   *      via its iterator and builder which should be extended wherever possible to minimize static forwarders
   */
-//we are not sealing this trait in order to allow similar templates for other collections to extend it without extending the 'specialized' interfaces.
-trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLike[E, Repr] {
+//we are not sealing this trait in order to allow similar templates for other collections to extend it without extending
+//the 'specialized' interfaces.
+trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversableOnce[E] {
 //	this :IterableSpecialization[E, Repr] =>
 
 //	override protected[this] def thisCollection :FitIterable[E] = this.asInstanceOf[FitIterable[E]]
 
-	/** Specialization of this iterable. Double call necessary to enforce specialized call and covariance type clash. */
-	protected[this] def mySpecialization :RuntimeType[E]
+	/** Specialization of this iterable. Double call necessary to enforce specialized call and resolve covariance type clash. */
+	protected[this] override def specialization :RuntimeType[E]
 
 	/** Underlying representation of element type and preferred version of `@specialized` methods to use.
 	  * It will generally reflect the type used to store the values in runtime. If this instance is an erased,
@@ -53,7 +52,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  * especially dedicated subclasses for `AnyRef` subtypes, may internally store their contents as strict subclasses
 	  * of `AnyRef`, making casts risky! Infer as little as possible - you have been warned.
 	  */
-	override def specialization :RuntimeType[_<:E] = mySpecialization
+	override def runtimeType :RuntimeType[_<:E] = specialization
 
 
 
@@ -61,7 +60,13 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  * is implemented efficiently and doesn't affect the state of the collection (for example, doesn't move an iterator).
 	  * Used to determine optional size hint for builders processing elements from this collection.
 	  */
-	def hasFastSize :Boolean = isEmpty
+	override def hasFastSize :Boolean = isEmpty
+
+	override def size :Int = iterator.size
+
+	override def ofAtLeast(size :Int) :Boolean = iterator.ofAtLeast(size)
+
+
 
 	def head_? : ?[E]
 
@@ -71,6 +76,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 	override def lastOption :Option[E] = if (isEmpty) None else Some(last)
 
+/*
 	/** Applies the given function to the first element in this collection and returns the result.
 	  * Useful especially in non-specialized caller context, where `f(head)` would result in boxing, while
 	  * the implementation will likely be specialized. While benefit in case of a single element will
@@ -98,6 +104,13 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  * @see [[net.turambar.palimpsest.specialty.iterables.SingletonSpecialization]]
 	  */
 	protected[this] def forLast[@specialized(Fun1Res) O](f :E=>O) :O //= f(last)
+*/
+
+
+//	override def exists(p :E => Boolean) :Boolean = iterator.exists(p)
+//
+//	override def forall(p :E => Boolean) :Boolean = iterator.forall(p)
+
 
 
 
@@ -106,6 +119,9 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	override def filterNot(p :E => Boolean) :Repr = filter(p, false)
 
 	def filter(p :E=>Boolean, where :Boolean) :Repr
+
+
+
 
 
 	//todo: traverse(f.asInstanceOf[E=>Unit])
@@ -125,10 +141,6 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 	@inline final private[palimpsest] def reverseTraverse(f :E=>Unit) :Unit = reverseForeach(f)
 
-	def fitMap[O, That](f :E => O)(implicit cbf :CanBuildFrom[Repr, O, That]) :That = cbf match {
-		case fit :CanFitFrom[Repr, O, That] =>
-			(fit.mapped(repr, f) ++= this).result()
-	}
 
 	override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]): That = {
 		val b = FitBuilder(bf(repr)).mapInput(f)
@@ -151,12 +163,14 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 	override def find(p :E=>Boolean) :Option[E] = find_?(p, true).toOption
 
-	def find_?(p :E=>Boolean): ?[E] = find_?(p, true)
+//	def find_?(p :E=>Boolean): ?[E] = find_?(p, true)
 	//todo: consider any other type, not only boolean maybe? and maybe use default argument to avoid
-	def find_?(p :E=>Boolean, where :Boolean): ?[E] = iterator.find_?(p, where)
+	def find_?(p :E=>Boolean, where :Boolean = true): ?[E] = iterator.find_?(p, where)
 
 	override def exists(p :E=>Boolean) :Boolean = find_?(p).isDefined
 	override def forall(p :E=>Boolean) :Boolean = find_?(p, false).isEmpty
+
+	override def count(p :E => Boolean) :Int = iterator.count(p)
 
 
 	/** Delegates to iterator's specialized [[FitIterator#foldLeft]]. */
@@ -185,37 +199,28 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	//	override def withFilter(p: (E) => Boolean): FilterIterable[E, Repr] = new SpecializedFilter(this, p)
 
 
-	override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[Repr, B, That]): That = {
-		val b = FitBuilder(bf(repr))
-		if (hasFastSize && ofKnownSize(that))
-			b.sizeHint(size + that.size)
-		b ++= thisCollection ++= that.seq
-		b.result()
-	}
+	override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[Repr, B, That]): That =
+		concat(this, that.seq)(bf(repr))
 
-	override def ++:[B >: E, That](that: TraversableOnce[B])(implicit bf: CanBuildFrom[Repr, B, That]): That = {
-		val b = FitBuilder(bf(repr))
-		if (hasFastSize && ofKnownSize(that))
-			b.sizeHint(size + that.size)
-		b ++= thisCollection ++= that.seq
-		b.result()
-	}
+	override def ++:[B >: E, That](that: TraversableOnce[B])(implicit bf: CanBuildFrom[Repr, B, That]): That =
+		concat(that.seq, this)(bf(repr))
 
 	override def ++:[B >: E, That](that: Traversable[B])(implicit bf: CanBuildFrom[Repr, B, That]): That =
-		(that ++ seq)(breakOut)
+		(that :TraversableOnce[B]) ++: this
+//		(that ++ seq)(breakOut)
 
 
 
 
 	/** Subclasses should implement as efficiently as possible, taking advantage of specialization to boost [[ArrayView]] performance. */
 	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
-		if (mySpecialization.runType isAssignableFrom xs.getClass.getComponentType)
+		if (specialization.runType isAssignableFrom xs.getClass.getComponentType)
 			if (start<0)
 				throw new IndexOutOfBoundsException(s"$stringPrefix.copyToArray([], $start, $len)")
 			else {
 				val count = Math.min(xs.length - start, len)
 				if (count>0)
-					uncheckedCopyTo(xs.asInstanceOf[Array[E]], start, count)
+					trustedCopyTo(xs.asInstanceOf[Array[E]], start, count)
 			}
 		else manualCopyToArray(xs, start, len) //iterator.copyToArray(xs, start, len)
 
@@ -228,14 +233,16 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	  * @param total number of elements of this collection to write. Must have been verified to be positive and fit in the array.
 	  * @return number of elements written, which will be `min(this.size, total)`.
 	  */
-	protected[this] def uncheckedCopyTo(xs: Array[E], start: Int, total: Int): Int =
+	protected[this] def trustedCopyTo(xs: Array[E], start: Int, total: Int): Int =
 		if (isEmpty) 0
 		else {
 			iterator.copyToArray(xs, start, total)
 			Math.min(total, size)
 		}
 
-
+	/** Delegated to from the default implementation of `copyToArray` if the array component type doesn't match this
+	  * instance's runtime type. Parameters are not validated (as in `copyToArray`). By default delegates to the iterator.
+	  */
 	protected[this] def manualCopyToArray[U >: E](xs :Array[U], start :Int, len :Int) :Unit =
 		iterator.copyToArray(xs, start, len)
 
@@ -251,7 +258,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 //	def toFitList :LinkedList[E]
 
 	//todo: make toSeq the real implementation delegating to toFitSeq?
-	override def toSeq :FitSeq[E] = (FitSeq.fitBuilder(mySpecialization) ++= this).result()
+	override def toSeq :FitSeq[E] = (FitSeq.fitBuilder(specialization) ++= this).result()
 
 	@deprecated("use toSeq", "")
 	def toFitSeq :FitSeq[E] = toSeq
@@ -269,7 +276,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 	def toFitBuffer[U >: E :RuntimeType] :FitBuffer[U] = FitBuffer.of[U] ++= this
 
 //	@deprecated("what does it even mean to inverse a set...", "")
-	def inverse :FitIterable[E] = (FitList.reverseBuilder(mySpecialization) ++= this).result()
+	def inverse :FitIterable[E] = (FitList.reverseBuilder(specialization) ++= this).result()
 
 
 
@@ -291,7 +298,7 @@ trait IterableTemplate[+E, +Repr] extends FitTraversableOnce[E] with IterableLik
 
 
 	override def stringPrefix :String =
-		typeStringPrefix+"["+mySpecialization.classTag+"]"
+		typeStringPrefix+"["+specialization.classTag+"]"
 
 
 	protected[this] def typeStringPrefix :String = super.stringPrefix
@@ -318,7 +325,7 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 
 	
 	/** Specialization of this iterable. Double call necessary to enforce specialized call and covariance type clash. */
-	protected[this] def mySpecialization :RuntimeType[E] = RuntimeType[E]
+	protected[this] def specialization :RuntimeType[E] = RuntimeType.specialized[E]
 	
 
 	override def head: E = iterator.head
@@ -329,9 +336,9 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 
 	override def last_? : ?[E] = if (isEmpty) Blank else Sure(last)
 
-	override protected[this] def forHead[@specialized(Fun1Res) O](f: E => O) :O = f(head)
-
-	override protected[this] def forLast[@specialized(Fun1Res) O](f: E => O) :O = f(last)
+//	override protected[this] def forHead[@specialized(Fun1Res) O](f: E => O) :O = f(head)
+//
+//	override protected[this] def forLast[@specialized(Fun1Res) O](f: E => O) :O = f(last)
 
 
 	override def span(p: E => Boolean): (Repr, Repr) = {
@@ -368,12 +375,6 @@ trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableT
 
 
 
-
-	override def count(p :E => Boolean) :Int = {
-		var res = 0
-		foreach { e => if (p(e)) res += 1 }
-		res
-	}
 
 
 	override def foldLeft[@specialized(Fun2) O](z :O)(op: (O, E) => O): O = {

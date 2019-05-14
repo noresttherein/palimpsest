@@ -3,7 +3,8 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, IndexedSeqLike}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitIterable, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{FitIterableFactory, InterfaceIterableFactory, SpecializableIterable}
 
 import scala.annotation.unspecialized
 import scala.reflect.ClassTag
@@ -92,6 +93,10 @@ trait FitBuffer[@specialized(Elements) E]
 	
 
 	override def remove(n: Int): E
+
+//	def cutdown(toSize :Int) :Unit =
+//		if (toSize <= 0) clear() //overflow conscious
+//		else trimEnd(length - toSize)
 
 
 	override def companion: FitCompanion[FitBuffer] = FitBuffer

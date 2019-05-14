@@ -20,24 +20,6 @@ import net.turambar.palimpsest.specialty.tries.Trie.KeyTypes
   */
 trait TrieElements[+K, +S, +T] extends TrieTemplate[K, T] { //this :T =>
 
-//	def find_?[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean=true): ?[E]
-//
-//	def exists[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean = find_?(elements)(f).isDefined
-//
-//	def forall[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean = find_?(elements)(f, false).isEmpty
-//
-//	def count[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Int
-//
-//	def partition[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :(T, T)
-//	//todo: size out parameter?
-//	def filter[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean = true) :T
-//
-//
-//	def dropWhile[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :T
-//
-//	def takeWhile[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :T
-//
-//	def span[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :(T, T)
 
 	def find_?[E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean=true): ?[E]
 
@@ -61,7 +43,7 @@ trait TrieElements[+K, +S, +T] extends TrieTemplate[K, T] { //this :T =>
 	def span[E](elements :ElementOf[E, S])(f :E => Boolean) :(T, T)
 
 
-
+	//todo: remove the type parameter O and have f return Unit. Casts E=>O to E=>Unit are safe.
 	def foreach[@specialized(Fun1) E, @specialized(Unit) O](elements :ElementOf[E, S])(f :E=>O) :Unit
 
 	def reverseForeach[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Unit) :Unit
@@ -79,6 +61,8 @@ trait TrieElements[+K, +S, +T] extends TrieTemplate[K, T] { //this :T =>
 
 	def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E]
 }
+
+
 
 
 
@@ -123,18 +107,6 @@ object TrieElements {
 
 	trait EmptyElements[+K, +S, +T] extends TrieElements[K, S, T] { this :T =>
 
-//		override def find_?[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean): ?[E] = Blank
-//		override def exists[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean = false
-//		override def forall[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean = true
-//		override def count[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Int = 0
-//
-//		override def partition[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :(T, T) = (this, this)
-//		override def filter[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean) :T = this
-//
-//		override def dropWhile[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :T = this
-//		override def takeWhile[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :T = this
-//		override def span[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :(T, T) = (this, this)
-
 		override def find_?[E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean): ?[E] = Blank
 		override def exists[E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean = false
 		override def forall[E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean = true
@@ -166,36 +138,6 @@ object TrieElements {
 
 
 	trait LeafElement[+K, +S, +T <: S] extends TrieElements[K, S, T] { this :T =>
-
-//		override def find_?[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean): ?[E] = {
-//			val e = elements.elementOf(this)
-//			if (f(e) == where) Sure(e) else Blank
-//		}
-//
-//		override def exists[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean =
-//			f(elements.elementOf(this))
-//
-//		override def forall[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Boolean =
-//			f(elements.elementOf(this))
-//
-//		override def count[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :Int =
-//			if (f(elements.elementOf(this))) 1 else 0
-//
-//		override def partition[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :(T, T) =
-//			if (f(elements.elementOf(this))) (this, emptyTrie) else (emptyTrie, this)
-//
-//		override def filter[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean) :T =
-//			if (f(elements.elementOf(this)) == where) this else emptyTrie
-//
-//
-//		override def dropWhile[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :T =
-//			if (f(elements.elementOf(this))) emptyTrie else this
-//
-//		override def takeWhile[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :T =
-//			if (f(elements.elementOf(this))) this else emptyTrie
-//
-//		override def span[@specialized(Fun1) E](elements :ElementOf[E, S])(f :E => Boolean) :(T, T) =
-//			if (f(elements.elementOf(this))) (this, emptyTrie) else (emptyTrie, this)
 
 
 		override def find_?[E](elements :ElementOf[E, S])(f :E => Boolean, where :Boolean): ?[E] =

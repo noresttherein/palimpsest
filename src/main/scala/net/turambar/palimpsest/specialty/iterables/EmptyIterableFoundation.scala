@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, IterableSpecialization, IterableTemplate, RuntimeType}
+import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, RuntimeType}
 import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Vals, Fun1Res, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
 
@@ -10,7 +10,7 @@ import scala.collection.generic.CanBuildFrom
 
 
 trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnownSize {
-	def empty :Repr = repr
+//	def empty :Repr = repr
 
 	override def size = 0
 	override def isEmpty = true
@@ -23,11 +23,11 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 //todo: somehow this causes conflict with the declaration in IterableSpecialization ...
 //	override def head_? : ?[E] = Blank
 	override def headOption :Option[E] = None
-	override protected def forHead[@specialized(Fun1Res) O](f :E => O) :O = throw new NoSuchElementException(s"$this.head")
+//	override protected def forHead[@specialized(Fun1Res) O](f :E => O) :O = throw new NoSuchElementException(s"$this.head")
 	override def last :E = throw new NoSuchElementException(s"$this.last")
 //	override def last_? : ?[E] = Blank
 	override def lastOption :Option[E] = None
-	override protected def forLast[@specialized(Fun1Res) O](f :E => O) :O = throw new NoSuchElementException(s"$this.last")
+//	override protected def forLast[@specialized(Fun1Res) O](f :E => O) :O = throw new NoSuchElementException(s"$this.last")
 
 	override def tail :Repr = throw new UnsupportedOperationException(s"$this.tail")
 	override def init :Repr = throw new UnsupportedOperationException(s"$this.init")
@@ -55,7 +55,7 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 	override def forall(p: E => Boolean) = true
 	override def exists(p: E => Boolean) = false
 	override def find(p: E => Boolean) :Option[E] = None
-	override def find_?(p :E => Boolean) : ?[E] = Blank
+//	override def find_?(p :E => Boolean) : ?[E] = Blank
 	override def find_?(p :E => Boolean, where :Boolean): ?[E] = Blank
 	override def count(p: E => Boolean) = 0
 
@@ -103,7 +103,7 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 	override def sameElements[U >: E](that: GenIterable[U]) :Boolean = that.isEmpty
 
 	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int) :Unit = ()
-	override protected[this] def uncheckedCopyTo(xs: Array[E], start: Int, total: Int) = 0
+	override protected[this] def trustedCopyTo(xs: Array[E], start: Int, total: Int) = 0
 
 	override def toString :String = stringPrefix + "()"
 
@@ -112,5 +112,5 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 /**
   * @author Marcin Mościcki
   */
-abstract class EmptyIterable[+E, +Repr] extends IterableFoundation[E, Repr] with EmptyIterableTemplate[E, Repr]
+abstract class EmptyIterableFoundation[+E, +Repr] extends IterableFoundation[E, Repr] with EmptyIterableTemplate[E, Repr]
 

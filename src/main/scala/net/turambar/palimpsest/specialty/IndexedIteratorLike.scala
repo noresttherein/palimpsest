@@ -1,6 +1,6 @@
-package net.turambar.palimpsest
+package net.turambar.palimpsest.specialty
 
-import net.turambar.palimpsest.IndexedIteratorLike.AbstractFunctionIterator
+import net.turambar.palimpsest.specialty.IndexedIteratorLike.AbstractFunctionIterator
 
 /** Base mixin `Iterator` trait for implementations iterating over indexed sequences.
   * Re-implements several `Iterator` methods based on the assumption that [[IndexedIteratorLike#index]]

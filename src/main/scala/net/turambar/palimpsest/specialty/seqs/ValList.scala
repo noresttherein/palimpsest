@@ -4,7 +4,7 @@ import net.turambar
 import net.turambar.palimpsest
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.EmptyIterableTemplate
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableTemplate, SpecializableIterable, SpecializedIterableFactory}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.seqs.ValList.{Link, ListBuilder, ListIterator}
 import net.turambar.palimpsest.specialty.RuntimeType.Fun2
@@ -107,7 +107,7 @@ sealed trait ValList[@specialized(Elements) E]
 	def ::(elem :E) :ValList[E] = new Link(elem, this)
 
 	override def +:[U >: E, That](elem :U)(implicit cbf :CanBuildFrom[ValList[E], U, That]) :That = cbf match {
-		case cff :CanFitFrom[ValList[E], U, That] if cff.honorsBuilderFrom && (specialization.boxType isAssignableFrom elem.getClass) =>
+		case cff :CanFitFrom[ValList[E], U, That] if cff.honorsBuilderFrom && (runtimeType.boxType isAssignableFrom elem.getClass) =>
 			(elem.asInstanceOf[E]::this).asInstanceOf[That]
 		case _ => (cbf(this) += elem ++= this).result()
 	}
@@ -131,13 +131,13 @@ sealed trait ValList[@specialized(Elements) E]
 
 
 
-object ValList extends ImplementationIterableFactory[ValList] {
+object ValList extends SpecializedIterableFactory[ValList] {
+
+	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[ValList[_], E, ValList[E]]) :CanBuildFrom[ValList[_], E, ValList[E]] = fit.cbf
 
 
 	override def empty[@specialized(Elements) E] :ValList[E] = new EmptyList[E]
 
-
-	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[ValList[_], E, ValList[E]]) :CanBuildFrom[ValList[_], E, ValList[E]] = fit.cbf
 
 	override def newBuilder[@specialized(Elements) E] :FitBuilder[E, ValList[E]] = ListBuilder()
 
@@ -356,7 +356,7 @@ object ValList extends ImplementationIterableFactory[ValList] {
 			}
 
 
-		override protected def uncheckedCopyTo(xs :Array[E], start :Int, total :Int) :Int = {
+		override protected def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int = {
 			var i = start; val end = i + total
 			var next :ValList[E] = this
 			do {
@@ -426,7 +426,6 @@ object ValList extends ImplementationIterableFactory[ValList] {
 
 		override def result() :ValList[E] = { val res = hat.tail; hat.tail = nil; last = hat; res }
 
-		override def count :Int = ???
 
 		override def clear() :Unit = { hat.tail = nil; last = hat }
 

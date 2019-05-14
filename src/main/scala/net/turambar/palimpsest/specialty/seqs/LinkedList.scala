@@ -11,8 +11,8 @@ import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{LinearSeq, LinearSeqLike}
 import RuntimeType.Fun2
-import net.turambar.palimpsest.specialty.FitIterable.{ElementDeserializer, ElementSerializer}
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, SpecializableIterable, SpecializedIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 
 
@@ -341,7 +341,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	override def inverse :LinkedList[E] = reverse
 
 
-	protected[this] override def uncheckedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
+	protected[this] override def trustedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
 		var i = start; val e = start + total; var l = this
 		while (i<e && l.nonEmpty) {
 			xs(i) = l.head
@@ -370,7 +370,10 @@ sealed trait LinkedList[@specialized(Elements) +E]
 
 
 
-object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
+object LinkedList extends SpecializedIterableFactory[LinkedList] {
+
+	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedList[_], E, LinkedList[E]]): CanBuildFrom[LinkedList[_], E, LinkedList[E]] =
+		fit.cbf
 
 	override def empty[@specialized(Elements) E] :LinkedList[E] = new Empty[E]
 
@@ -381,8 +384,6 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 //		new LinkedListBuilder[E]
 
 
-	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedList[_], E, LinkedList[E]]): CanBuildFrom[LinkedList[_], E, LinkedList[E]] =
-		fit.cbf
 
 	/** An empty, non-specialized linked list which can serve as `LinkedList[E]` for any element type `E` thanks to covariance.
 	  * Note that this is '''not''' the only instance of empty [[LinkedList[E]]], so check `list==Empty` will yield false negatives!
@@ -498,8 +499,6 @@ object LinkedList extends specialty.ImplementationIterableFactory[LinkedList] {
 			coccyx = hat.asInstanceOf[NonEmpty[E]]; hat.t = Empty
 		}
 
-		//todo: either remove this method or calculate size along the way
-		override def count: Int = ???
 	}
 
 

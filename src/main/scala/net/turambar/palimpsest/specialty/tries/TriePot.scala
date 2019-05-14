@@ -1,9 +1,10 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, FitIterable, FitIterator, IterableSpecialization, IterableTemplate, Var}
+import net.turambar.palimpsest.specialty.{?, FitIterator, Var}
 import net.turambar.palimpsest.specialty.RuntimeType.Fun2
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableSpecialization, IterableTemplate}
 import net.turambar.palimpsest.specialty.seqs.ValList
-import net.turambar.palimpsest.specialty.tries.Trie.MutableTrieParent
+import net.turambar.palimpsest.specialty.tries.Trie.MutableTrieOwner
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
 
 
@@ -15,12 +16,11 @@ trait TriePot[+T] {
 
 
 
-trait MutableTriePot[T] extends TriePot[T] with MutableTrieParent[T] {
+trait MutableTriePot[T] extends TriePot[T] with MutableTrieOwner[T] {
 	protected[this] def trie_=(t :T) :Unit
 
-	override private[tries] def setSubtrie(root :T) :Unit = trie = root
+	override private[tries] def updateTrie(root :T) :Unit = trie = root
 }
-
 
 
 
@@ -252,7 +252,7 @@ trait IterableTriePotSpecialization[+K, +F, +T <: TrieElements[K, F, T] with F, 
 	override def isEmpty :Boolean = trie.isEmpty
 
 //	protected[this] def elementOf(t :T) :E = elements.elementOf(t)
-	//todo: viewHead/viewLast
+	//todo: viewHead/viewLast (headNode and lastNode may have to create a new object to conform to expected type
 	override def head :E = elements.elementOf(trie.headNode)
 
 	override def last :E = elements.elementOf(trie.lastNode)
@@ -300,7 +300,7 @@ trait IterableTriePotSpecialization[+K, +F, +T <: TrieElements[K, F, T] with F, 
 		}
 
 
-	override protected[this] def uncheckedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
+	override protected[this] def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
 		trie.copyToArray(elements)(xs, start, total)
 
 

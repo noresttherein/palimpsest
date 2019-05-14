@@ -3,6 +3,7 @@ package net.turambar.palimpsest.specialty.sets
 import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure, Var}
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.StableLongSet.{flipSign, LongElementCounter}
+import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
 import net.turambar.palimpsest.specialty.tries.{IterableTriePotFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
 import net.turambar.palimpsest.specialty.tries.BinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries.LongTrie.{EmptyLongTrie, LongTrieLeaf}
@@ -24,7 +25,7 @@ trait LongTrieSet[E, +S <: ValSet[E] with SetSpecialization[E, S]]
 //	override protected def keyDelete :TrieKeyPatch[Long, MutableLongTrie, MutableLongTrie] = MutableLongTrie.DeleteKey
 //	override protected def keyInsert :TrieKeyPatch[Long, MutableLongTrie, MutableLongTrie] = MutableLongTrie.InsertKey
 //	override protected def keyFlip :TrieKeyPatch[Long, MutableLongTrie, MutableLongTrie] = MutableLongTrie.FlipKey
-//	override protected def intersection :BinaryTrieOp[MutableLongTrie, MutableLongTrie] = MutableLongTrie.Intersection
+//	override protected def intersection :SharingTrieOp[MutableLongTrie, MutableLongTrie] = MutableLongTrie.Intersection
 
 }
 
@@ -38,7 +39,7 @@ trait MutableLongTrieSet[E, +S <: MutableSet[E] with MutableSetSpecialization[E,
 //	override protected def keyDelete :TrieKeyPatch[Long, MutableLongTrie, MutableLongTrie] = MutableLongTrie.DeleteKey
 //	override protected def keyInsert :TrieKeyPatch[Long, MutableLongTrie, MutableLongTrie] = MutableLongTrie.InsertKey
 //	override protected def keyFlip :TrieKeyPatch[Long, MutableLongTrie, MutableLongTrie] = MutableLongTrie.FlipKey
-//	override protected def intersection :BinaryTrieOp[MutableLongTrie, MutableLongTrie] = MutableLongTrie.Intersection
+//	override protected def intersection :SharingTrieOp[MutableLongTrie, MutableLongTrie] = MutableLongTrie.Intersection
 }
 */
 
@@ -58,7 +59,7 @@ sealed trait LongSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Orde
 
 	override implicit def ordering :ValOrdering[Long] = ValOrdering.LongOrdering
 
-	override protected[this] def mySpecialization :RuntimeType[Long] = RuntimeType.OfLong
+	override def specialization :RuntimeType[Long] = RuntimeType.OfLong
 
 
 	@inline final override protected[this] def elements :ElementOf[Long, LongTrie] = this
@@ -153,6 +154,7 @@ final class StableLongSet private[sets] (keys :LongTrie, keyCount :Int = -1)
 
 	override def mutable :MutableLongSet = new MutableLongSet(MutableLongTrie.newRoot(trie), unsureSize)
 
+	override def newBuilder = new ValSetBuilder[Long, MutableLongSet, StableLongSet](MutableLongSet.empty, _.stable)
 }
 
 
@@ -228,6 +230,7 @@ class MutableLongSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 
 	override def mutable :MutableLongSet = new MutableLongSet(trie.copy, unsureSize)
 
+	override def origin :AnyRef = MutableLongSet
 //	override def newBuilder :FitBuilder[Long, MutableLongSet] = empty
 }
 

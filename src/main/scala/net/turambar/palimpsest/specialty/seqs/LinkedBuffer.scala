@@ -4,7 +4,8 @@ import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListIterator, NonEmpty}
 import net.turambar.palimpsest.specialty.seqs.ListSlice.ListSliceIterator
-import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty._
+import net.turambar.palimpsest.specialty.iterables.{SpecializableIterable, SpecializedIterableFactory}
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
@@ -290,7 +291,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 
 
 
-object LinkedBuffer extends ImplementationIterableFactory[LinkedBuffer] {
+object LinkedBuffer extends SpecializedIterableFactory[LinkedBuffer] {
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedBuffer[_], E, LinkedBuffer[E]]): CanBuildFrom[LinkedBuffer[_], E, LinkedBuffer[E]] =
 		fit.cbf

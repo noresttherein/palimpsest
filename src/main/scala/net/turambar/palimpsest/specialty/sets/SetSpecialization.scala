@@ -2,14 +2,13 @@ package net.turambar.palimpsest.specialty.sets
 
 
 import java.lang.Math
-import net.turambar.palimpsest.specialty.iterables.EmptyIterableTemplate
-import net.turambar.palimpsest.specialty.ordered.OrderedAs
-import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate, RuntimeType}
+
+import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, IterableTemplate}
+import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitTraversableOnce, RuntimeType}
 
 import scala.annotation.unspecialized
-import scala.collection.generic.CanBuildFrom
-import scala.collection.{GenSet, GenTraversableOnce, SetLike, mutable}
+import scala.collection.{mutable, GenSet, GenTraversableOnce, SetLike}
 
 /** A generic, non-specialized analogue of `SetLike` serving as the common base class for all sets in this package.
   * Provides declarations of common methods not needing public specialized variants. Subclasses may still
@@ -63,7 +62,7 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	/** Default set builder delegating to a wrapped set's `+` and `++` methods. This implementation is ''not'' specialized
 	  * and must be overriden.
 	  */
-	protected[this] override def newBuilder :FitBuilder[E, This] = new ImmutableSetBuilder[E, This](empty)
+	protected[this] override def newBuilder :FitBuilder[E, This] = new StableSetBuilder[E, This](empty)
 
 }
 
@@ -77,7 +76,19 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 	extends SetTemplate[E, This] with IterableSpecialization[E, This]
 {
 
-	override def specialization :RuntimeType[E] = mySpecialization
+	/** Runtime type used to store elements of this collection. Overriden to provide non-abstract type parameter
+	  * possible due to invariance. This method remains not specialized in order to avoid an additional intermediate
+	  * call in the most common case of invoking it from non-specialized code. Use the specialized target of this method
+	  * [[net.turambar.palimpsest.specialty.sets.SetSpecialization#specialization]] when `E` is known or specialized.
+	  */
+	@inline @unspecialized
+	override final def runtimeType :RuntimeType[E] = specialization
+
+	/** Runtime type used to store elements of this collection. The difference from
+	  * [[net.turambar.palimpsest.specialty.sets.SetSpecialization#specialization]] is that this method is specialized,
+	  * while the former simply delegates to this instance.
+	  */
+	override def specialization :RuntimeType[E] = RuntimeType.specialized[E]
 
 	override def empty :This
 
@@ -157,17 +168,17 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 		}
 
 
-	@unspecialized
-	def copyToFitArray(xs: Array[E], start: Int=0, total: Int=Int.MaxValue): Unit =
-		if (start<0)
-			throw new IllegalArgumentException(s"$stringPrefix.copyToArray([], $start, $total)")
-		else {
-			val max = Math.min(xs.length-start, total)
-			if (max > 0)
-				uncheckedCopyTo(xs, start, max)
-		}
+//	@unspecialized
+//	def copyToFitArray(xs: Array[E], start: Int=0, total: Int=Int.MaxValue): Unit =
+//		if (start<0)
+//			throw new IllegalArgumentException(s"$stringPrefix.copyToArray([], $start, $total)")
+//		else {
+//			val max = Math.min(xs.length-start, total)
+//			if (max > 0)
+//				trustedCopyTo(xs, start, max)
+//		}
 
-	protected override def uncheckedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
+	protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
 		if (isEmpty) 0
 		else {
 			iterator.copyToArray(xs, start, total); Math.min(total, size)
@@ -182,7 +193,7 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 	/** Default set builder delegating to a wrapped set's `+` and `++` methods. Good for most immutable sets,
 	  * overriden by [[MutableSetSpecialization]] for mutable sets.
 	  */
-	override def newBuilder :FitBuilder[E, This] = new ImmutableSetBuilder[E, This](empty)
+	override def newBuilder :FitBuilder[E, This] = new StableSetBuilder[E, This](empty)
 
 
 	//	override def sameElements[U >: E](that: GenIterable[U]) = super.sameElements(that)
@@ -193,8 +204,8 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 
 
 object SetSpecialization {
-	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
-		set.uncheckedCopyTo(xs, start, total)
+//	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
+//		set.trustedCopyTo(xs, start, total)
 
 
 	private[sets] def intersection[@specialized(Elements) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :FitBuilder[E, R]) :R = {
@@ -308,7 +319,7 @@ trait EmptySetSpecialization[@specialized(Elements) E, +This <: StableSet[E] wit
 	@unspecialized
 	override def copyToFitArray(xs: Array[E], start: Int, total: Int) :Unit = ()
 
-	protected override def uncheckedCopyTo(xs :Array[E], start :Int, total :Int) :Int = 0
+	protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int = 0
 
 
 

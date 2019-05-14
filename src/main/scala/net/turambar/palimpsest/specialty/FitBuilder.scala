@@ -2,19 +2,20 @@ package net.turambar.palimpsest.specialty
 
 
 import java.lang.Math
+
 import scala.annotation.tailrec
-import scala.collection.{GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce, mutable}
+import scala.collection.{mutable, GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce}
 import RuntimeType.{Fun1, Fun1Vals}
 import net.turambar.palimpsest.specialty.FitBuilder.{BuilderAdapter, BuilderWrapper}
-import net.turambar.palimpsest.specialty.seqs.FitSeq
+import net.turambar.palimpsest.specialty.seqs.{FitSeq, SharedArrayBuffer}
 
 import scala.collection.generic.CanBuildFrom
 
 
 
 /** Specialized version of [[mutable.Builder]] (for any result type). */
-trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] {
-//	protected[this] def mySpecialization :Specialized[E] = Specialized[E]
+trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] with SpecializedGeneric {
+//	protected[this] def specialization :Specialized[E] = Specialized[E]
 
 
 
@@ -85,27 +86,36 @@ trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] 
 //	def supressHints :FitBuilder[E, To] =
 //		new BuilderAdapter(new BuilderWrapper(this, build, true))
 	
-	/** A builder which, in case of ordered collections, will produce the result in reversed order
-	  * compared to this builder.
- 	  * @return a builder such that `inverse.result() == this.result().reversed` if `To` is an ordered collection.
-	  */
+//	/** A builder which, in case of ordered collections, will produce the result in reversed order
+//	  * compared to this builder.
+// 	  * @return a builder such that `inverse.result() == this.result().reversed` if `To` is an ordered collection.
+//	  */
 //	def reverseResult :FitBuilder[E, To]
 	
 	
-	def typeHint[L<:E](implicit specialization :RuntimeType[L]) :FitBuilder[E, To] = this
+	def typeHint[L<:E :RuntimeType] :FitBuilder[E, To] = this
+
+
+
+//	def specialization :RuntimeType[_] = specialization
+
+	protected[this] override def specialization :RuntimeType[E] = RuntimeType.specialized[E]
+
+	def elementType :Class[_] = specialization.runType
+
+
+	/** An identifier used by collections to recognize 'their' builders and optimize building of new collections.
+	  * Builders created by generic collections and their companions will return the companion object here, which
+	  * is understood as a declaration that it builds the default collection type of that companion. Other builders
+	  * will return any other object (by default themselves). Comparison is performed as reference equality (`eq`).
+	  */
+	def origin :AnyRef = this
 	
-	def origin :Any = this
 	
-	
-	@deprecated("to restricting with mutable sets", "")
-	def count :Int
 }
 
 
 
-trait GenericBuilder[@specialized(Elements) E, +C[X]] extends FitBuilder[E, C[E]] {
-	def like[@specialized(Elements) X] :GenericBuilder[X, C]
-}
 
 
 
@@ -189,8 +199,7 @@ object FitBuilder {
 		
 		override def result(): To = build()
 		
-		override def count: Int = ???
-		
+
 		override def clear(): Unit = vanilla.clear()
 		
 		override def sizeHint(expect: Int): Unit =
@@ -231,8 +240,6 @@ object FitBuilder {
 		
 		override def result(): To = build()
 		
-		
-		override def count: Int = ???
 		
 		override def clear(): Unit = target.clear()
 		
@@ -277,60 +284,75 @@ object FitBuilder {
 	  * internally as-is (including collections as whole), and requires implementing classes to provide a [[RetardedFitBuilder#realBuilder]]
 	  * to do the real work when [[RetardedFitBuilder#result]] is eventually called.
 	  */
-	trait RetardedFitBuilder[-E, +To] extends FitBuilder[E, To] {
-		//			protected def build :FitBuilder[E, To]
-		
-		private[this] final var elems :List[TraversableOnce[E]] = Nil
-		protected[this] final var hint :Int = Int.MinValue
-		
+	abstract class RetardedFitBuilder[-E, +To] extends FitBuilder[E, To] {
+		private[this] final var chunks :List[TraversableOnce[E]] = Nil
+		private[this] final var singles :SharedArrayBuffer[E] = SharedArrayBuffer.Empty.asInstanceOf[SharedArrayBuffer[E]]
+		private[this] final var hint :Int = Int.MinValue
+
+
 		override def sizeHint(expect: Int): Unit = hint = expect
-		
-		protected[this] def inOrder :List[TraversableOnce[E]] = elems.reverse
-		
-		@tailrec protected[this] final def guessSize(soFar :Int=0, remaining :List[TraversableOnce[E]]=elems) :Int =
+
+//		override def typeHint[L <: E](expect :RuntimeType[L]) :FitBuilder[E, To]
+//		protected[this] def inOrder :List[TraversableOnce[E]] = chunks.reverse
+
+		@tailrec protected[this] final def guessSize(soFar :Int=singles.length, remaining :List[TraversableOnce[E]]=chunks) :Int =
 			remaining match {
 				case Nil => soFar
 				case col::rest if ofKnownSize(col) => guessSize(soFar+col.size, rest)
 				case _ => Int.MinValue
 			}
-		
+
 		protected[this] def guessSpecialization :RuntimeType[E] = {
 			@tailrec def rec(soFar :RuntimeType[E], remaining :List[TraversableOnce[E]]) :RuntimeType[E] =
 				remaining match {
 					case Nil => soFar
-					case FitTraversableOnce(col)::rest if col.specialization == soFar =>
+					case FitTraversableOnce(col)::rest if col.runtimeType == soFar =>
 						rec(soFar, rest)
 					case hd::rest if hd.isEmpty => rec(soFar, rest)
 					case _ => RuntimeType.erased
 				}
-			elems match {
-				case FitTraversableOnce(col)::rest if col.specialization!=RuntimeType.OfAnyRef =>
-					rec(col.specialization.asInstanceOf[RuntimeType[E]], rest)
+			chunks = singles::chunks
+			chunks match {
+				case (col :FitTraversableOnce[E])::rest if col.runtimeType != RuntimeType.erased =>
+					rec(col.runtimeType.asInstanceOf[RuntimeType[E]], rest)
 				case _ => RuntimeType.erased[E]
 			}
 		}
-		
-		override def +=(elem1: E, elem2: E, elems: E*): this.type =
-			{ this.elems = elems::FitSeq.pair(elem1, elem2)::this.elems; this }
-		
-		override def ++=(xs: TraversableOnce[E]): this.type =
-			{ elems = xs::elems; this }
-		
-		override def +=(elem: E): this.type =
-			{ elems = FitSeq.single(elem)::elems; this }
-		
-		
-		override def clear(): Unit = elems = Nil
-		
-		override def count :Int = {
-			var total = 0; var parts = elems
-			while (parts.nonEmpty) {
-				total += parts.size
-				parts = parts.tail
-			}
-			total
+
+
+		override def ++=(xs: TraversableOnce[E]): this.type = {
+			if (singles.nonEmpty) {
+				chunks = xs :: singles :: chunks
+				singles = SharedArrayBuffer.Empty.asInstanceOf[SharedArrayBuffer[E]]
+			} else
+				chunks = xs::chunks
+			this
 		}
-		
+
+		override def +=(elem: E): this.type = {
+			singles += elem; this
+		}
+
+
+		override def clear(): Unit = {
+			singles = SharedArrayBuffer.Empty.asInstanceOf[SharedArrayBuffer[E]]
+			chunks = Nil
+		}
+
+		override def result() :To = {
+			//guessSpecialization appends singles to chunks for us
+			val builder = resultBuilder(guessSpecialization)
+			val size = guessSize()
+			if (size >= 0)
+				builder sizeHint size
+			else if (hint >= 0)
+				builder sizeHint hint
+			chunks.reverse foreach { builder ++= _ }
+			clear()
+			builder.result()
+		}
+
+		protected[this] def resultBuilder(implicit runtimeType :RuntimeType[E]) :FitBuilder[E, To]
 	}
 
 
@@ -367,8 +389,6 @@ object FitBuilder {
 		private[this] var sizeHint :Int = Int.MinValue
 		private[this] var size = 0
 
-
-		override def count :Int = size
 
 		override def sizeHint(expect :Int) :Unit = {
 			sizeHint = expect
@@ -452,7 +472,7 @@ object FitBuilder {
 						val collected = target.result()
 						target = pessimist
 						target ++= collected
-						//							throw new Exception(s"OptimisticFitBuilder[${mySpecialization}] failed to add $col;")
+						//							throw new Exception(s"OptimisticFitBuilder[${specialization}] failed to add $col;")
 						target ++= col.toIterator.drop(added)
 						count = target.count
 						this

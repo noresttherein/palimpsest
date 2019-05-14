@@ -4,9 +4,10 @@ import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.RuntimeType.Fun1Vals
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, IterableSpecialization, IterableTemplate}
+import net.turambar.palimpsest.specialty.{ofKnownSize, FitBuilder, FitIterator}
+import net.turambar.palimpsest.specialty.iterables.IterableTemplate
 
-import scala.collection.SeqLike
+import scala.collection.{GenSeq, IndexedSeqLike, SeqLike}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.IndexedSeq
 
@@ -103,7 +104,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	  * otherwise using [[SeqTemplate#superIndexOf]], which forwards the call to the iterator.
 	  */
 	override def indexOf[U >: E](elem: U, from: Int): Int =
-		if (mySpecialization.boxType isAssignableFrom elem.getClass)
+		if (specialization.boxType isAssignableFrom elem.getClass)
 			positionOf(elem.asInstanceOf[E], from)
 		else
 			superIndexOf(elem, from)
@@ -136,7 +137,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	  * otherwise using [[SeqTemplate#superLastIndexOf]], which forwards the call to the iterator.
 	  */
 	override def lastIndexOf[U >: E](elem: U, end: Int): Int =
-		if (mySpecialization.boxType isAssignableFrom elem.getClass)
+		if (specialization.boxType isAssignableFrom elem.getClass)
 			lastPositionOf(elem.asInstanceOf[E], end)
 		else
 			superLastIndexOf(elem, end)
@@ -217,9 +218,9 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	override def toFitSeq: FitSeq[E] = this.asInstanceOf[FitSeq[E]]
 
 	override def toIndexedSeq: IndexedSeq[E] =
-		(StableArray.fitBuilder[E](mySpecialization) ++= this).result()
+		(StableArray.fitBuilder[E](specialization) ++= this).result()
 
-	override def inverse: FitSeq[E] = (FitList.reverseBuilder(mySpecialization) ++= this).result()
+	override def inverse: FitSeq[E] = (FitList.reverseBuilder(specialization) ++= this).result()
 
 
 
@@ -228,17 +229,17 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 /*
 	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
-		if (mySpecialization.runType isAssignableFrom xs.getClass.getComponentType )
+		if (specialization.runType isAssignableFrom xs.getClass.getComponentType )
 			if (start<0)
 				throw new IllegalArgumentException(s"$stringPrefix.copyToArray([], $start, $len)")
 			else {
 				val count = Math.min(xs.length-start, len)
 				if (count>0)
-					uncheckedCopyTo(xs.asInstanceOf[Array[E]], start, count)
+					trustedCopyTo(xs.asInstanceOf[Array[E]], start, count)
 			}
 		else iterator.copyToArray(xs, start, len)
 
-	protected[this] def uncheckedCopyTo(xs: Array[E], start: Int, total: Int): Int =
+	protected[this] def trustedCopyTo(xs: Array[E], start: Int, total: Int): Int =
 		if (isEmpty || total<=0) 0
 		else {
 			iterator.copyToArray(xs, start, total)

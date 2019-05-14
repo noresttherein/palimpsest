@@ -4,8 +4,8 @@ import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{immutable, IndexedSeqLike}
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{DoubletonSpecialization, IterableFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, FitIterator, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{DoubletonSpecialization, FitIterableFactory, InterfaceIterableFactory, IterableFoundation, IterableSpecialization, SingletonSpecialization, SpecializableIterable, StableIterable, StableIterableOverrides}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterator, RuntimeType}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 
 
@@ -17,8 +17,9 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
   * @author Marcin Mościcki
   */
 trait StableSeq[@specialized(Elements) +E]
-	extends immutable.Seq[E] with FitSeq[E] with SeqTemplate[E, StableSeq[E]] with IterableSpecialization[E, StableSeq[E]] //with SliceLike[E, StableSeq[E]]
-			with SpecializableIterable[E, StableSeq]
+	extends immutable.Seq[E] with StableIterableOverrides[E] with FitSeq[E] with SeqTemplate[E, StableSeq[E]]
+	   with IterableSpecialization[E, StableSeq[E]] //with SliceLike[E, StableSeq[E]]
+	   with SpecializableIterable[E, StableSeq]
 {
 
 	@unspecialized
@@ -42,7 +43,7 @@ trait StableSeq[@specialized(Elements) +E]
 
 /** Factory of immutable, specialized indexed sequences. */
 object StableSeq extends InterfaceIterableFactory[StableSeq] {
-	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.Acc[E]
+	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.emptyOf[E]
 
 	def single[@specialized(Elements) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
 
@@ -159,7 +160,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 		//
 		//		override def copyToBuffer[B >: E](dest: mutable.Buffer[B]): Unit = dest += head
 
-		override def stringPrefix = s"Seq[$specialization]"
+		override def stringPrefix = s"Seq[$runtimeType]"
 		override def typeStringPrefix = "Seq1"
 	}
 
@@ -272,7 +273,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 					dest += last
 				}
 				*/
-		override def stringPrefix = s"Seq[$specialization]"
+		override def stringPrefix = s"Seq[$runtimeType]"
 		override def typeStringPrefix = "Seq2"
 	}
 

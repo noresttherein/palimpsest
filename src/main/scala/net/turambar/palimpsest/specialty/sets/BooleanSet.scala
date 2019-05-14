@@ -2,36 +2,37 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.lang
 
-import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, EmptyIterable, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
+import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, EmptyIterableFoundation, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure}
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, FastSizeIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.BooleanSet.{BooleanSetIterator, IsTrue}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2, Specialized}
 import net.turambar.palimpsest.specialty.ordered.OrderedBy.OrderedEmpty
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.sets.ValSet.{ImmutableSetBuilder, Mutable, Stable}
+import net.turambar.palimpsest.specialty.sets.ValSet.{StableSetBuilder, Mutable, Stable}
 
 import scala.collection.{GenSet, GenTraversableOnce}
 import scala.collection.generic.CanBuildFrom
 
 
-/** A, mostly humorous, set of boolean values (i.e. one of `{}, {false}, {true}, {false, true}`) represented
+/** A, mostly humorous, mutable set of boolean values (i.e. one of `{}, {false}, {true}, {false, true}`) represented
   * as a bitmap. The lowest bit (value 1) specifies whether 'false' belongs to this set,
   * and the second bit (value 2) specifies whether 'true' belongs to this set.
   *
   * @author Marcin Mościcki
   */
 final class BooleanSet protected (private[this] var bitmap :Int) extends MutableOrderedSet[Boolean] with OfKnownSize {
+	//todo: reduce the size of the class by at least half.
+
 	@inline private def toBitset :Int = bitmap
 
-	protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
+	override def specialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 	override implicit def ordering: ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 
 	override def empty = new BooleanSet(0)
 	
 	override def size: Int = bitmap - (bitmap >> 1)
-	override def count :Int = bitmap - (bitmap >> 1)
 
 	override def isEmpty :Boolean = bitmap==0
 
@@ -340,7 +341,7 @@ private[sets] object BooleanSet {
 	  * @return default set builder iteratively growing its immutable result set.
 	  */
 	@inline final def newBuilder :FitBuilder[Boolean, StableOrderedSet[Boolean]] = //new BooleanSetBuilder
-		new ImmutableSetBuilder[Boolean, StableOrderedSet[Boolean]](Empty)
+		new StableSetBuilder[Boolean, StableOrderedSet[Boolean]](Empty)
 
 	@inline private[BooleanSet] final val IsTrue = { x :Boolean => x }
 
@@ -349,9 +350,10 @@ private[sets] object BooleanSet {
 	/** Empty, immutable boolean set. Adding elements will always return a constant representing
 	  * one of four possible values of this set type: `{}, {false}, {true}, {false, true}`.
 	  */
-	case object Empty extends /*EmptyIterable[Boolean, StableOrderedSet[Boolean]] with */StableOrderedSet[Boolean] with EmptyIterableTemplate[Boolean, StableOrderedSet[Boolean]]/*with OrderedEmpty[Boolean, StableOrderedSet[Boolean]]*/ {
+	case object Empty extends /*EmptyIterableFoundation[Boolean, StableOrderedSet[Boolean]] with */StableOrderedSet[Boolean] with EmptyIterableTemplate[Boolean, StableOrderedSet[Boolean]]/*with OrderedEmpty[Boolean, StableOrderedSet[Boolean]]*/ {
+		//todo: empty set base class?
 		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
-		protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
+		override def specialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
 
 		override def empty :Empty.type = this
@@ -389,7 +391,7 @@ private[sets] object BooleanSet {
 
 		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] = this
 
-		protected override def uncheckedCopyTo(xs: Array[Boolean], start: Int, total: Int) = 0
+		protected override def trustedCopyTo(xs: Array[Boolean], start: Int, total: Int) = 0
 	}
 
 
@@ -399,7 +401,7 @@ private[sets] object BooleanSet {
 				with SingletonSpecialization[Boolean, StableOrderedSet[Boolean]]
 	{
 		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
-		protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
+		override def specialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
 
 		override def empty :Empty.type = Empty
@@ -492,7 +494,7 @@ private[sets] object BooleanSet {
 	{
 
 		override implicit def ordering: ValOrdering[Boolean] = ValOrdering.BooleanOrdering
-		protected[this] override def mySpecialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
+		override def specialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
 
 		override def empty :StableOrderedSet[Boolean] = Empty
@@ -505,9 +507,9 @@ private[sets] object BooleanSet {
 
 
 		override def keyAt(n :Int) :Boolean =
-			if (n==0) false
-			else if (n==1) true
-			else throw new NoSuchElementException(s"Set[Boolean](false, true).keyAt($n)")
+			if (n < 0 | n > 1)
+				throw new NoSuchElementException(s"Set[Boolean](false, true).keyAt($n)")
+			else n==1
 
 		override def contains(elem: Boolean): Boolean = true
 
@@ -569,7 +571,7 @@ private[sets] object BooleanSet {
 			else if (from.isDefined && from.get) True
 			else this
 
-		protected override def uncheckedCopyTo(xs: Array[Boolean], start: Int, total: Int) :Int = {
+		protected override def trustedCopyTo(xs: Array[Boolean], start: Int, total: Int) :Int = {
 			xs(start) = false
 			if (total>1) {
 				xs(start+1) = true
@@ -582,6 +584,8 @@ private[sets] object BooleanSet {
 	private class BooleanSetIterator (private[this] var bitmap :Int)
 		extends FastSizeIterator[Boolean] with FitIterator[Boolean]
 	{
+		override def specialization :Specialized[Boolean] = RuntimeType.OfBoolean
+
 		override def hasNext :Boolean = bitmap != 0
 		override def size :Int = bitmap - (bitmap >> 1)
 		

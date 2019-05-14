@@ -5,7 +5,6 @@ import java.util.Date
 
 import org.scalacheck.{Prop, Properties}
 import org.scalacheck.Prop._
-import net.turambar.palimpsest.specialty.Specialize.{Self, SpecializeIndividually}
 import scala.reflect._
 import scala.reflect.runtime.universe.TypeTag
 import scala.runtime.BoxedUnit

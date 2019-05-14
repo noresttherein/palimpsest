@@ -1,7 +1,8 @@
 package net.turambar.palimpsest.specialty.ordered
 
-import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, FitCompanion, FitIterator, IterableSpecialization, SpecializableIterable, Sure}
+import net.turambar.palimpsest.specialty.iterables.IterableAdapter
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, FitCompanion, FitIterator, Sure}
+import net.turambar.palimpsest.specialty.iterables.IterableSpecialization
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, SliceLike}
 import net.turambar.palimpsest.specialty.sets.OrderedSet
 

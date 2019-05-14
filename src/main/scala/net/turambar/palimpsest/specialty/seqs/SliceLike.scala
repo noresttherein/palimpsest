@@ -8,7 +8,7 @@ import scala.collection.{GenIterable, GenSeq, GenTraversableOnce, IndexedSeqLike
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
 import net.turambar.palimpsest.specialty.RuntimeType.Fun1Vals
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterable, IterableSpecialization, FitIterator, IterableTemplate, RuntimeType, ofKnownSize}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, RuntimeType, ofKnownSize}
 
 
 /** An interface base trait for sequence-like collections which provide reasonably efficient slicing
@@ -29,7 +29,7 @@ import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterable, Ite
   * @see [[FitSeq]]
   * @author Marcin Mościcki
   */
-trait SliceLike[+E, +Repr] extends SeqTemplate[E, Repr] { //with IterableSpecialization[E, Repr] /*with mutable.Cloneable[Repr]*/ {
+trait SliceLike[+E, +Repr] extends SeqLike[E, Repr] with SeqTemplate[E, Repr] { //SeqLike for super calls
 
 
 	/** Empty collection returned when requested for slices of zero length; implemented as `section(0, 0)`. */

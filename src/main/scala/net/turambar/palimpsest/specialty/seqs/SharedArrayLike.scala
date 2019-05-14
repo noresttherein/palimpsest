@@ -1,7 +1,8 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import scala.reflect.ClassTag
-import net.turambar.palimpsest.specialty.{Elements, IterableSpecialization, SpecializableIterable, arrayFill, ofKnownSize}
+import net.turambar.palimpsest.specialty.{arrayFill, ofKnownSize, Elements}
+import net.turambar.palimpsest.specialty.iterables.SpecializableIterable
 
 import scala.collection.mutable
 

@@ -6,7 +6,7 @@ import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
-import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.{Elements, RuntimeType}
 
 import scala.annotation.unspecialized
 
@@ -23,7 +23,7 @@ import scala.annotation.unspecialized
   * @tparam E element type before erasure
   */
 class LentArrayBuffer[@specialized(Elements) E] protected[seqs]
-		(protected[this] final var array :Array[E], protected[seqs] final var headIdx :Int, protected[this] final var len :Int, lowerBound :Int, higherBound :Int)
+		(protected[this] final var array :Array[E], protected[palimpsest] final var headIdx :Int, protected[this] final var len :Int, lowerBound :Int, higherBound :Int)
 	extends SeqFoundation[E, LentArrayBuffer[E]] with SharedArrayBuffer[E] //with ArrayBufferLike[E, LentArrayBuffer[E]]
 //		with ArrayBufferLike[E, LentArrayBuffer]
 		with SharedArrayLike[E, LentArrayBuffer]

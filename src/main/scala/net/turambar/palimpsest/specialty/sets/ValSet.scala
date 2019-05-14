@@ -1,14 +1,14 @@
 package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, FitIterable, FitIterator, FitTraversableOnce, ImplementationIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, Specialize, RuntimeType, SpecializedIterableFactory}
+import net.turambar.palimpsest.specialty._
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, FitIterableFactory, InterfaceIterableFactory, IterableAdapter, SpecializableIterable}
 
 import scala.annotation.unspecialized
 import scala.collection.immutable.LongMap
 import scala.collection.generic.{CanBuildFrom, GenericCompanion, GenericSetTemplate, Shrinkable, Subtractable}
-import scala.collection.{GenIterable, GenSet, GenTraversableOnce, SetLike, mutable}
+import scala.collection.{mutable, GenIterable, GenSet, GenTraversableOnce, SetLike}
 
 
 /** A generic type constructor of a higher kind shared by all specialized set implementations in this package.
@@ -20,7 +20,7 @@ trait SpecializableSet[@specialized(Elements) E, +S[@specialized(Elements) X]<:S
 	extends GenericSetTemplate[E, S] with SetLike[E, S[E]]
 	   with SpecializableIterable[E, S] with SetSpecialization[E, S[E]]
 {
-//	override def newBuilder :FitBuilder[E, S[E]] = new ImmutableSetBuilder[E, S[E]](empty)
+//	override def newBuilder :FitBuilder[E, S[E]] = new StableSetBuilder[E, S[E]](empty)
 	override def empty :S[E] = companion.empty
 }
 
@@ -44,12 +44,17 @@ trait ValSet[@specialized(Elements) E]
 //	override def newBuilder :FitBuilder[E, FitSet[E]] = companion.newBuilder
 
 	override def typeStringPrefix = "Set"
-	override def stringPrefix :String = super[FitIterable].stringPrefix //typeStringPrefix + "[" + mySpecialization.classTag + "]"
+	override def stringPrefix :String = super[FitIterable].stringPrefix //typeStringPrefix + "[" + specialization.classTag + "]"
 }
 
 
 
-object ValSet extends ImplementationIterableFactory[ValSet] {
+object ValSet extends InterfaceIterableFactory[ValSet] {
+
+	override protected[this] type RealType[@specialized(Elements) E] = StableSet[E]
+	override protected[this] final def default :FitIterableFactory[StableSet] = StableSet
+
+
 	type Sorted[@specialized(Elements) E] = OrderedSet[E]
 	type MakeSorted[@specialized(Elements) E] = OrderedSet[E]
 
@@ -73,20 +78,6 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 
 
-	override def empty[@specialized(Elements) E] :ValSet[E] = EmptySet()
-
-	override def apply[@specialized(Elements) E](elems :E*) :ValSet[E] =
-		(newBuilder[E] ++= elems).result()
-
-
-	def newBuilder[@specialized(Elements) E] :FitBuilder[E, ValSet[E]] = SetBuilder()
-
-//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ValSet[E]] =
-//		SetBuilder()
-
-	override def fitBuilder[E: RuntimeType]: FitBuilder[E, ValSet[E]] = SetBuilder()
-
-
 
 	override implicit def canBuildFrom[E](implicit fit: CanFitFrom[ValSet[_], E, ValSet[E]]): CanBuildFrom[ValSet[_], E, ValSet[E]] =
 		fit.cbf
@@ -94,39 +85,13 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 
 
-	private type SetBuilder[E] = FitBuilder[E, ValSet[E]]
 
 
 
-	/**  Specialized factory for builders returning a new builder for a set implementation best fitting
-	  *  a given element type. Delegates via double dispatch to the set factory object associated with
-	  *  requested element type.
- 	  */
-	final private val SetBuilder = new Specialize.Individually[SetBuilder] {
-		override def forBoolean: SetBuilder[Boolean] = BooleanSet.newBuilder
-		override def forByte: SetBuilder[Byte] = ByteSet.newBuilder
-		override def forShort :SetBuilder[Short] = ??? //ShortSet.newBuilder
-		override def forInt: SetBuilder[Int] = ??? //IntSet.newBuilder
-		override def forLong :SetBuilder[Long] = ??? //DirectLongSet.newBuilder
-		override def forFloat :SetBuilder[Float] = ??? //FloatSet.newBuilder
-		override def forDouble :SetBuilder[Double] = ??? //DoubleSet.newBuilder
-		override def forChar :SetBuilder[Char] = ??? //CharSet.newBuilder
-		override def forUnit = ???
-		override def forRef[E :RuntimeType] = ???
-	}
 
-	final private val EmptySet = new Specialize.Individually[ValSet] {
-		override def forBoolean = BooleanSet.Empty
-		override def forByte = ByteSet.Empty
-		override def forShort = ??? //ShortSet.Empty
-		override def forInt = ??? //IntSet.Empty
-		override def forLong = ??? //DirectLongSet.Empty
-		override def forChar = ??? //CharSet.Empty
-		override def forFloat = ??? //FloatSet.Empty
-		override def forDouble = ??? //DoubleSet.Empty
-		override def forUnit = ???
-		override def forRef[E :RuntimeType] = ???
-	}
+
+
+
 
 
 	abstract class SetAdapter[+Source <: ValSet[E] with SetSpecialization[E, Source], E, +This <: ValSet[E] with SetSpecialization[E, This]]
@@ -183,6 +148,33 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 	}
 
 
+	/** A builder of set `S` utilising internally a mutable set `M`. This may be faster than the default
+	  * [[net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder]] if the passed map function `build`
+	  * used to obtain the result is able to reuse internal contents of the mutable set.
+	  * @param set initial empty set to which all methods delegate.
+	  * @param build a function mapping the mutable set to the final result used on the call to `result()`.
+	  */
+	class ValSetBuilder[@specialized(Elements) E, M <: MutableSet[E], +S](set :M, build :M => S)
+		extends FitBuilder[E, S]
+	{
+		override def +=(elem :E) :this.type = {
+			set += elem; this
+		}
+
+		override def ++=(elems :FitTraversableOnce[E]) :this.type = {
+			set ++= elems; this
+		}
+
+		override def clear() :Unit = set.clear()
+
+		override def result() :S = build(set)
+
+		override def mapResult[O](f :S => O) :FitBuilder[E, O] = new ValSetBuilder(set, build andThen f)
+
+	}
+
+
+
 
 
 	/** A `FitBuilder` building any type of set using it's own (copying) `+`/`++` methods, starting from an empty set.
@@ -191,7 +183,7 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 	  * @tparam E element type of the built set.
 	  * @tparam S built `To` set type.
 	  */
-	private[sets] class ImmutableSetBuilder[@specialized(Elements) E, +S<:ValSet[E] with SetSpecialization[E, S]]
+	private[sets] class StableSetBuilder[@specialized(Elements) E, +S<:ValSet[E] with SetSpecialization[E, S]]
 			(private[this] var set :S)
 		extends FitBuilder[E, S]
 	{
@@ -205,15 +197,16 @@ object ValSet extends ImplementationIterableFactory[ValSet] {
 
 		override def clear(): Unit = set = (set :SetSpecialization[E, S]).empty
 
-		override def count: Int = set.size
+
+		override def origin :AnyRef = ValSet
 	}
 
 
 
 
 
-	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
-		SetSpecialization.friendCopy(set, xs, start, total)
+//	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
+//		SetSpecialization.friendCopy(set, xs, start, total)
 
 
 }

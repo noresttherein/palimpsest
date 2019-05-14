@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.tries
 import net.turambar.palimpsest.specialty.tries.BinaryTrie.{BinaryTrieBranch, BinaryTriePatch}
 import net.turambar.palimpsest.specialty.tries.Trie.KeyTypes
 import net.turambar.palimpsest.specialty.tries.TrieFriends.TrieOp
-import net.turambar.palimpsest.specialty.tries.BinaryTrieOps.{BinaryTrieOp, TrackingTrieKeyPatch, TrieKeyPatch}
+import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrackingTrieKeyPatch, TrieKeyPatch}
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.GenericBinaryTrieBranch
 
 import scala.annotation.unspecialized
@@ -15,8 +15,8 @@ trait TrieKeySetOps[K, F <: BinaryTrie[K, F], T <: GenericBinaryTrie[K, F, T] wi
 	def InsertKey :TrieKeyPatch[K, F, T]
 	def FlipKey :TrieKeyPatch[K, F, T]
 
-	def Intersection :BinaryTrieOp[F, F]
-	def SelfIntersection :BinaryTrieOp[F, F]
+	def Intersection :SharingTrieOp[F, F]
+	def SelfIntersection :SharingTrieOp[F, F]
 
 	def newRoot(result :F) :T
 }
@@ -31,7 +31,9 @@ trait TrieKeySetOps[K, F <: BinaryTrie[K, F], T <: GenericBinaryTrie[K, F, T] wi
   * @tparam F 'friend' trie type - a super type of `T` being the type of arguments for binary set operators.
   * @author Marcin Mościcki marcin@moscicki.net
   */
-trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: GenericBinaryTrie[K, F, T] with F] extends TrieKeySetOps[K, F, T] { ops =>
+trait BinaryTrieKeySetFactory[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: GenericBinaryTrie[K, F, T] with F]
+	extends TrieKeySetOps[K, F, T]
+{ ops =>
 
 	protected type Branch = GenericBinaryTrieBranch[K, F, T]
 
@@ -50,7 +52,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 	/** Factory for leaves/singleton tries used by patch implementations. */
 	protected def newLeaf(key :K) :T
 
-	/** Target method of [[BinaryTrieOps#InsertKey]]'s `whenNoKey` - accepts verbatim a new key to insert and the future
+	/** Target method of [[BinaryTrieKeySetFactory#InsertKey]]'s `whenNoKey` - accepts verbatim a new key to insert and the future
 	  * sibling of the new leaf and creates a branch with the new leaf holding the given key and the `closest` node
 	  * as its children.
 	  * @param key key which is being inserted into the trie.
@@ -99,7 +101,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 		override def trackSize :TrackingTrieKeyPatch[K, F, T] = new TrackingDelete
 
-		override def collective :BinaryTrieOp[F, F] = Difference
+		override def collective :SharingTrieOp[F, F] = Difference
 
 		override def toString = "DeleteKey"
 	}
@@ -149,7 +151,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 		override def trackSize :TrackingTrieKeyPatch[K, F, T] = new TrackingInsert
 
-		override def collective :BinaryTrieOp[F, F] = Union
+		override def collective :SharingTrieOp[F, F] = Union
 
 		override def toString = "InsertKey"
 	}
@@ -187,7 +189,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 		override def trackSize :TrackingTrieKeyPatch[K, F, T] = new TrackingFlip
 
-		override def collective :BinaryTrieOp[F, F] = SymmetricDifference
+		override def collective :SharingTrieOp[F, F] = SymmetricDifference
 	}
 
 	class FlipKey extends FlipKeyFoundation {
@@ -221,7 +223,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 
 
-	abstract class BinaryTrieOpFoundation extends BinaryTrieOp[F, F] {
+	abstract class SharingTrieOpFoundation extends SharingTrieOp[F, F] {
 
 		override def reduce(path :F)(res1 :F, res2 :F) :F = ops.reduce(path)(res1, res2)
 
@@ -232,7 +234,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 	/** A base class for set difference operators implementing methods which do not return any of the argument tries. */
 	@unspecialized
-	abstract class DifferenceFoundation extends BinaryTrieOpFoundation {
+	abstract class DifferenceFoundation extends SharingTrieOpFoundation {
 		private[this] val empty = ops.emptyTrie
 
 		override def mapEmpty(emptyFirst :F, emptySecond :F) :F = empty
@@ -241,7 +243,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 		override def mapMatch(firstLeaf :F, secondLeaf :F) :F = empty
 
-		override def selfOp :BinaryTrieOp[F, F] = SelfDifference
+		override def selfOp :SharingTrieOp[F, F] = SelfDifference
 
 		override def opName :String = "--"
 	}
@@ -256,22 +258,22 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 	}
 
 
-	/** Default key set difference implementation pointed to from [[BinaryTrieOps#DeleteKey]]. */
-	val Difference :BinaryTrieOp[F, F]
+	/** Default key set difference implementation pointed to from [[BinaryTrieKeySetFactory#DeleteKey]]. */
+	val Difference :SharingTrieOp[F, F]
 
 	/** Difference of key sets of two tries taking the fragments from the  first argument as-is.
-	  * @see [[net.turambar.palimpsest.specialty.tries.BinaryTrieOps.BinaryTrieOp#selfOp]]
+	  * @see [[net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.SharingTrieOp#selfOp]]
 	  */
-	val SelfDifference :BinaryTrieOp[F, F] = new SelfDifference
+	val SelfDifference :SharingTrieOp[F, F] = new SelfDifference
 
 
 
 
 	@unspecialized
-	abstract class UnionFoundation extends BinaryTrieOpFoundation {
+	abstract class UnionFoundation extends SharingTrieOpFoundation {
 		override def mapEmpty(emptyFirst :F, emptySecond :F) :F = emptyFirst
 
-		override def selfOp :BinaryTrieOp[F, F] = SelfUnion
+		override def selfOp :SharingTrieOp[F, F] = SelfUnion
 
 		override def opName :String = "++"
 	}
@@ -290,21 +292,21 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 		override def opName :String = "++="
 	}
 
-	/** Default key set union implementation pointed to from [[BinaryTrieOps#InsertKey]]. */
-	val Union :BinaryTrieOp[F, F]
+	/** Default key set union implementation pointed to from [[BinaryTrieKeySetFactory#InsertKey]]. */
+	val Union :SharingTrieOp[F, F]
 
-	val SelfUnion :BinaryTrieOp[F, F] = new SelfUnion
+	val SelfUnion :SharingTrieOp[F, F] = new SelfUnion
 
 
 	@unspecialized
-	abstract class SymmetricDifferenceFoundation extends BinaryTrieOpFoundation {
+	abstract class SymmetricDifferenceFoundation extends SharingTrieOpFoundation {
 		private[this] val empty = ops.emptyTrie
 
 		override def mapEmpty(emptyFirst :F, emptySecond :F) :F = emptyFirst
 
 		override def mapMatch(firstLeaf :F, secondLeaf :F) :F = empty
 
-		override def selfOp :BinaryTrieOp[F, F] = SelfSymmetricDifference
+		override def selfOp :SharingTrieOp[F, F] = SelfSymmetricDifference
 
 		override def opName = "^"
 	}
@@ -322,17 +324,17 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 	}
 
 
-	/** Default key set symmetric difference operator pointed to from [[BinaryTrieOp#FllpKey]]. */
-	val SymmetricDifference :BinaryTrieOp[F, F]
+	/** Default key set symmetric difference operator pointed to from [[SharingTrieOp#FllpKey]]. */
+	val SymmetricDifference :SharingTrieOp[F, F]
 
-	val SelfSymmetricDifference :BinaryTrieOp[F, F] = new SelfSymmetricDifference
+	val SelfSymmetricDifference :SharingTrieOp[F, F] = new SelfSymmetricDifference
 
 
 
 
 	/** A base class for set intersection operators implementing methods which do not return any of the argument tries. */
 	@unspecialized
-	abstract class IntersectionFoundation extends BinaryTrieOpFoundation {
+	abstract class IntersectionFoundation extends SharingTrieOpFoundation {
 		private[this] val empty = ops.emptyTrie
 
 		override def mapEmpty(emptyFirst :F, emptySecond :F) :T = empty
@@ -343,7 +345,7 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 		override def mapMismatch(first :F, second :F) :T = empty
 
-		override def selfOp :BinaryTrieOp[F, F] = SelfIntersection
+		override def selfOp :SharingTrieOp[F, F] = SelfIntersection
 
 		override def opName = "&"
 	}
@@ -356,9 +358,9 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 	}
 
 	/** Default set intersection operator for the set companion class of this object. */
-	val Intersection :BinaryTrieOp[F, F] //= new Intersection
+	val Intersection :SharingTrieOp[F, F] //= new Intersection
 
-	val SelfIntersection :BinaryTrieOp[F, F] = new SelfIntersection
+	val SelfIntersection :SharingTrieOp[F, F] = new SelfIntersection
 
 
 	/** Type name of the trie backing the associated collection type, used solely in `toString` implementations. */
@@ -372,13 +374,13 @@ trait BinaryTrieOps[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: Generi
 
 
 
-/** An extension of [[BinaryTrieOps]] providing trie key set operations for immutable sets. While immutability is neither
+/** An extension of [[BinaryTrieKeySetFactory]] providing trie key set operations for immutable sets. While immutability is neither
   * enforced nor required, all operators listed here assume that subtries of argument tries can be used as-is
   * in construction of new tries.
   * @tparam K key type stored in the trie `T`
   * @tparam T argument trie type of all patches and trie operators.
   */
-trait StableBinaryTrieOps[K, T <: BinaryTrie[K, T]] extends BinaryTrieOps[K, T, T] { ops =>
+trait StableBinaryTrieKeySetFactory[K, T <: BinaryTrie[K, T]] extends BinaryTrieKeySetFactory[K, T, T] { ops =>
 
 	override protected def leafLike(leaf :T) :T = leaf
 
@@ -405,7 +407,7 @@ trait StableBinaryTrieOps[K, T <: BinaryTrie[K, T]] extends BinaryTrieOps[K, T, 
 	}
 
 	/** Default set difference operator for the set companion class of this object. */
-	override val Difference :BinaryTrieOp[T, T] = new StableDifference
+	override val Difference :SharingTrieOp[T, T] = new StableDifference
 
 
 
@@ -425,7 +427,7 @@ trait StableBinaryTrieOps[K, T <: BinaryTrie[K, T]] extends BinaryTrieOps[K, T, 
 	}
 
 	/** Default set union operator for the set companion class of this object. */
-	override val Union :BinaryTrieOp[T, T] = new StableUnion
+	override val Union :SharingTrieOp[T, T] = new StableUnion
 
 
 
@@ -445,7 +447,7 @@ trait StableBinaryTrieOps[K, T <: BinaryTrie[K, T]] extends BinaryTrieOps[K, T, 
 	}
 
 	/** Default set symmetric difference operator for the set companion class of this object. */
-	override val SymmetricDifference :BinaryTrieOp[T, T] = new StableSymmetricDifference
+	override val SymmetricDifference :SharingTrieOp[T, T] = new StableSymmetricDifference
 
 
 
@@ -462,7 +464,7 @@ trait StableBinaryTrieOps[K, T <: BinaryTrie[K, T]] extends BinaryTrieOps[K, T, 
 
 
 	/** Default set intersection operator for the set companion class of this object. */
-	override val Intersection :BinaryTrieOp[T, T] = new StableIntersection
+	override val Intersection :SharingTrieOp[T, T] = new StableIntersection
 
 
 }
@@ -475,7 +477,7 @@ trait StableBinaryTrieOps[K, T <: BinaryTrie[K, T]] extends BinaryTrieOps[K, T, 
 
 
 
-/** A variant of [[BinaryTrieOp]] for mutable sets/maps/tries. Changes behaviour in the following way:
+/** A variant of [[SharingTrieOp]] for mutable sets/maps/tries. Changes behaviour in the following way:
   *   - implemented trie factory methods call [[BinaryTrie#copy]] before reusing subtries of arguments in the result
   *   - default union, intersection, difference and symmetric difference implement in-place mutations of the first argument.
   *     Therefore, portions of the first trie are reused as-is in the result, without preventing cross-modification.
@@ -484,8 +486,8 @@ trait StableBinaryTrieOps[K, T <: BinaryTrie[K, T]] extends BinaryTrieOps[K, T, 
   * @tparam M associated mutable trie type
   * @tparam S associated stable trie type and the common base type of tries to which operators defined here are applicable.
   */
-trait MutableBinaryTrieOps[@specialized(KeyTypes) K, S <: BinaryTrie[K, S], M <: GenericBinaryTrie[K, S, M] with S]
-	extends BinaryTrieOps[K, S, M]
+trait MutableBinaryTrieKeySetFactory[@specialized(KeyTypes) K, S <: BinaryTrie[K, S], M <: GenericBinaryTrie[K, S, M] with S]
+	extends BinaryTrieKeySetFactory[K, S, M]
 { ops =>
 
 
@@ -507,7 +509,7 @@ trait MutableBinaryTrieOps[@specialized(KeyTypes) K, S <: BinaryTrie[K, S], M <:
 		override def mapMismatch(first :S, second :S) :S = first.stable
 	}
 
-	override val Difference :BinaryTrieOp[S, S] = new MutableDifference
+	override val Difference :SharingTrieOp[S, S] = new MutableDifference
 
 
 
@@ -524,7 +526,7 @@ trait MutableBinaryTrieOps[@specialized(KeyTypes) K, S <: BinaryTrie[K, S], M <:
 
 	}
 
-	override val Union :BinaryTrieOp[S, S] = new MutableUnion
+	override val Union :SharingTrieOp[S, S] = new MutableUnion
 
 
 
@@ -539,7 +541,7 @@ trait MutableBinaryTrieOps[@specialized(KeyTypes) K, S <: BinaryTrie[K, S], M <:
 		override def mapMismatch(first :S, second :S) :S = joinTries(first.stable, second.stable)
 	}
 
-	override val SymmetricDifference :BinaryTrieOp[S, S] = new MutableSymmetricDifference
+	override val SymmetricDifference :SharingTrieOp[S, S] = new MutableSymmetricDifference
 
 
 
@@ -551,7 +553,7 @@ trait MutableBinaryTrieOps[@specialized(KeyTypes) K, S <: BinaryTrie[K, S], M <:
 	}
 
 
-	override val Intersection :BinaryTrieOp[S, S] = new MutableIntersection
+	override val Intersection :SharingTrieOp[S, S] = new MutableIntersection
 
 
 
@@ -565,7 +567,7 @@ trait MutableBinaryTrieOps[@specialized(KeyTypes) K, S <: BinaryTrie[K, S], M <:
 
 
 
-object BinaryTrieOps {
+object BinaryTrieKeySetFactory {
 
 	/** An extension of [[BinaryTrie.BinaryTriePatch]] for tries with no additional values associated with the keys.
 	  * These patches therefore can be reusable as no additional information aside from the inserted key is generally needed
@@ -585,7 +587,7 @@ object BinaryTrieOps {
 		/** Generalization of this operation from a single key to a trie key set. So, where this instance might
 		  * implement key insertion, this method would return a `TrieOp` implementing trie union, and so on.
 		  */
-		def collective :BinaryTrieOp[F, F]
+		def collective :SharingTrieOp[F, F]
 
 		/** A patch performing the exact same operation as this one, but additionally tracking the total of changes made.
 		  * A change constitutes of returning something else than the argument by the ''when'' methods. This is particularly
@@ -624,7 +626,7 @@ object BinaryTrieOps {
 
 		override def trackSize :TrackingTrieKeyPatch[K, F, T] = new TrackPatch(patch)
 
-		override def collective :BinaryTrieOp[F, F] = patch.collective
+		override def collective :SharingTrieOp[F, F] = patch.collective
 
 		override def patchLeft(template :BinaryTrieBranch[K, F], left :T) :T = patch.patchLeft(template, left)
 
@@ -655,7 +657,7 @@ object BinaryTrieOps {
 
 
 
-	trait BinaryTrieOp[-F, T] extends TrieOp[F, T] {
+	trait SharingTrieOp[-F, T] extends TrieOp[F, T] {
 
 		/** A variant of this operator which takes subtries from the left (original this) argument as-is but converts
 		  * any subtries from the second argument to their stable counterpart. If the associated trie class is immutable

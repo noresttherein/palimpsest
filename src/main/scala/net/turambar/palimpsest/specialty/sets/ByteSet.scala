@@ -8,7 +8,7 @@ import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
 import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2, Specialized}
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.OrderedSet.Mutable
 
@@ -35,7 +35,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 {
 	@inline final private[ByteSet] def bitmap :ByteSetBitmap = bytes
 
-	override final protected[this] def mySpecialization  :RuntimeType[Byte] = RuntimeType.OfByte
+//	override final def specialization  :RuntimeType[Byte] = RuntimeType.OfByte
 
 	override implicit def ordering: ValOrdering[Byte] = ByteSet.UnsignedOrdering
 
@@ -132,7 +132,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	}
 
 
-	override def find_?(p :Byte => Boolean): ?[Byte] = bytes.find_?(p, true)
+//	override def find_?(p :Byte => Boolean): ?[Byte] = bytes.find_?(p, true)
 
 	override def find_?(p :Byte => Boolean, where :Boolean): ?[Byte] = bytes.find_?(p, where)
 
@@ -183,7 +183,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	}
 
 
-	override protected def uncheckedCopyTo(xs: Array[Byte], start: Int, total: Int): Int = {
+	override protected def trustedCopyTo(xs: Array[Byte], start: Int, total: Int): Int = {
 		var copied = 0; var i = 0
 		var cell = 0
 		while(cell < 4 && copied < total) {
@@ -304,7 +304,10 @@ private[sets] object ByteSet {
 	final class StableByteSet(bits :ByteSetBitmap)
 		extends ByteSet[StableOrderedSet[Byte]](bits) with StableOrderedSet[Byte]
 	{
+		override final def specialization  :RuntimeType[Byte] = RuntimeType.OfByte
+
 		override protected[this] def newByteSet(bits: ByteSetBitmap) = new StableByteSet(bits)
+
 		override def empty :StableByteSet = Empty
 
 		override def +(elem: Byte) = new StableByteSet(bitmap + elem)
@@ -355,6 +358,9 @@ private[sets] object ByteSet {
 	final class MutableByteSet(bits :ByteSetBitmap)
 		extends ByteSet[MutableOrderedSet[Byte]](bits) with MutableOrderedSet[Byte]
 	{
+		override final def specialization  :RuntimeType[Byte] = RuntimeType.OfByte
+
+
 		override def empty = new MutableByteSet(EmptyBitmap())
 
 		override protected[this] def newByteSet(bits: ByteSetBitmap): MutableByteSet = new MutableByteSet(bits)
@@ -405,8 +411,13 @@ private[sets] object ByteSet {
 
 		override def clone() = new MutableByteSet(bitmap.copy)
 
-		override def count: Int = size
 	}
+
+
+
+
+
+
 
 
 	/** Bitmap set operations shared by set and iterator implementations.
@@ -852,7 +863,12 @@ private[sets] object ByteSet {
 
 
 	
-	
+
+
+
+
+
+
 	class ByteSetIterator private[ByteSet](bitmap :ByteSetBitmap)
 		extends BaseIterator[Byte] with FitIterator[Byte]
 	{
@@ -867,7 +883,9 @@ private[sets] object ByteSet {
 		
 		override def next() :Byte = { val res = hd.toByte; bitmap -= res; hd = bitmap.headInt; res }
 	}
-	
+
+
+
 	
 	
 	class ByteSetBuilder private[ByteSet] extends FitBuilder[Byte, StableByteSet] {
@@ -890,9 +908,12 @@ private[sets] object ByteSet {
 		
 		override def clear(): Unit = { bits = EmptyBitmap() }
 		
-		def count :Int = bits.size
-		
+
+		override def specialization :Specialized[Byte] = RuntimeType.OfByte
+
+//		override def origin :AnyRef = ByteSet
 	}
+
 }
 	
 	

@@ -7,6 +7,7 @@ import net.turambar.palimpsest.specialty.tries.LongTrie.{EmptyLongTrie, LongTrie
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
 import net.turambar.palimpsest.specialty.{?, Blank, FitTraversableOnce, RuntimeType, Sure, Var}
 import net.turambar.palimpsest.specialty.sets.StableDoubleSet.{doubleToKey, DoubleElementCounter}
+import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries.MutableLongTrie.{EmptyMutableLongTrie, MutableLongTrieBranch, MutableLongTrieLeaf}
 
@@ -27,7 +28,7 @@ sealed trait DoubleSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Va
 
 
 	
-	override protected[this] def mySpecialization :RuntimeType[Double] = RuntimeType.OfDouble
+	override def specialization :RuntimeType[Double] = RuntimeType.OfDouble
 
 
 //	@inline final override protected[this] def elements :ElementOf[Double, LongTrie] = this
@@ -82,8 +83,6 @@ final class StableDoubleSet private[sets] (keys :LongTrie, keyCount :Int = -1)
 
 	override protected def ops :TrieKeySetOps[Long, LongTrie, LongTrie] = LongTrie
 
-	//	override protected[this] def newRoot(trie :LongTrie) :LongTrie = trie.stable
-
 	override protected[this] def newSet(trie :LongTrie, size :Int) :StableDoubleSet = new StableDoubleSet(trie.stable, size)
 
 	override protected[this] def plant(trie :LongTrie, size :Int) :StableDoubleSet = new StableDoubleSet(trie, size)
@@ -93,6 +92,8 @@ final class StableDoubleSet private[sets] (keys :LongTrie, keyCount :Int = -1)
 	override def stable :StableDoubleSet = this
 
 	override def mutable :MutableDoubleSet = new MutableDoubleSet(MutableLongTrie.newRoot(trie), unsureSize)
+
+	override def newBuilder = new ValSetBuilder[Double, MutableDoubleSet, StableDoubleSet](MutableDoubleSet.empty, _.stable)
 }
 
 
@@ -169,6 +170,7 @@ class MutableDoubleSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 
 	override def mutable :MutableDoubleSet = new MutableDoubleSet(trie.copy, unsureSize)
 
+	override def origin :AnyRef = MutableDoubleSet
 }
 
 

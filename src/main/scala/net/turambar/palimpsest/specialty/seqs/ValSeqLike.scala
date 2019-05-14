@@ -3,7 +3,8 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, FitCompanion, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, ValSet}
 
 import scala.annotation.unspecialized
@@ -20,7 +21,20 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	extends IterableSpecialization[E, Repr] with SeqTemplate[E, Repr] with Subtractable[E, Repr] with mutable.Cloneable[Repr]
 {
 
-	@inline override final def specialization :RuntimeType[E] = RuntimeType[E]
+	/** Runtime type used to store elements of this collection. Overriden to provide non-abstract type parameter
+	  * possible due to invariance. This method remains not specialized in order to avoid an additional intermediate
+	  * call in the most common case of invoking it from non-specialized code. Use the specialized target of this method
+	  * [[net.turambar.palimpsest.specialty.seqs.ValSeqLike#specialization]] when `E` is known or specialized.
+	  */
+	@inline @unspecialized
+	override final def runtimeType :RuntimeType[E] = specialization
+
+	/** Runtime type used to store elements of this collection. The difference from
+	  * [[net.turambar.palimpsest.specialty.seqs.ValSeqLike#specialization]] is that this method is specialized, while
+	  * the former simply delegates to this instance.
+	  */
+	override def specialization :RuntimeType[E] = RuntimeType.specialized[E]
+
 
 
 	override def -(elem: E): Repr = {
@@ -155,7 +169,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 		else {
 			val max = Math.min(count, xs.length-start)
 			if (max > 0)
-				uncheckedCopyTo(xs, start, max)
+				trustedCopyTo(xs, start, max)
 			else 0
 		}
 }

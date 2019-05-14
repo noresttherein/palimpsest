@@ -1,11 +1,87 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import java.lang.Math
+
 import scala.annotation.unspecialized
-import scala.collection.{immutable, mutable, GenSeq, IndexedSeqLike, IndexedSeqOptimized, SeqLike}
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitCompanion, FitIterator, Sure, IterableSpecialization, SpecializableIterable}
+import scala.collection.{GenSeq, IndexedSeqLike, SeqLike}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitCompanion, FitIterator, Sure}
 import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, IterableTemplate, SpecializableIterable}
+
+
+
+trait FitIndexedSeqTemplate[+E, +S]
+	extends SeqLike[E, S] with IndexedSeqLike[E, S] with IterableTemplate[E, S] with SliceLike[E, S] with OfKnownSize
+{
+	override def indexOfSlice[U >: E](that: GenSeq[U], from: Int): Int = that match {
+		case s :SliceLike[_, _] if specialization==s.runtimeType && s.length <= 8 => //todo: KMP
+			val spec = s.asInstanceOf[SliceLike[E, _]]
+			var i = Math.max(from, 0)
+			val limit = length - spec.length
+			while (i<=limit && !startsWithUnchecked(spec, i))
+				i += 1
+			if (i>limit) -1 else i
+
+		case _ =>
+			super[SeqLike].indexOfSlice(that, from)
+	}
+
+	@inline
+	final override def lastIndexOfSlice[U >: E](that: GenSeq[U]): Int = lastIndexOfSlice(that, 0)
+
+	override def lastIndexOfSlice[U >: E](that: GenSeq[U], end: Int): Int = that match {
+		case s :SliceLike[_, _] if specialization==s.runtimeType && s.length <= 8 => //todo: KMP
+			val spec = s.asInstanceOf[SliceLike[E, _]]
+			var i = end min (length - spec.length)
+			while(i<=0 && !startsWith(spec, i)) i -=1
+			if (i<0) -1 else i
+		case _ =>
+			super[SeqLike].lastIndexOfSlice(that, end)
+	}
+
+
+
+	@inline
+	final override def containsSlice[U](that: GenSeq[U]): Boolean = indexOfSlice(that, 0) >= 0
+
+
+
+	@inline
+	final override def startsWith[U](that :GenSeq[U]) :Boolean = startsWith(that, 0)
+
+
+	override def startsWith[U](that: GenSeq[U], offset: Int): Boolean = that match {
+		case s :SliceLike[_, _] if specialization==s.runtimeType =>
+			startsWith(s.asInstanceOf[SliceLike[E, _]], offset)
+		case _ =>
+			super[SeqLike].startsWith(that, offset)
+	}
+
+
+	@inline @unspecialized
+	final protected[this] def startsWith(that :SliceLike[E, _], offset :Int) :Boolean =
+		!(offset>length || offset<0 || length-offset <= that.length) &&
+			startsWithUnchecked(that, offset)
+
+	@unspecialized
+	protected[this] def startsWithUnchecked(that: SliceLike[E, _], offset: Int): Boolean = {
+		iterator.drop(offset).take(that.length) sameElements that.iterator
+	}
+
+
+
+	final override def endsWith[U](that: GenSeq[U]): Boolean = that match {
+		case s :SliceLike[_, _] if specialization==s.runtimeType =>
+			startsWith(s.asInstanceOf[SliceLike[E, _]], length-s.length)
+		case _ =>
+			super[SeqLike].endsWith(that)
+	}
+
+
+
+	override def iterator :FitIterator[E] = FitIterator.adapt(super[IndexedSeqLike].iterator)
+}
 
 
 
@@ -16,19 +92,10 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 //todo: delete this class
 trait FitIndexedSeq[@specialized(Elements) +E]
 	extends IndexedSeq[E] with IndexedSeqLike[E, FitIndexedSeq[E]]
-			with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]]
-			with SliceLike[E, FitIndexedSeq[E]] with SpecializableIterable[E, FitIndexedSeq] with OfKnownSize
+	   with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]]
+	   with FitIndexedSeqTemplate[E, FitIndexedSeq[E]] with SpecializableIterable[E, FitIndexedSeq] with OfKnownSize
 { self =>
 	
-//	override def hasDefiniteSize: Boolean = true
-//	override def hasFastSize :Boolean = true
-
-
-//	@inline
-//	final override def lengthCompare(len: Int): Int = length-len
-//	override def isEmpty: Boolean = length==0
-//	override def nonEmpty: Boolean = length!=0
-
 
 
 
@@ -90,75 +157,13 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 	
 	
 	
-	override def indexOfSlice[U >: E](that: GenSeq[U], from: Int): Int = that match {
-		case s :SliceLike[_, _] if mySpecialization==s.specialization && s.length <= 8 => //todo: KMP
-			val spec = s.asInstanceOf[SliceLike[E, _]]
-			var i = from max 0
-			val limit = length - spec.length
-			while (i<=limit && !startsWith(spec, i)) i += 1
-			if (i>limit) -1 else i
-		
-		case _ =>
-			defaultImpl.indexOfSlice(that, from)
-	}
-	
-	@inline
-	final override def lastIndexOfSlice[U >: E](that: GenSeq[U]): Int = lastIndexOfSlice(that, 0)
-	
-	override def lastIndexOfSlice[U >: E](that: GenSeq[U], end: Int): Int = that match {
-		case s :SliceLike[_, _] if mySpecialization==s.specialization && s.length <= 8 => //todo: KMP
-			val spec = s.asInstanceOf[SliceLike[E, _]]
-			var i = end min (length - spec.length)
-			while(i<=0 && !startsWith(spec, i)) i -=1
-			if (i<0) -1 else i
-		case _ =>
-			defaultImpl.lastIndexOfSlice(that, end)
-	}
-	
-	
-	
-	@inline
-	final override def containsSlice[U](that: GenSeq[U]): Boolean = indexOfSlice(that, 0) >= 0
-	
-	
-	
-	@inline
-	final override def startsWith[U](that :GenSeq[U]) :Boolean = startsWith(that, 0)
-	
-	
-	override def startsWith[U](that: GenSeq[U], offset: Int): Boolean = that match {
-		case s :SliceLike[_, _] if mySpecialization==s.specialization =>
-			startsWith(s.asInstanceOf[SliceLike[E, _]], offset)
-		case _ =>
-			defaultImpl.startsWith(that, offset)
-	}
-	
-	
-	@inline @unspecialized
-	final protected[this] def startsWith(that :SliceLike[E, _], offset :Int) :Boolean =
-		!(offset>length || offset<0 || length-offset <= that.length) &&
-			startsWithUnchecked(that, offset)
-	
-	@unspecialized
-	protected[this] def startsWithUnchecked(that: SliceLike[E, _], offset: Int): Boolean = {
-		iterator.drop(offset).take(that.length) sameElements that.iterator
-	}
-	
-	
-	
-	final override def endsWith[U](that: GenSeq[U]): Boolean = that match {
-		case s :SliceLike[_, _] if mySpecialization==s.specialization =>
-			startsWith(s.asInstanceOf[SliceLike[E, _]], length-s.length)
-		case _ =>
-			defaultImpl.endsWith(that)
-	}
-	
+
 
 
 
 	
 
-	protected[this] override def uncheckedCopyTo(target :Array[E], start :Int, len :Int) :Int = {
+	protected[this] override def trustedCopyTo(target :Array[E], start :Int, len :Int) :Int = {
 		var i = 0; val max = Math.min(len, length)
 		while (i < max) { target(start + i) = at(i); i += 1 }
 		Math.max(0, max)
@@ -170,67 +175,51 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 
 
 	override def iterator: FitIterator[E] = new ForwardIterator
-	
+
 	override def reverseIterator: FitIterator[E] = new ReverseIterator
-	
+
 	override def inverse :FitSeq[E] = new ReverseSeq[E](toSeq)
 
 	override def toSeq :FitIndexedSeq[E] = this.asInstanceOf[FitIndexedSeq[E]]
 
 
+	//todo: inner classes are not specialized
 	protected class ForwardIterator extends IndexedIterator[E](0, length) with FitIterator[E] {
-		
+
 		override def head :E = at(index)
 		override def next() :E = { val res :E = at(index); index+=1; res }
-		
+
 		@unspecialized
 		override def foreach[@specialized(Unit) U](f: (E) => U): Unit =
 			if (index==0 && end==length) toSeq.foreach(f)
 			else while(index < end) { f(at(index)); index+=1 }
-		
+
 		override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int): Unit =
 			self.seq.copyToArray(xs, start, len max size)
-		
+
 		override def toIndexedSeq :collection.immutable.IndexedSeq[E] = section(index, end).toIndexedSeq
-		
+
 		override def toSeq :FitSeq[E] = self.section(index, end).asInstanceOf[FitSeq[E]]
 
 	}
-	
-	
+
+
 
 	protected class ReverseIterator extends ReverseIndexedIterator[E](length-1, 0) with FitIterator[E] {
 		override def head: E = at(index)
 		override def next() :E = { val res :E = at(index); index-=1; res }
-		
+
 		@unspecialized
 		override def foreach[@specialized(Unit) U](f :E=>U) :Unit =
 			if (index==length-1 && end==0) toSeq.reverseTraverse(f.asInstanceOf[E=>Unit])
 			else while(index>=end) { f(at(index)); index-=1; }
-		
+
 		override def toIndexedSeq :collection.immutable.IndexedSeq[E] = toSeq.toIndexedSeq
-		
+
 		@unspecialized
 		override def toSeq :FitSeq[E] = self.section(end, index+1).asInstanceOf[FitSeq[E]].inverse
 	}
-	
-	
-	/** A proxy to this collection using algorithms defined in standard scala library.
-	  * Used as `super` calls normally are, but `super` is broken with specialization.
-	  */
-	protected[this] def defaultImpl :Seq[E] = new IndexedSeq[E] with IndexedSeqOptimized[E, IndexedSeq[E]]  {
 
-		override def repr: IndexedSeq[E] = self.thisCollection
 
-		override def seq: IndexedSeq[E] = self.thisCollection
-
-		override def length: Int = self.length
-
-		override def apply(idx: Int): E = at(idx)
-		
-//		override protected[this] def newBuilder: mutable.Builder[E, Repr] = self.newBuilder
-	}
-
-	
 	override def companion :FitCompanion[FitIndexedSeq] = ArrayView
 }

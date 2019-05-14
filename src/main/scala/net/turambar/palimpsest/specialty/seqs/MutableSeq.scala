@@ -3,7 +3,8 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterableFactory, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType, arrayFill}
+import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{FitIterableFactory, InterfaceIterableFactory, MutableIterableOverrides, SpecializableIterable}
 
 import scala.annotation.unspecialized
 
@@ -13,8 +14,8 @@ import scala.annotation.unspecialized
   * @author Marcin Mościcki
   */
 trait MutableSeq[@specialized(Elements) E]
-	extends mutable.Seq[E] with mutable.SeqLike[E, MutableSeq[E]] with ValSeq[E] with ValSeqLike[E, MutableSeq[E]]
-			with SpecializableIterable[E, MutableSeq]
+	extends mutable.Seq[E] with mutable.SeqLike[E, MutableSeq[E]] with MutableIterableOverrides[E]
+	   with ValSeq[E] with ValSeqLike[E, MutableSeq[E]] with SpecializableIterable[E, MutableSeq]
 {
 
 	override def seq: MutableSeq[E] = this

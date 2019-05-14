@@ -8,7 +8,7 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.IntSet.IntSetIterator
 import net.turambar.palimpsest.specialty.{?, FitBuilder, FitIterator, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterables.EmptyIterable
+import net.turambar.palimpsest.specialty.iterables.EmptyIterableFoundation
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.ordered.ValOrdering.IntOrdering
 
@@ -29,7 +29,7 @@ class IntSet private[IntSet](negative :BitSet, positive :BitSet, override val si
 	override def hasFastSize = true
 	override def hasDefiniteSize = true
 
-	override protected[this] def mySpecialization: Specialized[Int] = Specialized.OfInt
+	override protected[this] def specialization: Specialized[Int] = Specialized.OfInt
 	override def empty = IntSet.Empty
 
 	override def foreach[@specialized(Unit) U](f: (Int) => U) = {
@@ -122,7 +122,7 @@ object IntSet {
 	def mutable :MutableSet[Int] = Mutable.empty
 
 	object Sorted {
-		final val Empty :StableOrderedSet[Int] = new EmptyIterable[Int, StableOrderedSet[Int]] with StableOrderedSet[Int] with EmptySetSpecialization[Int, StableOrderedSet[Int]]{
+		final val Empty :StableOrderedSet[Int] = new EmptyIterableFoundation[Int, StableOrderedSet[Int]] with StableOrderedSet[Int] with EmptySetSpecialization[Int, StableOrderedSet[Int]]{
 			override implicit val ordering: ValOrdering[Int] = IntOrdering
 			override def keysIteratorFrom(start: Int): FitIterator[Int] = FitIterator.empty[Int]
 			override def rangeImpl(from: ?[Int], until: ?[Int]): StableOrderedSet[Int] = this
@@ -186,7 +186,7 @@ object IntSet {
 		override def newBuilder =
 			source.newBuilder.mapInput(to).mapResult(fromSource)
 
-		override protected def uncheckedCopyTo(xs: Array[Y], start: Int, total: Int): Int =
+		override protected def trustedCopyTo(xs: Array[Y], start: Int, total: Int): Int =
 			if (total >= source.size) {
 				var idx = start
 				source.foreach { i: Int => xs(idx) = my(i); idx += 1 }

@@ -5,7 +5,7 @@ import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.StableBinaryTri
 import net.turambar.palimpsest.specialty.tries.LongTrie.EmptyLongTrie
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.{centerLabel, EmptyLongKeys, GenericLongKeyBranch, LongKeyBranch, LongKeyLeaf, MutableLongKeyBranch}
 import net.turambar.palimpsest.specialty.tries.TrieFriends.TrieOp
-import net.turambar.palimpsest.specialty.tries.BinaryTrieOps.{BinaryTrieOp, TrackingTrieKeyPatch, TrieKeyPatch}
+import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrackingTrieKeyPatch, TrieKeyPatch}
 import net.turambar.palimpsest.specialty.tries.MutableLongTrie.EmptyMutableLongTrie
 
 
@@ -25,7 +25,7 @@ trait LongTrie extends LongTrieKeys[LongTrie, LongTrie] { this :BinaryTrieNode =
 
 
 
-object LongTrie extends BinaryTrieOps[Long, LongTrie, LongTrie] with StableBinaryTrieOps[Long, LongTrie] {
+object LongTrie extends BinaryTrieKeySetFactory[Long, LongTrie, LongTrie] with StableBinaryTrieKeySetFactory[Long, LongTrie] {
 
 	val EmptyLongTrie :LongTrie = MutableLongTrie.EmptyMutableLongTrie
 
@@ -39,7 +39,7 @@ object LongTrie extends BinaryTrieOps[Long, LongTrie, LongTrie] with StableBinar
 
 		override def cloneLeaf(leaf :LongTrie) :LongTrie = leaf
 
-		override def leafLike(leaf :LongTrie) :LongTrie = leaf
+		override def likeLeaf(leaf :LongTrie) :LongTrie = leaf
 
 
 		override protected def patchLeft(branch :BinaryTrieBranch[Long, LongTrie], left :LongTrie) :LongTrie =
@@ -72,7 +72,7 @@ object LongTrie extends BinaryTrieOps[Long, LongTrie, LongTrie] with StableBinar
 
 
 
-	type LongTrieOp = BinaryTrieOp[LongTrie, LongTrie]
+	type LongTrieOp = SharingTrieOp[LongTrie, LongTrie]
 
 	trait BaseLongTrieOp extends TrieOp[LongTrie, LongTrie] {
 		override def reduce(path :LongTrie)(res1 :LongTrie, res2 :LongTrie) :LongTrie =

@@ -7,7 +7,7 @@ import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{ofKnownSize, ArrayBounds, Elements, FitCompanion, FitIterable, FitTraversableOnce, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitCompanion, FitTraversableOnce, RuntimeType}
 
 
 
@@ -33,11 +33,11 @@ trait SharedArrayBuffer[@specialized(Elements) E]
 {
 
 
-
+	//todo: extract variables to an erased base class ?
 	protected[seqs] def arr_=(a :Array[E]) :Unit = array = a
 	protected[this] var array :Array[E]
-	protected[seqs] var headIdx :Int
-	protected[this] var len :Int
+	protected[palimpsest] var headIdx :Int
+	protected[this] var len :Int //todo: replace len with endIdx
 //	protected var baseOffset :Int
 
 
@@ -471,7 +471,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 		var capacity = array.length-headIdx
 		if (required > capacity - len || unmodifiable) {
 			capacity += 1
-			do { capacity *= 2 } while (capacity < len + required)
+			do { capacity *= 2 } while (capacity < len + required) //todo: laughably inefficient
 			val extended = new Array[E](headIdx + capacity)
 			System.arraycopy(array, headIdx, extended, headIdx, len)
 			array = extended
@@ -483,7 +483,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 	override def reserveFront(required: Int=1): Unit =
 		if (required > headIdx || unmodifiable) {
 			var capacity = headIdx+len+1
-			do { capacity *= 2 } while (capacity<len+required)
+			do { capacity *= 2 } while (capacity<len+required) //todo: laughably inefficient
 			val extended = new Array[E](capacity + (array.length-endIdx))   //we have an implicit class tag,
 			System.arraycopy(array, headIdx, extended, capacity-len, len) //so it will turn out properly specialized
 			array = extended
@@ -589,7 +589,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
   */
 class GrowingArrayBuffer[@specialized(Elements) E](
 		protected[this] final var array :Array[E],
-		protected[seqs] final var headIdx :Int,
+		protected[palimpsest] final var headIdx :Int,
 		protected[this] final var len :Int,
 		protected final var unmodifiable :Boolean=false)
 	extends IterableFoundation[E, SharedArrayBuffer[E]] with DefaultArrayBuffer[E]

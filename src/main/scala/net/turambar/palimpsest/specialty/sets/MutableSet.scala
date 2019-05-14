@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.sets
 
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
 import net.turambar.palimpsest.specialty.sets.ValSet.{SetAdapter, Sorted, Stable}
 import net.turambar.palimpsest.specialty._
+import net.turambar.palimpsest.specialty.iterables.SpecializedIterableFactory
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 
 import scala.annotation.unspecialized
@@ -14,7 +14,7 @@ import scala.collection.{mutable, GenSet, GenTraversableOnce}
 
 
 trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] with MutableSetSpecialization[E, This]]
-	extends mutable.SetLike[E, This] with SetSpecialization[E, This] with FitBuilder[E, This]
+	extends mutable.SetLike[E, This] with FitBuilder[E, This] with SetSpecialization[E, This]
 {
 
 	override def +(elem :E) :This = clone() += elem
@@ -138,14 +138,12 @@ trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] 
 	/** Default mutable builder simply repurposing `this.empty`. Should be good for all set implementations. */
 	override def newBuilder :FitBuilder[E, This] = (this :SetSpecialization[E, This]).empty
 
-	override def count :Int = size
+
+
 }
 
-//trait MutableSetSpecialization[E, +This <: MutableSet[E] with MutableSetSpecialization[E, This]]
-//	extends mutable.SetLike[E, This] with SetSpecialization[E, This] with FitBuilder[E, This]
-//{
-//
-//}
+
+
 
 
 /**
@@ -156,8 +154,6 @@ trait MutableSet[@specialized(Elements) E]
 	   with ValSet[E] with MutableSetSpecialization[E, MutableSet[E]] with SpecializableSet[E, MutableSet]
 {
 
-
-
 	//	override def retain(p: (E) => Boolean) = super.retain(p)
 
 	@unspecialized
@@ -167,23 +163,21 @@ trait MutableSet[@specialized(Elements) E]
 
 	override def companion :FitCompanion[MutableSet] = MutableSet
 
+	override def origin :AnyRef = companion
+
 	override def typeStringPrefix = "MutableSet"
 }
 
 
 
 
-object MutableSet extends ImplementationIterableFactory[MutableSet] {
-	type Ordered[@specialized(Elements) E] = MutableOrderedSet[E]
-
-	final val Ordered = OrderedSet.Mutable
-//	object Ordered {
-//		def empty[@specialized E] :Sorted[E] = new MutableOrderedSetAdapter[E](OrderedSet.Mutable.empty[E])
-//		def newBuilder[@specialized E] :FitBuilder[E, MutableOrderedSet[E]] = empty[E]
-//	}
+object MutableSet extends SpecializedIterableFactory[MutableSet] {
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSet[_], E, MutableSet[E]]): CanBuildFrom[MutableSet[_], E, MutableSet[E]] =
 		fit.cbf
+
+
+	@inline def of[E :RuntimeType] :MutableSet[E] = emptyOf[E]
 
 	/** Creates a mutable wrapper over another specialized set. This is especially useful if {{immutable}} is
 	  * an immutable set, but it isn't required. Result of concurrent modifications done to the argument and
@@ -206,9 +200,6 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, MutableSet[E]] = from(ValSet.empty[E])
 
-
-//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, MutableSet[E]] =
-//		ValSet.specializedBuilder[E].mapResult(from[E](_))
 
 
 
@@ -271,9 +262,7 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 		override def stringPrefix :String = "Mutable-"+source.stringPrefix
 
 
-		override def origin :Any = MutableSet
-
-
+		override def origin :AnyRef = MutableSet
 
 	}
 
@@ -329,7 +318,7 @@ object MutableSet extends ImplementationIterableFactory[MutableSet] {
 			{ source = source - (elem1, elem2, elems:_*); this }
 
 
-		override def origin :Any = OrderedSet.Mutable
+		override def origin :AnyRef = OrderedSet.Mutable
 	}
 
 }

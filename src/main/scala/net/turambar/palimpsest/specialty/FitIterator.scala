@@ -3,25 +3,15 @@ package net.turambar.palimpsest.specialty
 import java.lang.Math
 
 import scala.annotation.{tailrec, unspecialized}
-import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 import scala.collection.{immutable, mutable, AbstractIterator, BufferedIterator, GenTraversableOnce, Iterator}
-import net.turambar.palimpsest.{IndexedIteratorLike, ReverseIndexedIteratorLike}
 import net.turambar.palimpsest.specialty.FitIterator.{ConcatIterator, FilterIterator, LimitedIterator, MappedIterator, ScanLeftIterator, TakeWhileIterator}
 import RuntimeType.{Fun1, Fun1Vals, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableSpecialization}
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitIndexedSeq, FitSeq, StableArray}
 
 
 
 sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIterator] { self :FitIterator[E] =>
-	protected[this] def mySpecialization :RuntimeType[E]
-
-//	def hasFastSize :Boolean = hasNext
-
-//	override def ofAtLeast(size :Int) :Boolean = {
-//		@tailrec def enumerate(n :Int) :Boolean =
-//			n<=0 || hasNext && (n==1 || { skip(); enumerate(n-1) })
-//		enumerate(size)
-//	}
 
 	def headOption :Option[E] = if (hasNext) Some(head) else None
 
@@ -32,7 +22,7 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIte
 	override def indexWhere(p: E => Boolean): Int = indexWhere(p, ourTruth=true)
 
 	override def indexOf[B >: E](elem: B): Int =
-		if (mySpecialization.boxType.isAssignableFrom(elem.getClass))
+		if (specialization.boxType.isAssignableFrom(elem.getClass))
 			positionOf(elem.asInstanceOf[E])
 		else {
 			var i = 0
@@ -92,21 +82,21 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIte
 	override def ++[U >: E](andThen: => GenTraversableOnce[U]) :Iterator[U] = super.++(andThen)
 
 
-	override def toSeq :FitSeq[E] = (FitSeq.fitBuilder(mySpecialization) ++= this).result()
+	override def toSeq :FitSeq[E] = (FitSeq.fitBuilder(specialization) ++= this).result()
 
 	//todo: 'optimistic specialization'
 	override def toBuffer[U>:E] :FitBuffer[U] = toFitBuffer
 
 	override def toIterator :FitIterator[E] = this
 
-	def toFitBuffer[U>:E :RuntimeType] :FitBuffer[U] = //(FitBuffer.fitBuilder(mySpecialization) ++= this).result()
+	def toFitBuffer[U>:E :RuntimeType] :FitBuffer[U] = //(FitBuffer.fitBuilder(specialization) ++= this).result()
 		FitBuffer.of[U] ++= this
 
 
 	override def copyToArray[B >: E](xs: Array[B], start: Int, len: Int): Unit =
 		if (start<0)
 			throw new IllegalArgumentException(s"$this.copyToArray(${xs.getClass.getComponentType.getSimpleName}[${xs.length}], $start, $len)")
-		else if (mySpecialization.emptyArray.getClass.isAssignableFrom(xs.getClass)) //todo
+		else if (specialization.emptyArray.getClass.isAssignableFrom(xs.getClass)) //todo
 			specializedCopy(xs.asInstanceOf[Array[E]], start, len)
 		else {
 			var i = start; val end = Math.min(xs.length, start+len)
@@ -120,7 +110,7 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIte
 /** This is a `@specialized` version of scala `Iterator`, which allows to eliminate boxing of each element
   * for primitives and automatically forces the compiler to generate specialized versions of
   * methods with this interface in their signature (assuming their declaring class/trait is specialized on `E`).
-  * Apart mine being already a `BufferedIterator` (to eliminate number of types duplicated mine generic scala APIs),
+  * Apart from being already a `BufferedIterator` (to eliminate number of types duplicated from generic scala APIs),
   * it declares [[FitIterator#hasFastSize]] which can be used in concatenation or comparison code to check
   * if calling `size` is not only safe but also sensible.
   *
@@ -136,11 +126,12 @@ sealed trait IteratorTemplate[+E] extends Iterator[E] with FunctorLike[E, FitIte
 trait FitIterator[@specialized(Elements) +E]
 	extends BufferedIterator[E] with FitTraversableOnce[E] with IteratorTemplate[E]//with FilterMonadic[E, FitIterator[E]]
 { self =>
-	protected[this] def mySpecialization :RuntimeType[E] = RuntimeType[E]
 
 	@unspecialized
-	override final def specialization :RuntimeType[_<:E] = mySpecialization
-	
+	override final def runtimeType :RuntimeType[_<:E] = specialization
+
+	protected[this] def specialization :RuntimeType[E] = RuntimeType.specialized[E]
+
 
 	
 	override def hasFastSize :Boolean = !hasNext
@@ -334,7 +325,7 @@ trait FitIterator[@specialized(Elements) +E]
 
 
 	override def sameElements(that: Iterator[_]): Boolean = that match {
-		case s :FitIterator[_] if s.specialization==specialization =>
+		case s :FitIterator[_] if s.runtimeType==runtimeType =>
 			sameElements(that.asInstanceOf[FitIterator[E]])
 		case _ =>
 			while (hasNext && that.hasNext && next()==that.next()) {}
@@ -356,6 +347,30 @@ trait FitIterator[@specialized(Elements) +E]
 		while (i<end && hasNext) { val e :E = next(); xs(i) = e; i+=1 }
 	}
 	
+}
+
+
+
+
+
+/** An iterator allowing update of the iterated collection. */
+trait MutableIterator[@specialized(Elements) E] extends FitIterator[E] {
+
+	/** Changes the element that would be returned by the call to [[net.turambar.palimpsest.specialty.FitIterator.head]].
+	  * The iterator will remain at the same position. This will update the underlying collection and a subsequent call
+	  * to `next()` will return the passed value.
+	  * @param elem a replacement for the next element in the iterated collection.
+	  * @throws `NoSuchElementException` if the iterator is empty.
+	  */
+	def head_=(elem :E) :Unit
+
+	/** Changes the element that would be returned by the call to [[net.turambar.palimpsest,specialty.FitIterator.head]]
+	  * and advances over in the same as a call to [[net.turambar.palimpsest.specialty.FitIterator.next()]] would.
+	  * @param elem a replacement for the next element in the iterated collection.
+	  * @throws `NoSuchElementException` if the iterator is empty.
+	  */
+	def next_=(elem :E) :Unit = { head = elem; skip() }
+
 }
 
 
@@ -399,7 +414,7 @@ object FitIterator {
 	}
 
 
-	/** Implicit conversion mine `FitIterator[E]` which adds a concatenation operation `:++`. Note that standard
+	/** Implicit conversion from `FitIterator[E]` which adds a concatenation operation `:++`. Note that standard
 	  * iterator's method `++` is generic with a lower bound for element type which makes it impossible to specialize.
 	  */
 	implicit class IteratorConcatenation[@specialized(Elements) E](first :FitIterator[E]) {
@@ -419,13 +434,13 @@ object FitIterator {
 
 
 
-//		override def specialization :Specialized[_<:E] = mySpecialization
+//		override def specialization :Specialized[_<:E] = specialization
 
 		override def traverse(f: E => Unit): Unit = foreach[Unit](f :E=>Unit) //dear compiler, please use specialized f.apply
 		
 		override def toString :String =
-			if (isEmpty) s"Iterator[$mySpecialization]()"
-			else s"Iterator[$mySpecialization]($head, ???)"
+			if (isEmpty) s"Iterator[$specialization]()"
+			else s"Iterator[$specialization]($head, ???)"
 		
 	}
 
@@ -519,7 +534,7 @@ object FitIterator {
 
 		override def sameElements(that: Iterator[_]): Boolean = that.isEmpty
 
-		override def toString :String = "FitIterator[" + mySpecialization + "]()"
+		override def toString :String = "FitIterator[" + specialization + "]()"
 	}
 
 
@@ -541,9 +556,9 @@ object FitIterator {
 	abstract class IndexedIterator[+E](protected[this] final var index :Int, protected[this] final var end :Int)
 		extends FastSizeIterator[E]
 	{ this :FitIterator[E] =>
-		@inline final override def size :Int = if (index>=end) 0 else end-index
+		@inline final override def size :Int = if (index >= end) 0 else end - index
 
-		override def hasNext :Boolean = index<end
+		override def hasNext :Boolean = index < end
 		
 		override def skip() :Unit = index+=1
 		
@@ -569,8 +584,8 @@ object FitIterator {
 		
 		
 		override def toString :String =
-			if (isEmpty) s"Iterator[$mySpecialization]#$index>>()"
-			else s"Iterator[$mySpecialization]#$index>>($head, ?)"
+			if (isEmpty) s"Iterator[$specialization]#$index>>()"
+			else s"Iterator[$specialization]#$index>>($head, ?)"
 	}
 	
 	
@@ -615,8 +630,8 @@ object FitIterator {
 		}
 		
 		override def toString :String =
-			if (isEmpty) s"Iterator[$mySpecialization]#$index>>()"
-			else s"Iterator[$mySpecialization]#$index>>($head, ?)"
+			if (isEmpty) s"Iterator[$specialization]#$index>>()"
+			else s"Iterator[$specialization]#$index>>($head, ?)"
 	}
 	
 
@@ -639,7 +654,7 @@ object FitIterator {
 	
 	
 	private class SingletonIterator[@specialized(Elements) +E](val head :E) extends FastSizeIterator[E] with FitIterator[E] {
-//		override def specialization: Specialized[_ <: E] = mySpecialization
+//		override def specialization: Specialized[_ <: E] = specialization
 		
 		private[this] var left = 1
 		override def skip() :Unit = left = 0
@@ -671,8 +686,8 @@ object FitIterator {
 				xs(start) = head
 		
 		override def toString :String =
-			if (isEmpty) s"FitIterator[$mySpecialization]()"
-			else s"FitIterator[$mySpecialization]($head)"
+			if (isEmpty) s"FitIterator[$specialization]()"
+			else s"FitIterator[$specialization]($head)"
 	}
 
 
@@ -894,7 +909,7 @@ object FitIterator {
 		extends BaseIterator[E] with FitIterator[E]
 	{
 		private[this] var second :FitIterator[E] = _
-		/** Iterated over all elements mine the first iterator. Needed because `size` might evaluate `second`
+		/** Iterated over all elements from the first iterator. Needed because `size` might evaluate `second`
 		  * before actually advancing to it. If true, implies that `second` has been initialized. */
 		private[this] var firstDone = false
 

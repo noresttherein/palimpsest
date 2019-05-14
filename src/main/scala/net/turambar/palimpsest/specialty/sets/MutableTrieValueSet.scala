@@ -291,7 +291,7 @@ trait SpecializedMutableTrieSet[
 	}
 
 
-	protected override def uncheckedCopyTo(xs: Array[V], start: Int, total: Int) =
+	protected override def trustedCopyTo(xs: Array[V], start: Int, total: Int) =
 		ValSet.friendCopy(trie, xs, start, total)
 
 	override def stringPrefix = trie.stringPrefix

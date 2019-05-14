@@ -5,7 +5,7 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate}
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.{commonPath, flipSign, EmptyLongKeys, LongKeyBranch, LongKeyLeaf, MutableLongTrie}
 import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, ReplaceLeaf, TrieCombinator, AbstractTriePatch}
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate, IterableFoundation, SingletonSpecialization}
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, EmptyIterableTemplate, IterableFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals, ValOrdering}
 import net.turambar.palimpsest.specialty.ordered.OrderedAs.EmptyOrderedTemplate
 import net.turambar.palimpsest.specialty.sets.StableLongTrieSet.{EditableLongTrieSet, LongTrieSet1, StableLongTrieSetN}
@@ -416,7 +416,7 @@ object StableLongTrieSet {
 
 		override def iterator: FitIterator[Long] = new LeafValueIterator(this, 64)
 
-		protected override def uncheckedCopyTo(xs: Array[Long], start: Int, total: Int) :Int = {
+		protected override def trustedCopyTo(xs: Array[Long], start: Int, total: Int) :Int = {
 			def cpy(trie :StableLongTrieSet, pos :Int, left :Int) :Unit = trie match {
 				case branch :LongTrieSetNode =>
 					val lsize = branch.left.size

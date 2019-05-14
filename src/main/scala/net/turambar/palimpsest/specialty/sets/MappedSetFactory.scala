@@ -1,9 +1,8 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, FitIterator, Sure, TypedIterableFactory}
-import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, FitIterator, Sure}
 import net.turambar.palimpsest.specialty.FitIterator.MappedIterator
-import net.turambar.palimpsest.specialty.iterables.EmptyIterable
+import net.turambar.palimpsest.specialty.iterables.EmptyIterableFoundation
 import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Res, Fun2}
 import net.turambar.palimpsest.specialty.sets.ValSet.{Mutable, Stable}
 /*
@@ -16,7 +15,7 @@ abstract class MappedSetFactory[@specialized(Int, Long) X, @specialized(Byte, Sh
 {
 	type Sorted = OrderedSet[Y]
 
-	final val Empty :StableSet[Y] = new EmptyIterable[Y, StableSet[Y]] with StableSet[Y] with EmptySetSpecialization[Y, StableSet[Y]] {
+	final val Empty :StableSet[Y] = new EmptyIterableFoundation[Y, StableSet[Y]] with StableSet[Y] with EmptySetSpecialization[Y, StableSet[Y]] {
 		override def contains(elem: Y): Boolean = false
 		override def +(elem: Y): StableSet[Y] = Singleton(elem)
 		override def -(elem: Y): StableSet[Y] = this

@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.sets.UnitSet.MutableUnitSet
 import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, Sure}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
@@ -19,7 +19,7 @@ sealed trait UnitSet extends StableSet[Unit] with SetSpecialization[Unit, UnitSe
 
 object UnitSet {
 
-	object Empty extends EmptyIterable[Unit, UnitSet] with UnitSet {
+	object Empty extends EmptyIterableFoundation[Unit, UnitSet] with UnitSet {
 		override def contains(elem :Unit) :Boolean = false
 		override def +(elem :Unit) :UnitSet = Full
 		override def -(elem :Unit) :UnitSet = this

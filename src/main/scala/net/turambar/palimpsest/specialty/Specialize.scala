@@ -1,5 +1,8 @@
 package net.turambar.palimpsest.specialty
 
+
+
+
 /** Generic specialized callback, allowing to call a specialized method from non-specialized code based on passed
   * implicit specialization information.
   * This is the parameterless version - [[Specialize.With]] is a similar dispatcher accepting a single parameter
@@ -18,7 +21,7 @@ trait Specialize[R[X]] {
 	  * @param specialization information about runtime specialization requested for this call.
 	  * @return result of calling the most appropriately specialized variant of `this.specialized[E]`.
 	  */
-	@inline final def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
+	def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
 		specialization.call(this)
 
 	/** Callback specialized method to be implemented by subclasses.
@@ -29,6 +32,9 @@ trait Specialize[R[X]] {
 	  */
 	def specialized[@specialized E :RuntimeType] :R[E]
 }
+
+
+
 
 
 object Specialize {
@@ -103,11 +109,15 @@ object Specialize {
 
 	/** A double-dispatch callback invoking different methods (not just synthetic specialized variant of the same method)
 	  * based on specialization information for some type `E` given at call site.
-	  * Similarly to [[Specialize]], it allows to call specialized call from non-specialized one, but declares
+	  * Similarly to [[Specialize]], it allows to call a specialized method from non-specialized one, but declares
 	  * and delegates to a `forE` method for a type `E` specified at call site.
+	  * If you wish to specialize only for a few types, consider extending [[net.turambar.palimpsest.specialty.Specialize.SpecializeSome]]
+	  * instead, which serves as the default abstract base class, delegating all individual calls back to the single
+	  * default abstract method.
 	  * @tparam R type constructor for the returned value.
+	  * @see [[net.turambar.palimpsest.specialty.Specialize.SpecializeSome]]
 	  */
-	trait SpecializeIndividually[R[X]] {
+	trait SpecializeIndividually[R[X]] extends Specialize[R] {
 
 		/** Call the appropriate `forE` method for type `E` and return its result. By default,
 		  * all these methods simply forward to [[SpecializeIndividually#specialized]]. If `E` is not a primitive type
@@ -117,7 +127,7 @@ object Specialize {
 		  * @tparam E type specialized for
 		  * @return
 		  */
-		@inline final def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
+		@inline override final def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
 			specialization.call(this)
 
 
@@ -152,15 +162,24 @@ object Specialize {
 		  * Implicit argument gives all available information about type `E`.
 		  */
 		def forRef[E :RuntimeType] :R[E]
+
+		/** This method is no longer invoked as a specialized callback; instead, the appropriate method for the
+		  * specialized type is called directly.
+		  * @throws UnsupportedOperationException unless overriden.
+		  */
+		override def specialized[@specialized E :RuntimeType] :R[E] = throw new UnsupportedOperationException("("+this+" :SpecializeSome).specialized")
 	}
 
 
 
-	/** A convenience base trait of [[SpecializeIndividually]] which delegates all methods to the single [[SpecializeSome#specialized]],
-	  * allowing subclasses to provide a distinct implementation only for a selected few types and default to a common
-	  * method for all others.
+	/** A convenience base class of [[SpecializeIndividually]] which delegates all methods to the single
+	  * [[net.turambar.palimpsest.specialty.Specialize.SpecializeSome#specialized]], allowing subclasses to provide
+	  * a distinct implementation only for a selected few types and default to a common method for all others.
+	  * In order to avoid the generation of unwanted variants of the `specialized` method in subclasses, this class
+	  * implements `specialized` by forwarding the call to the non-specialized method
+	  * [[net.turambar.palimpsest.specialty.Specialize.SpecializeSome#generic]].
 	  */
-	trait SpecializeSome[R[X]] extends SpecializeIndividually[R] {
+	abstract class SpecializeSome[R[X]] extends SpecializeIndividually[R] {
 
 		override def forByte :R[Byte] = specialized
 
@@ -180,19 +199,35 @@ object Specialize {
 
 		override def forUnit :R[Unit] = specialized
 
-		override def forRef[E :RuntimeType] :R[E] = specialized[E]
+		override def forRef[E :RuntimeType] :R[E] = generic[E]
 
-		/** Default callback implementation called when no specialization information is available, the specified type
-		  * is not a primitive type or the appropriate `forE` method for the given type `E` was not overridden.
-		  * @tparam E type specialized for
+		/** Default target for all `for`''T'' methods. Directly invokes non-specialized method `generic`. */
+		override def specialized[@specialized E :RuntimeType] :R[E] = generic
+
+		/** The final defender method used when no specialization is required for type `E`. Invoked directly from `specialized`.
 		  */
-		def specialized[@specialized E :RuntimeType] :R[E]
-
+		protected[this] def generic[E :RuntimeType] :R[E]
 	}
 
 
-
-
+	/** This is class is similar to `SpecializeSome` in behavior, but overrides all type-specific methods with constants
+	  * initialized by a call to `specialized`.
+	  */
+	abstract class SpecializedVals[R[X]] extends SpecializeIndividually[R] {
+		override final val forByte = specialized[Byte]
+		override final val forShort = specialized[Short]
+		override final val forInt = specialized[Int]
+		override final val forLong = specialized[Long]
+		override final val forFloat = specialized[Float]
+		override final val forDouble = specialized[Double]
+		override final val forChar = specialized[Char]
+		override final val forBoolean = specialized[Boolean]
+		override final val forUnit = specialized[Unit]
+	}
+	
 }
+
+
+
 
 

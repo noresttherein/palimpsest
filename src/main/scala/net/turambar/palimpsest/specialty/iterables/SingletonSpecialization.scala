@@ -1,15 +1,31 @@
 package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitIterable, FitIterator, IterableSpecialization, IterableTemplate, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitIterator, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Res, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
+import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
 
 import scala.collection.{mutable, GenIterable, GenTraversableOnce, LinearSeq}
 import scala.collection.generic.CanBuildFrom
 
 
 trait SingletonTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnownSize {
+
+	/** Applies the given function to the first element in this collection and returns the result.
+	  * Useful especially in non-specialized caller context, where `f(head)` would result in boxing, while
+	  * the implementation will likely be specialized. While benefit in case of a single element will
+	  * likely be minimal, the alternative of invoking `head` directly would still need a virtual method call.
+	  * While generally useful, it is defined here to resolve conflicts between independent definition of this
+	  * method by several mixins. Subclasses which actually use this method - in particular singleton implementations -
+	  * would do well to provide specialized implementations.
+	  * @return value returned by `f` for `head`
+	  * @throws `NoSuchElementException` if this collection is empty
+	  * @see [[net.turambar.palimpsest.specialty.iterables.SingletonFoundation]]
+	  * @see [[net.turambar.palimpsest.specialty.iterables.SingletonSpecialization]]
+	  */
+	protected[this] def forHead[@specialized(Boolean, Unit) O](f :E=>O) :O //= f(head)
+
 
 	protected def empty :Repr
 	override def size = 1
@@ -63,14 +79,25 @@ trait SingletonTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnow
 	override def filterNot(p: E => Boolean) :Repr = //filter(p, false)
 		if (!forHead(p)) repr else empty
 
-	override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]) :That = {
-		val b = bf(repr); b sizeHint 1
-		(b += forHead(f)).result()
-	}
-
+	override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]) :That =
+		(bf(repr) += forHead(f)).result() //todo: maybe this could be implemented directly in the factory
 
 	override def flatMap[U, That](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[Repr, U, That]) :That =
 		(bf(repr) ++= forHead(f).seq).result()
+
+
+
+	override def scanLeft[@specialized(Fun2) O, That](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[Repr, O, That]) :That = {
+		val b = bf(repr); b.sizeHint(2)
+		(b += z += op(z, head)).result()
+	}
+
+
+	override def scanRight[@specialized(Fun2) O, That](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[Repr, O, That]) :That = {
+		val b = bf(repr); b sizeHint 2
+		(b += op(head, z) += z).result()
+	}
+
 
 	override def sameElements[U >: E](that: GenIterable[U]) :Boolean = that match {
 		case s :IndexedSeq[U] => s.size==1 && s.head==head
@@ -101,37 +128,26 @@ trait SingletonTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnow
   */
 trait SingletonSpecialization[@specialized(Elements) +E, +Repr] extends IterableSpecialization[E, Repr] with SingletonTemplate[E, Repr] {
 
+	protected[this] override def forHead[@specialized(Boolean, Unit) T](f :E => T) :T = f(head)
+
 	override def head_? : ?[E] = Sure(head)
-	/** The sole specialized element of this collection. */
+
 	override def last :E = head
 
-	override def last_? : ?[E] = Sure(head)
+	override def last_? : ?[E] = head_?
 
-	override def find_?(p :E => Boolean): ?[E] = if (forHead(p)) Sure(head) else Blank
+	override def find_?(p :E => Boolean, where :Boolean): ?[E] = if (p(head) == where) Sure(head) else Blank
 
-	override def find_?(p :E => Boolean, where :Boolean): ?[E] = if (forHead(p) == where) Sure(head) else Blank
-
-//	protected[this] override def forHead[@specialized(Fun1Res) O](f: E => O): O = f(head)
 
 	override def iterator: FitIterator[E] = FitIterator(head)
 
 	/** Overriden for speed. */
 	override def foreach[@specialized(Unit) U](f :E=>U) :Unit = f(head)
 
-	override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) = op(z, head)
+	override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O = op(z, head)
 
-	override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) = op(head, z)
+	override def foldRight[@specialized(Fun2) O](z: O)(op: (E, O) => O) :O = op(head, z)
 
-	override def scanLeft[@specialized(Fun2) O, That](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[Repr, O, That]) :That ={
-		val b = bf(repr); b.sizeHint(2)
-		(b += z += op(z, head)).result()
-	}
-
-
-	override def scanRight[@specialized(Fun2) O, That](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[Repr, O, That]) :That = {
-		val b = bf(repr); b sizeHint 2
-		(b += op(head, z) += z).result()
-	}
 
 
 
@@ -141,12 +157,12 @@ trait SingletonSpecialization[@specialized(Elements) +E, +Repr] extends Iterable
 		else if (len>0 && start < xs.length-1)
 			xs(start) = head
 
-	override protected[this] def uncheckedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+	override protected[this] def trustedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
 		xs(start) = head; 1
 	}
 
 
-	override def copyToBuffer[B >: E](dest: mutable.Buffer[B]) = dest += head
+	override def copyToBuffer[B >: E](dest: mutable.Buffer[B]) :Unit = dest += head
 
 	override def toSeq :FitSeq[E] = FitSeq.single(head)
 

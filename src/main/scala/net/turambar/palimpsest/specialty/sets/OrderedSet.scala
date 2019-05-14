@@ -1,13 +1,13 @@
 package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, ImplementationIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, RuntimeType}
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, SortedSet, SortedSetLike}
 import OrderedSet.{Mutable, Stable}
 import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals}
-import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
+import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
 
 /** A counterpart of `SortedSetLike`, it brings together the declarations from the latter and [[OrderedAs]]. As this
   * trait lacks specialization, its sole purpose is  to resolve conflicts from inheriting identical method declarations
@@ -97,7 +97,7 @@ trait StableOrderedSet[@specialized(Elements) E] extends OrderedSet[E] with Stab
 	override def empty :StableOrderedSet[E] = OrderedSet.Stable.empty
 	override def stable :StableOrderedSet[E] = this
 
-//	override protected[this] def newBuilder :FitBuilder[E, StableOrderedSet[E]] = new ImmutableSetBuilder(empty)
+//	override protected[this] def newBuilder :FitBuilder[E, StableOrderedSet[E]] = new StableSetBuilder(empty)
 }
 
 

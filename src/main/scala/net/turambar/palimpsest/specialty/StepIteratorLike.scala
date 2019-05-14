@@ -1,4 +1,5 @@
-package net.turambar.palimpsest
+package net.turambar.palimpsest.specialty
+
 
 /** A generic base trait for iterators over indexed collections with fast random access.
   * Each step of the iteration (call to [[Iterator#next]]) results in increasing the current index

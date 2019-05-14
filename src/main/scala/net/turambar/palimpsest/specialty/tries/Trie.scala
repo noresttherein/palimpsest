@@ -4,8 +4,9 @@ import net.turambar.palimpsest.slang.Nullable
 import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
 import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
 import net.turambar.palimpsest.specialty.tries.Trie._
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, IterableSpecialization, IterableTemplate, Specialize, RuntimeType, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, RuntimeType, Specialize, Sure}
 import net.turambar.palimpsest.specialty.Var
+import net.turambar.palimpsest.specialty.iterables.IterableTemplate
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.{mutable, GenTraversableOnce}
@@ -307,8 +308,8 @@ object Trie {
 
 
 
-	trait MutableTrieParent[-T] {
-		private[tries] def setSubtrie(node :T) :Unit
+	trait MutableTrieOwner[-T] {
+		private[tries] def updateTrie(node :T) :Unit
 	}
 
 

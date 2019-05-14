@@ -588,7 +588,7 @@ object LongTrieKeys {
 
 				case _ => //leaf
 					val v = trie.key
-					if (lo <= v && v < hi) leafLike(trie) else emptyTrie
+					if (lo <= v && v < hi) likeLeaf(trie) else emptyTrie
 			}
 
 
@@ -599,16 +599,16 @@ object LongTrieKeys {
 		protected[this] final def keysFrom(trie :S, lo :Long) :This = trie match {
 			case branch :LongBranch =>
 				val split = branch.center
-				if (lo <= branch.lowerBound) share(trie) //branch.copy()
+				if (lo <= branch.lowerBound) share(trie)
 				else if (lo >= split) keysFrom(branch.right, lo)
 				else {
 					val l = keysFrom(branch.left, lo)
 					if (l.isEmpty) share(branch.right)
 					else patchLeft(branch, l)
 				}
-			case _ if lo <= trie.key => leafLike(trie) //trie.copy()
+			case _ if lo <= trie.key => likeLeaf(trie)
 
-			case _ => emptyTrie //leaf.copy() else emptyTrie
+			case _ => emptyTrie
 		}
 
 
@@ -623,7 +623,6 @@ object LongTrieKeys {
 		override def fromKey(from: Long) :This =
 			if (center == SignBit) //left child contains keys >= 0 (0 sign bit), right child contains keys < 0 (1 sign bit)
 				if (from < 0) export(keysFrom(right, from)) //narrow the search down to the right subtrie
-//				else filteredLeft(keysFrom(left, from)) //narrow the left subtrie and keep the right as-is
 				else export(patchLeft(this, keysFrom(left, from)))
 			else if (center < 0) //all keys start with `1` sign bit
 				if (from >= 0) copy
@@ -787,7 +786,7 @@ object LongTrieKeys {
 		}
 
 
-		override def nodeFor(key :Long) :This = leafLike(viewNode(key))
+		override def nodeFor(key :Long) :This = likeLeaf(viewNode(key))
 
 //		override def hasKey(key :Long) :Boolean = viewNode(key).nonEmpty
 
@@ -938,7 +937,7 @@ object LongTrieKeys {
 
 		private type MutableLongBranch = MutableLongKeyBranch[S, M] with S
 
-		@inline final private[tries] def setSubtrie(t :S) :Unit =
+		@inline final private[tries] def updateTrie(t :S) :Unit =
 			if ((t.label & center) == center) right = t
 			else left = t
 
@@ -947,7 +946,7 @@ object LongTrieKeys {
 
 
 
-		override def patchKey(patch :BinaryTriePatch[Long, S, M], root :MutableTrieParent[M])(key :Long) :Boolean = {
+		override def patchKey(patch :BinaryTriePatch[Long, S, M], root :MutableTrieOwner[M])(key :Long) :Boolean = {
 			def replace(parent :MutableLongBranch, child :MutableLongBranch)(old :S, replacement :M, sibling :S) :Boolean =
 				if (replacement eq old)
 					false
@@ -956,7 +955,7 @@ object LongTrieKeys {
 						if (parent!=null)
 							parent.replace(child.asTrie, sibling)
 						else
-							root.setSubtrie(trieLike(sibling))
+							root.updateTrie(trieLike(sibling))
 					else
 						if (child.left eq old) child.setLeft(replacement)
 						else child.setRight(replacement)
@@ -1018,7 +1017,7 @@ object LongTrieKeys {
 							if (parent != null)
 								parent.replace(child, replacement)
 							else
-								root.setSubtrie(replacement)
+								root.updateTrie(replacement)
 							true
 						} else
 							false

@@ -3,10 +3,10 @@ package net.turambar.palimpsest.specialty.sets
 import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, IterableFoundation, SingletonFoundation, SingletonSpecialization}
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, IterableFoundation, SingletonFoundation, SingletonSpecialization}
 import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2, Fun2Vals}
-import net.turambar.palimpsest.specialty.sets.ValSet.ImmutableSetBuilder
+import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
 import net.turambar.palimpsest.specialty.sets.DirectLongSet.{Empty, LongTrieIterator, Singleton, StableBranch}
 
 import scala.annotation.tailrec
@@ -22,7 +22,7 @@ import scala.collection.generic.CanBuildFrom
   */
 @deprecated("to be replaced with LongTrieSet")
 trait DirectLongSet extends ValSet[Long] with SetSpecialization[Long, DirectLongSet] {
-	override protected[this] def mySpecialization = Specialized.OfLong
+	override protected[this] def specialization = Specialized.OfLong
 	override def hasFastSize = true
 
 	override def empty :DirectLongSet = DirectLongSet.Empty
@@ -71,7 +71,7 @@ object DirectLongSet {
 
 	def apply(values :Long*) :StableSet[Long] = (empty /: values)(_ + _)
 
-	def newBuilder :FitBuilder[Long, StableSet[Long]] = new ImmutableSetBuilder[Long, StableLongTrie](Empty)
+	def newBuilder :FitBuilder[Long, StableSet[Long]] = new StableSetBuilder[Long, StableLongTrie](Empty)
 
 	def singleton(value :Long) :StableSet[Long] = new Singleton(value)
 
@@ -107,7 +107,7 @@ object DirectLongSet {
 		override def empty :StableLongTrie = Empty
 //		override def filter(p :Long=>Boolean, where :Boolean) :StableLongTrie
 		/** Overriden due to linearization bug forwarding it to [[SpecializableSet]] instead of [[SetSpecialization]]. */
-		override def newBuilder = new ImmutableSetBuilder[Long, StableLongTrie](Empty)
+		override def newBuilder = new StableSetBuilder[Long, StableLongTrie](Empty)
 
 		override def mutable :MutableSet[Long] = new MutableDirectLongSet ++= this
 		override def clone() = this
@@ -147,7 +147,7 @@ object DirectLongSet {
 
 
 	/** A set which doesn't contain any values, and in particular no `Long` values whatsoever. */
-	case object Empty extends EmptyIterable[Long, StableLongTrie] with StableLongTrie with EmptySetSpecialization[Long, StableLongTrie]
+	case object Empty extends EmptyIterableFoundation[Long, StableLongTrie] with StableLongTrie with EmptySetSpecialization[Long, StableLongTrie]
 	{
 		override def filter(p: (Long) => Boolean, ourTruth: Boolean) :this.type = this
 
@@ -175,7 +175,7 @@ object DirectLongSet {
 
 		override def mutable :MutableSet[Long] = new MutableDirectLongSet
 
-		override protected def uncheckedCopyTo(xs: Array[Long], start: Int, total: Int): Int = 0
+		override protected def trustedCopyTo(xs: Array[Long], start: Int, total: Int): Int = 0
 
 		override def toString = "Set[Long]()"
 
@@ -300,7 +300,7 @@ object DirectLongSet {
 			left.foldRight(right.foldRight(z)(op))(op)
 
 
-		protected[this] override def uncheckedCopyTo(xs: Array[Long], start: Int, total: Int) = {
+		protected[this] override def trustedCopyTo(xs: Array[Long], start: Int, total: Int) = {
 			val lsize = left.size
 			if (total < lsize)
 				ValSet.friendCopy(left, xs, start, total)
@@ -1014,7 +1014,7 @@ object DirectLongSet {
 		extends BranchLike[SortedTrie] with DirectLongSet with StableSet[Long] with SetSpecialization[Long, SortedTrie] with StableOrderedSet[Long] with OfKnownSize
 	{
 
-		override def newBuilder = new ImmutableSetBuilder(Sorted.Empty)
+		override def newBuilder = new StableSetBuilder(Sorted.Empty)
 
 		override implicit def ordering = Ordering.Long
 		override def stable = this
@@ -1169,7 +1169,7 @@ object DirectLongSet {
 		private[DirectLongSet] final val Empty = new SortedTrie(DirectLongSet.Empty, DirectLongSet.Empty)
 		final val empty :StableOrderedSet[Long] = Empty
 
-		def newBuilder :FitBuilder[Long, StableOrderedSet[Long]] = new ImmutableSetBuilder(empty)
+		def newBuilder :FitBuilder[Long, StableOrderedSet[Long]] = new StableSetBuilder(empty)
 
 	}
 
@@ -1190,7 +1190,7 @@ object DirectLongSet {
 	private[DirectLongSet] class LongTrieIterator(stack :Array[DirectLongSet], private[this] var top :Int)
 		extends BaseIterator[Long] with FitIterator[Long]
 	{
-		override protected[this] def mySpecialization = Specialized.OfLong
+		override protected[this] def specialization = Specialized.OfLong
 
 		def this(trie: DirectLongSet) = {
 			this(new Array[DirectLongSet](64), 0)

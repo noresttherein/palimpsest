@@ -4,8 +4,8 @@ import java.util
 
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterable, FitIterableFactory, FitIterator, FitTraversableOnce, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, FitIterableFactory, InterfaceIterableFactory, IterableFoundation, IterableSpecialization, SingletonFoundation, SingletonSpecialization, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion, FitIterator, FitTraversableOnce, RuntimeType}
 import net.turambar.palimpsest.specialty.RuntimeType.{Fun2, Fun2Res}
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitSeq, SharedArray, SharedArrayBuffer}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, MutableSetSpecialization, SetSpecialization, SpecializableSet, StableSet, ValSet}
@@ -252,7 +252,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 		@inline final override def head :E = item
 		override def uniqueItems: Int = 1
 
-		override def unique: StableSet[E] = StableSet.single(item)
+		override def unique: StableSet[E] = StableSet.one(item)
 
 		override def counts: FitIterable[(E, Int)] = FitSeq.single((item, 1))
 
@@ -456,23 +456,23 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 
 
-		protected override def uncheckedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+		protected override def trustedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
 			val count = math.min(copies, total)
 			specialty.arrayFill(xs, item, start, count)
 			count
 		}
 
 
-		override def unique :StableSet[E] = StableSet.single(item)
+		override def unique :StableSet[E] = StableSet.one(item)
 
 		override def counts :FitSeq[(E, Int)] = FitSeq.single((item, copies))
 
 		override def inverse :MultiSet1[E] = this
 
-		override def toSet[B >: E] :StableSet[B] = StableSet.single(item)
+		override def toSet[B >: E] :StableSet[B] = StableSet.one(item)
 
 		override def toFitSeq :SharedArray[E] = {
-			val a = mySpecialization.newArray(copies).asInstanceOf[Array[E]]
+			val a = specialization.newArray(copies).asInstanceOf[Array[E]]
 			specialty.arrayFill(a, item)
 			SharedArray(a)
 		}

@@ -4,7 +4,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate, SingletonSpecialization, SingletonTemplate}
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, EmptyIterableTemplate, SingletonSpecialization, SingletonTemplate}
 import net.turambar.palimpsest.specialty.{Elements, FitIterator, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.tries.TrieBranch.{MutableTrieBranch, ValueTrieTemplate}
 import net.turambar.palimpsest.specialty.tries.{TrieBranch, EmptyTrie, Trie, TrieLeaf, TrieKeys, TrieTemplate}
@@ -224,7 +224,7 @@ object TrieSetValues {
 
 
 
-		protected override def uncheckedCopyTo(xs: Array[V], start: Int, total: Int) :Int = {
+		protected override def trustedCopyTo(xs: Array[V], start: Int, total: Int) :Int = {
 			def cpy(trie :T, pos :Int, left :Int) :Unit = trie match {
 				case branch :TrieValueSetNode[K, V, T] =>
 					val lsize = branch.left.size

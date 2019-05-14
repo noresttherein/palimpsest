@@ -3,9 +3,9 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, SpecializableIterable}
 import net.turambar.palimpsest.specialty.seqs.StableSeq.MakeStableIndexed
-import net.turambar.palimpsest.specialty.{ArrayBounds, Elements, FitCompanion, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{Elements, FitCompanion}
 
 import scala.annotation.unspecialized
 
@@ -14,7 +14,7 @@ import scala.annotation.unspecialized
   * can be changed by neither this instance or any other source.
   */
 class StableArray[@specialized(Elements) +E] protected[seqs]
-		(final protected[this] val array :Array[E], final protected[seqs] val headIdx :Int, final val length :Int)
+		(final protected[this] val array :Array[E], final protected[palimpsest] val headIdx :Int, final val length :Int)
 	extends IterableFoundation[E, StableArray[E]] with StableSeq[E] with MakeStableIndexed[E]
 			with ArrayView[E] with ArrayViewLike[E, StableArray[E]]
 			with SpecializableIterable[E, StableArray]
@@ -46,15 +46,18 @@ class StableArray[@specialized(Elements) +E] protected[seqs]
   * accepting an array themselves.
   */
 object StableArray extends ArrayViewFactory[StableArray] { factory =>
-	
+
+	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableArray[_], E, StableArray[E]]): CanBuildFrom[StableArray[_], E, StableArray[E]] =
+		fit.cbf
+
+
+
 	protected[seqs] override def apply[E](contents: ArrayBounds[E]): StableArray[E] = shared(contents.copy)
+
 
 	protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): StableArray[E] =
 		new StableArray[E](array, offset, length)
 	
-	
-	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableArray[_], E, StableArray[E]]): CanBuildFrom[StableArray[_], E, StableArray[E]] =
-		fit.cbf
 }
 
 

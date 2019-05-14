@@ -9,23 +9,32 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.RuntimeType.Fun2Vals
 import net.turambar.palimpsest.specialty._
+import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, IterableSpecialization}
 
 import scala.compat.Platform
+
+
+
+
+//class ArrayViewFoundation[E, +Repr](protected[this] final var array :Array[E], protected[this] final var begin :Int, protected[this] final var end :Int)
+//	extends IterableFoundation[E, Repr] with IndexedSeqOptimized[E, Repr] with SliceLike[E, Repr] with OfKnownSize with Serializable
+
+
 
 /**
   * @author Marcin Mościcki
   */
 trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 	extends IndexedSeqOptimized[E, Repr] with SliceLike[E, Repr] with IterableSpecialization[E, Repr]
-			with OfKnownSize with Serializable//extend specialized version of iterable
+	   with OfKnownSize with Serializable
 {
 
 	protected[this] def array :Array[E]
 
-	protected[seqs] def arr :Array[_] = array
+	protected[palimpsest] def arr :Array[_ <: E] = array
 
-	protected[seqs] def headIdx :Int
-	protected[this] def endIdx :Int = headIdx + length
+	protected[palimpsest] def headIdx :Int
+	protected[palimpsest] def endIdx :Int = headIdx + length
 
 
 	@inline
@@ -186,7 +195,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 
 	
 	@inline @unspecialized
-	override final protected[this] def uncheckedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
+	override final protected[this] def trustedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
 		val count = Math.min(total, length)
 		Platform.arraycopy(array, headIdx, xs, start, count)
 		count
@@ -215,7 +224,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 
 	
 	@unspecialized
-	protected[this] def newBuffer :SharedArrayBuffer[E] = SharedArrayBuffer.of[E](mySpecialization)
+	protected[this] def newBuffer :SharedArrayBuffer[E] = SharedArrayBuffer.of[E](specialization)
 
 
 	/** Includes the component type of the underlying array instead of specialization. */

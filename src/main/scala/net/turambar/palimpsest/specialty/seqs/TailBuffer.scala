@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitIterable, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce, RuntimeType}
 
 
 /** A mutable view of the tail of a buffer which allows to modify its contents only past some specified index.

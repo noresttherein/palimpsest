@@ -2,8 +2,8 @@ package net.turambar.palimpsest.specialty.seqs
 
 
 import scala.reflect.ClassTag
-
-import net.turambar.palimpsest.specialty.{forceFit, Elements, FitCompanion, RuntimeType, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{forceFit, Elements, FitCompanion, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.SpecializableIterable
 import net.turambar.palimpsest.testutil._
 import org.scalacheck.Prop._
 import org.scalacheck.Properties

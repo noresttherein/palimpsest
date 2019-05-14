@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.sets
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.{FitBuilder, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.Specialized.Fun2
-import net.turambar.palimpsest.specialty.iterables.EmptyIterable
+import net.turambar.palimpsest.specialty.iterables.EmptyIterableFoundation
 import net.turambar.palimpsest.specialty.sets.DirectLongSet.{BranchLike, Empty, Singleton, StableBranch, StableLongTrie, delimitedPrefix}
 
 

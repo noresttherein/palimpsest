@@ -350,20 +350,37 @@ sealed trait RuntimeType[@specialized T] {
 
 
 	/** Equates specialization of primitive types with their representations as autoboxed objects.
+	  * For reference type this corresponds simply to equality on `runType`.
 	  * @return `true` if `other` boxes to the same type this instance boxes to.
 	  */
-	def =%=(other :RuntimeType[_]) :Boolean = runType==other.runType || boxType==other.runType || other.boxType==boxType
+	def =%=(other :RuntimeType[_]) :Boolean = boxType eq other.boxType
 
-	/** True if all values of `T` can be safely assigned to a variable represented by `other`, perhaps including boxing by
-	  * scala run time.
+	/** True if all values represented as this runtime type can be safely assigned to a variable represented by `other`,
+	  * perhaps including boxing by scala run time. Note that it compares the compiled type representations at possibly
+	  * arbitrary points; in particular, if `other` represents `Any`/`AnyRef`/erasure, the relation will hold regardless
+	  * of this instance. It is useful with additional invariants. For example, `ArrayPlus[T]` can be potentially
+	  * backed by any array `Array[U] forSome { type U >: T }` ''as well as'' `Array[S] forSome { type S &lt;: T }`:
+	  * the former due to full or partial erasure and the latter as the effect of its covariance. This relation can
+	  * answer the question if elements of another collection can be safely written to the array, while the element type
+	  * of the union of the collections is determined statically as their ''LUB'' type. If, in addition, the `&lt;:&lt;`
+	  * relation also holds, two backing arrays can be copied using `Platform.arraycopy`.
+	  * @return `other.boxType isAssignableFrom this.boxType`.
 	  * @see [[RuntimeType#<:<]] for additional information.
 	  */
-	def <%<(other :RuntimeType[_]) :Boolean = other.runType.isAssignableFrom(runType) || other.boxType==runType || other.runType==boxType
+	def <%<(other :RuntimeType[_]) :Boolean = other.boxType.isAssignableFrom(boxType)
 
-	/** True if all values of `T` are directly assignable to variables defined by other. This is weaker than the `&lt;:&lt;`
-	  * relation on scala `Type` instances as it occupies itself only with the runtime class/type at a given point,
-	  * and any formal type parameters of type `T` itself are always erased. Furthermore `other` can potentially represent
-	  * complete type erasure to `java.lang.Object` and make this relation hold regardless of type `T` of this instance.
+	/** True if all values represented as this runtime type are directly assignable to variables defined by `other`.
+	  * This is weaker than the `&lt;:&lt;` relation on scala `Type` instances and in general says nothing about
+	  * subtype relation between the type parameters of compared instances. It occupies itself only with the runtime
+	  * class/type at a given point; not only any type parameters of type `T` itself are always erased, but `other`
+	  * can potentially represent complete type erasure to `java.lang.Object`. In fact, it is quite possible
+	  * that `(x :RuntimeType[X]) &lt;:&lt; (y :RuntimeType[Y])` and `Y &lt;:&lt; X` for different types `X` and `Y`:
+	  * it suffices that `Y` is stored as a strict super type of `X` (as in the case of complete type erasure)
+	  * and downcast by the ''VM'' when non-abstract reference to a collection element is encountered.
+	  * Therefore this check is a very poor substitute for type safety and is useful primarily in conjunction with
+	  * additional constraints: either static type bounds, compared types being inbuilt value types, class-specific
+	  * invariants.
+	  * @return `other.runType isAssignableFrom this.runType`.
 	  */
 	def <:<(other :RuntimeType[_]) :Boolean = other.runType.isAssignableFrom(runType)
 
@@ -373,17 +390,20 @@ sealed trait RuntimeType[@specialized T] {
 	/** Returns `other &lt;:&lt; this`. */
 	def >:>(other :RuntimeType[_]) :Boolean = other <:< this
 
-	/** Two instances are equal if and only if they represent same specialization of a generic method/class.
-	  * This is a weaker relation than equality of corresponding type arguments T!
-	  * Specializations for all `T &lt;: AnyRef` will be equal, even if they represent completely unrelated
-	  * and disjoint types, thus comparing these instance doesn't give any type safety. On the other hand,
-	  * specialization of a value class and erased ref will never be equal, even if the latter represents
-	  * an erased generic interface of the same type/structure and java/scala autoboxing provided full runtime compatibility.
-	  *
+
+	/** Two instances are equal if and only if they represent the same runtime class/type at their respective origin.
+	  * This is a weaker relation than equality of corresponding type arguments T; for one, erasure abstracts over
+	  * type parameters. More importantly however, a `RuntimeType[T]` may represent any supertype of `T`,
+	  * in particular `Any` / `AnyRef`, which can possibly result in equating any two unrelated types.  On the other
+	  * hand, representations of a value type and a reference type will never be equal, even if the latter is
+	  * the runtime box of the former. Likewise, custom value class and its backing value type will also compare as
+	  * different, even though scala/java runtime would afford cross-compatibility.
+	  * It is primarily useful in the context of specialization, as `runType` being a primitive token class guarantees
+	  * @return `this.runType == that.runType` if `that` is a `RuntimeType` and false otherwise
 	  * @see [[RuntimeType#sameAs]]
 	  */
 	final override def equals(that :Any) :Boolean = that match {
-		case r :RuntimeType[_] => r.runType==runType
+		case r :RuntimeType[_] => r.runType eq runType
 		case _ => false
 	}
 

@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.slang.Nullable
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitIterator, IterableTemplate, Var}
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterable, EmptyIterableTemplate}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitIterator, Var}
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, EmptyIterableTemplate}
 import net.turambar.palimpsest.specialty.tries.Trie.TrieOpRes
 import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
 

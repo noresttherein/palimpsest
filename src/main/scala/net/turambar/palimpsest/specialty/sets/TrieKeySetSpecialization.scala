@@ -1,15 +1,20 @@
 package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.RuntimeType.Fun1
-import net.turambar.palimpsest.specialty.tries.BinaryTrie.{BinaryTrieBranch, BinaryTriePatch}
+import net.turambar.palimpsest.specialty.tries.BinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries._
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
-import net.turambar.palimpsest.specialty.tries.TrieFriends.{KeySubset, SameKeys, TrieOp}
-import net.turambar.palimpsest.specialty.{FitIterable, FitIterator, FitTraversableOnce}
-import net.turambar.palimpsest.specialty.tries.BinaryTrieOps.{BinaryTrieOp, TrackingTrieKeyPatch, TrieKeyPatch}
+import net.turambar.palimpsest.specialty.tries.TrieFriends.{KeySubset, SameKeys}
+import net.turambar.palimpsest.specialty.{FitBuilder, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrieKeyPatch}
+import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.concat
+import net.turambar.palimpsest.specialty.iterables.FitIterable
+import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.{GenIterable, GenSet, GenTraversableOnce, LinearSeq}
+import scala.collection.generic.CanBuildFrom
 
 
 /**
@@ -64,19 +69,14 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 
 
-	protected[this] def juxtaposition(other :F)(op :BinaryTrieOp[F, F]) :S
+	protected[this] def juxtaposition(other :F)(op :SharingTrieOp[F, F]) :S
 
 
-//	protected[this] def newRoot(trie :F) :T = ops.newRoot(trie)
 
 	protected[this] def newSet(trie :F, size :Int = -1) :S //= plant(trie.stable, size)
 
 
 	override def empty :S = plant(trie.emptyTrie, 0)
-
-//	override protected[this] def copy :S //= this.asInstanceOf[S]
-//
-//	override protected[this] def copy(contents :T, unsureSize :Int) :S //= this.asInstanceOf[S]
 
 
 	override def head :E = elementOf(trie.viewHead)
@@ -124,6 +124,33 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 			t = patchTrie(trie, elems)(patch)
 			plant(t)
 		}
+
+
+
+
+
+	override def ++[B >: E, That](that :GenTraversableOnce[B])(implicit bf :CanBuildFrom[S, B, That]) :That = bf match {
+		case own :CanFitFrom[_, _, _] if own.honorsBuilderFrom && own.runtimeType =%= specialization =>
+			++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
+		case _ => bf(repr) match {
+//			case builder :FitBuilder[_, _] if (builder.origin eq StableSet) && builder.specialization =%= specialization =>
+//				++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
+			case builder =>
+				concat(repr, that.seq)(builder)
+		}
+	}
+
+	override def ++:[B >: E, That](that :TraversableOnce[B])(implicit bf :CanBuildFrom[S, B, That]) :That = bf match {
+		case own :CanFitFrom[_, _, _] if own.honorsBuilderFrom && own.runtimeType =%= specialization =>
+			++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
+		case _ => bf(repr) match {
+//			case builder :FitBuilder[_, _] if (builder.origin eq StableSet) && builder.specialization =%= specialization =>
+//				++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
+			case builder =>
+				concat(that.seq, repr)(builder)
+		}
+
+	}
 
 
 
@@ -279,34 +306,11 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 	}
 
 
-	override def copyToFitArray(xs :Array[E], start :Int, total :Int) :Unit =
+//	override def copyToFitArray(xs :Array[E], start :Int, total :Int) :Unit =
+//		trie.copyToArray(this)(xs, start, total)
+	@unspecialized
+	protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
 		trie.copyToArray(this)(xs, start, total)
-
-
-}
-
-
-
-
-trait StableTrieKeySetTemplate[K, T <: GenericBinaryTrie[K, T, T] with TrieFriends[K, T, T] with TrieElements[K, T, T],
-                               E, +S <: ValSet[E] with SetSpecialization[E, S]]
-	extends IterableTriePot[K, T, T, E, S]
-{ this :TrieKeySetSpecialization[K, T, T, E, S] with S =>
-
-	override protected[this] def juxtaposition(other :T)(op :BinaryTrieOp[T, T]) :S = {
-		val res =
-			if (trie.isMutable)
-				(trie juxtapose other)(op.selfOp)
-			else
-				(trie juxtapose other)(op)
-		if (res eq trie) this
-		else newSet(res)
-	}
-
-
-	override protected[this] def copy :S = this
-
-	override protected[this] def copy(contents :T, unsureSize :Int) :S = this
 }
 
 
@@ -329,6 +333,39 @@ trait TraversableTrieKeySet[K, F <: BinaryTrie[K, F],
 
 
 
+
+
+
+
+
+trait StableTrieKeySetTemplate[K, T <: GenericBinaryTrie[K, T, T] with TrieFriends[K, T, T] with TrieElements[K, T, T],
+E, +S <: ValSet[E] with SetSpecialization[E, S]]
+	extends IterableTriePot[K, T, T, E, S]
+{ this :TrieKeySetSpecialization[K, T, T, E, S] with S =>
+
+	override protected[this] def juxtaposition(other :T)(op :SharingTrieOp[T, T]) :S = {
+		val res =
+			if (trie.isMutable)
+				(trie juxtapose other)(op.selfOp)
+			else
+				(trie juxtapose other)(op)
+		if (res eq trie) this
+		else newSet(res)
+	}
+
+
+	override protected[this] def copy :S = this
+
+	override protected[this] def copy(contents :T, unsureSize :Int) :S = this
+}
+
+
+
+
+
+
+
+
 trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
                                       T <: MutableBinaryTrie[K, F, T] with TrieFriends[K, F, F] with TrieElements[K, F, T] with F,
                                       @specialized(TrieElements.Types) E,
@@ -338,7 +375,7 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 { //this :S =>
 
 
-	override protected[this] def juxtaposition(other :F)(op :BinaryTrieOp[F, F]) :S =
+	override protected[this] def juxtaposition(other :F)(op :SharingTrieOp[F, F]) :S =
 		newSet((trie juxtapose other)(op))
 
 	protected def patchTrie(elem :E)(patch :BinaryTriePatch[K, F, T]) :Boolean
@@ -563,6 +600,7 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 	override def clone() :S = plant(trie.copy, unsureSize)
 
 }
+
 
 
 

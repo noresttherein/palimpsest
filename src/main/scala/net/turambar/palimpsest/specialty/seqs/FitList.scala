@@ -6,7 +6,7 @@ import scala.collection.immutable.LinearSeq
 import scala.collection.{mutable, GenSeq, LinearSeqLike, SeqLike}
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.IterableFoundation
+import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, IterableSpecialization, SpecializableIterable, SpecializedIterableFactory}
 import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
 import net.turambar.palimpsest.specialty.seqs.FitList.{FitListBuilder, FitListIterator, FullLink, Link, Terminus}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
@@ -244,7 +244,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 
-	protected[this] override def uncheckedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
+	protected[this] override def trustedCopyTo(xs: Array[E], start: Int, total: Int): Int = {
 		var i = start; var l = this.start
 		val count = math.min(total, length); val e = start + count
 		while (i<e) {
@@ -281,7 +281,12 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 
-object FitList extends ImplementationIterableFactory[FitList] {
+object FitList extends SpecializedIterableFactory[FitList] {
+
+	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitList[_], E, FitList[E]]): CanBuildFrom[FitList[_], E, FitList[E]] =
+		fit.cbf
+
+
 	final val Empty = empty[Nothing]
 
 	override def empty[@specialized(Elements) E]: FitList[E] = new FitList(0, Terminus)
@@ -299,9 +304,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 		override def specialized[@specialized E : RuntimeType] = new ReverseFitListBuilder[E]
 	}
 	
-	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitList[_], E, FitList[E]]): CanBuildFrom[FitList[_], E, FitList[E]] =
-		fit.cbf
-	
+
 	private[seqs] sealed trait Link[@specialized(Elements) +E] {
 		def head :E
 		def tail :Link[E]
@@ -351,8 +354,7 @@ object FitList extends ImplementationIterableFactory[FitList] {
 		private[this] var tail :FullLink[E] = new FullLink(RuntimeType[E].default)
 		private[this] var head :FullLink[E] = tail
 		
-		def count = length
-		
+
 		override def addOne :E=>Unit = { e :E =>
 			val last = new FullLink(e)
 			tail.t = last; tail = last
@@ -397,8 +399,6 @@ object FitList extends ImplementationIterableFactory[FitList] {
 		}
 		
 		override def result(): FitList[E] = new FitList[E](length, head)
-		
-		override def count: Int = length
 		
 		override def clear(): Unit = {
 			length = 0; head = Terminus

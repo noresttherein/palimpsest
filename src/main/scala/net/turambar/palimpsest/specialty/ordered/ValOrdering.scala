@@ -1,7 +1,8 @@
 package net.turambar.palimpsest.specialty.ordered
 
-import net.turambar.palimpsest.specialty.{Elements, FitIterable}
+import net.turambar.palimpsest.specialty.Elements
 import net.turambar.palimpsest.specialty.RuntimeType.Fun1
+import net.turambar.palimpsest.specialty.iterables.FitIterable
 import net.turambar.palimpsest.specialty.ordered.ValOrdering.GenericOrdering
 import net.turambar.palimpsest.specialty.ordered.ValOrdering.Reversed._
 
