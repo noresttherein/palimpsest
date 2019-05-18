@@ -1,8 +1,9 @@
 package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, RuntimeType}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Vals, Fun1Res, Fun2}
+import net.turambar.palimpsest.specialty.{?, Blank, RuntimeType}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
 
 import scala.collection.{GenIterable, GenTraversableOnce}

@@ -1,6 +1,7 @@
 package net.turambar.palimpsest.specialty
 
 import net.turambar.palimpsest.specialty.iterables.FitIterable
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.SharedArray
 
 import scala.annotation.unspecialized

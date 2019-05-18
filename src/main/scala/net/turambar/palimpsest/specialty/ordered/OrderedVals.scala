@@ -1,7 +1,8 @@
 package net.turambar.palimpsest.specialty.ordered
 
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableSpecialization}
-import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitIterable, IterableSpecialization}
+import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 import scala.collection.GenTraversableOnce
 
@@ -12,7 +13,9 @@ import scala.collection.GenTraversableOnce
   * @tparam K element type of `This`.
   * @tparam This produced collection type (not enforced here)
   */
-trait OrderedAs[@specialized(Elements) K, +This <: OrderedAs[K, This]] extends IterableSpecialization[K, This] with OrderedBy[This, K]  {
+trait OrderedAs[@specialized(Elements) K, +This <: OrderedAs[K, This]]
+	extends IterableSpecialization[K, This] with OrderedBy[This, K] with CloneableIterable[K, This]
+{
 
 
 	def +(elem :K) :This
@@ -70,7 +73,7 @@ object OrderedAs {
   * @author Marcin Mościcki
   */
 trait OrderedVals[@specialized(Elements) E]
-	extends FitIterable[E] with OrderedAs[E, OrderedVals[E]] //IterableSpecialization[E, OrderedVals[E]] //with SpecializableIterable[E, OrderedVals[E]]
+	extends FitIterable[E] with OrderedAs[E, OrderedVals[E]]
 {
 //	type This <: OrderedVals[E]
 //	type This = Self

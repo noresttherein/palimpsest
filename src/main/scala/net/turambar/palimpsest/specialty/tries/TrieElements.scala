@@ -1,7 +1,8 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, Sure}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.{?, Blank, Sure}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.tries.TrieElements.ElementOf
 import net.turambar.palimpsest.specialty.tries.Trie.KeyTypes
 
@@ -192,10 +193,10 @@ object TrieElements {
 			} else 0
 
 		override def iterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E] =
-			FitIterator(elements.elementOf(this))
+			FitIterator.one(elements.elementOf(this))
 
 		override def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E] =
-			FitIterator(elements.elementOf(this))
+			FitIterator.one(elements.elementOf(this))
 	}
 	
 	

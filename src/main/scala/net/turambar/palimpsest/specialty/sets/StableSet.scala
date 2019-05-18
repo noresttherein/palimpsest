@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, EmptyIterableFoundation, SingletonFoundation, SingletonSpecialization, SpecializedIterableFactory}
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitCompanion, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables._
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, RuntimeType, Specialize}
 import net.turambar.palimpsest.specialty.seqs.FitSeq
 import net.turambar.palimpsest.specialty.sets.ValSet.{StableSetBuilder, ValSetBuilder}
 
@@ -14,12 +14,14 @@ import scala.collection.{immutable, GenTraversableOnce, SetLike}
 /**
   * @author Marcin Mościcki
   */
-trait StableSet[@specialized(Elements) E] extends ValSet[E] with immutable.Set[E] with SpecializableSet[E, StableSet] {
+trait StableSet[@specialized(Elements) E]
+	extends immutable.Set[E] //with IsStable[E] with StableIterableTemplate[E, StableSet[E]]
+	   with ValSet[E] with SpecializableSet[E, StableSet]
+	   with StableIterable[E] with StableIterableTemplate[E, StableSet[E]]
+{
 	override def companion :FitCompanion[StableSet] = StableSet
-	override def stable :StableSet[E] = this
 
-//	override def mutable :MutableSet[E] = MutableSet.from(this)
-//	override def clone() = repr
+	protected[this] override def debugPrefix = "StableSet"
 }
 
 
@@ -28,7 +30,7 @@ trait StableSet[@specialized(Elements) E] extends ValSet[E] with immutable.Set[E
 
 
 
-object StableSet extends SpecializedIterableFactory[StableSet] {
+object StableSet extends SpecializableIterableFactory[StableSet] {
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableSet[_], E, StableSet[E]]): CanBuildFrom[StableSet[_], E, StableSet[E]] =
 		fit.cbf
@@ -37,7 +39,7 @@ object StableSet extends SpecializedIterableFactory[StableSet] {
 
 	override def empty[@specialized(Elements) E] :StableSet[E] = EmptySet()
 
-	def one[@specialized(Elements) E](elem :E) :StableSet[E] = new SingletonSet(elem)
+	override def one[@specialized(Elements) E](elem :E) :StableSet[E] = new SingletonSet(elem)
 
 	def two[@specialized(Elements) E](elem1 :E, elem2 :E) :StableSet[E] =
 		if (elem1 == elem2) new SingletonSet(elem1)
@@ -49,7 +51,7 @@ object StableSet extends SpecializedIterableFactory[StableSet] {
 
 
 
-
+	//todo
 	final private[this] val EmptySet = new Specialize.Individually[StableSet] {
 		override final val forBoolean = BooleanSet.Empty
 		override final val forByte = ByteSet.Empty
@@ -124,10 +126,10 @@ object StableSet extends SpecializedIterableFactory[StableSet] {
 			else this
 
 
-		override def mutable :ValSet.Mutable[E] = MutableSet.empty[E] += head
+		override def mutable :MutableSet[E] = MutableSet.empty[E] += head
 
 		//todo: resolve this override conflict
-		override def toSeq :FitSeq[E] = FitSeq.single(head)
+		override def toSeq :FitSeq[E] = FitSeq.one(head)
 	}
 
 
@@ -141,17 +143,33 @@ object StableSet extends SpecializedIterableFactory[StableSet] {
 
 		override def +(elem :E) :StableSet[E] =
 			if (elem == head || elem == last) this
-			else (NewBuilder[E]() += head += last += elem).result()
+			else (builder[E] += head += last += elem).result()
 
 		override def -(elem :E) :StableSet[E] =
 			if (elem == head) new SingletonSet(last)
 			else if (elem == last) new SingletonSet(head)
 			else this
 
-		override def mutable :ValSet.Mutable[E] = MutableSet.empty[E] += head += last
+		override def mutable :MutableSet[E] = MutableSet.empty[E] += head += last
 
 		//todo resolve this override
-		override def toSeq :FitSeq[E] = FitSeq.pair(head, last)
+		override def toSeq :FitSeq[E] = FitSeq.two(head, last)
 	}
 
+
+	/** A trait for sets which aren't themselves stable, but operations on which return stable sets nevertheless.
+	  * Used primarily by views on mutable sets.
+	  */
+	trait MakesStableSets[@specialized(Elements) E] extends SpecializableSet[E, StableSet] {
+		//todo: make sure there is no infinite recursion with empty set
+		override def +(elem :E) :StableSet[E] = (StableSet.newBuilder[E] ++= this + elem).result()
+		override def -(elem :E) :StableSet[E] = (StableSet.newBuilder[E] ++= this).result() - elem
+		override def ^(elem :E) :StableSet[E] = (StableSet.newBuilder[E] ++= this).result() ^ elem
+
+		override def clone() :StableSet[E] = (StableSet.newBuilder[E] ++= this).result()
+
+		override def stable :StableSet[E] = (StableSet.newBuilder[E] ++= this).result()
+
+		override def companion :FitCompanion[StableSet] = StableSet
+	}
 }

@@ -2,11 +2,16 @@ package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.iterables.FitIterable.{FilterIterable, SpecializedFilter}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitBuffer, FitList, FitSeq}
 
+import scala.annotation.unspecialized
 import scala.collection.{GenIterable, GenTraversableOnce, IterableLike}
 import scala.collection.generic.CanBuildFrom
+
+
+
 
 
 /** Partial specialization of the `IterableLike` trait containing methods which can be implemented
@@ -37,7 +42,7 @@ import scala.collection.generic.CanBuildFrom
   */
 //we are not sealing this trait in order to allow similar templates for other collections to extend it without extending
 //the 'specialized' interfaces.
-trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversableOnce[E] {
+trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversableOnce[E] with Cloneable {
 //	this :IterableSpecialization[E, Repr] =>
 
 //	override protected[this] def thisCollection :FitIterable[E] = this.asInstanceOf[FitIterable[E]]
@@ -258,7 +263,7 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 //	def toFitList :LinkedList[E]
 
 	//todo: make toSeq the real implementation delegating to toFitSeq?
-	override def toSeq :FitSeq[E] = (FitSeq.fitBuilder(specialization) ++= this).result()
+	override def toSeq :FitSeq[E] = (FitSeq.builder(specialization) ++= this).result()
 
 	@deprecated("use toSeq", "")
 	def toFitSeq :FitSeq[E] = toSeq
@@ -278,6 +283,18 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 //	@deprecated("what does it even mean to inverse a set...", "")
 	def inverse :FitIterable[E] = (FitList.reverseBuilder(specialization) ++= this).result()
 
+
+	def stable :StableIterable[E] = (StableIterable.builder[E](specialization) ++= this).result()
+
+	/** Returns an independent copy of this iterable. It will avoid copying as much of the contents as possible,
+	  * and perform some kind of shallow copy or view to this collection. Immutable collections should simply return
+	  * themselves; mutable can resort to techniques such as freezing and ownership passing to make this operation as
+	  * cheap as possible.
+	  * @return a collection of the same type as this instance, initialized with the exact same contents, which will
+	  *         not be affected by any future modifications to this collection.
+	  * @see [[net.turambar.palimpsest.specialty.iterables.IterableTemplate#clone]]
+	  */
+	def carbon :Repr
 
 
 	/** This method is a specialized variant of [[Iterable#newBuilder]] and the returned builder,
@@ -303,6 +320,48 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 
 	protected[this] def typeStringPrefix :String = super.stringPrefix
 
+	protected[this] def debugPrefix :String = super.stringPrefix
+
+
+	/** Information about this class used primarly in debug strings such as thrown exception. It is similar to
+	  * `stringPrefix` but might contain more specific class information and the size of this collection.
+	  * By defaault starts with `debugPrefix`, followed by the specialization inside brackets and, if `hasFastSize`
+	  * is true, size in angular brackets.
+	  */
+	protected[this] def debugString :String =
+		if (hasFastSize)
+			debugPrefix + "["+ specialization.typeName + "]<" + size + ">"
+		else
+			debugPrefix + "["+ specialization.typeName + "]"
+}
+
+
+
+
+
+trait CloneableIterable[+E, +Repr <: AnyRef] extends IterableTemplate[E, Repr] {
+
+	/** Returns an independent copy of this iterable. It will avoid copying as much of the contents as possible,
+	  * and perform some kind of shallow copy or view to this collection. Immutable collections should simply return
+	  * themselves; mutable can resort to techniques such as freezing and ownership passing to make this operation as
+	  * cheap as possible
+	  * @return a collection of the same type as this instance, initialized with the exact same contents, which will
+	  *         not be affected by any future modifications to this collection.
+	  * @see [[net.turambar.palimpsest.specialty.iterables.IterableTemplate#clone]]
+	  */
+	@unspecialized
+	override def carbon :Repr = clone()
+
+	/** Creates a deep copy of this iterable. Not only any future modifications to one will have no effect on the other,
+	  * but the clone should be free of any crud and have optimal inner structure. This means that any view-like collections
+	  * should recreate a completely fresh instances without any reference to their original backing collections.
+	  * Immutable iterables can return themselves if replacing them with another instance will yield no benefits; if
+	  * only it is however possible to free memory or otherwise compact their structure, they should do so.
+	  * The default implementation uses this collection's `newBuilder` to create a fresh instance.
+	  * @return a canonical copy of this collection, safe from any future modification to this instance and vice versa.
+	  * @see [[net.turambar.palimpsest.specialty.iterables.IterableTemplate#carbon]]
+	  */
+	override def clone() :Repr = (newBuilder ++= this).result() //implemented here to avoid concrete overrides abstract problems.
 
 }
 

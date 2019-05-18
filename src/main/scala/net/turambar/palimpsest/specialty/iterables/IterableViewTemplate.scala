@@ -2,15 +2,20 @@ package net.turambar.palimpsest.specialty.iterables
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{breakOut, GenIterable, GenTraversableOnce}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.{?, FitIterator, RuntimeType}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.{?, RuntimeType}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
+
+
+
+
 
 
 /**
   * @author Marcin Mościcki marcin@moscicki.net
   */
-trait IterableViewTemplate[+X, +E, +This] extends IterableTemplate[E, This] {
+trait MappedIterableTemplate[+X, +E, +This] extends IterableTemplate[E, This] {
 	/** The collection, which elements after mapping comprise the elements of this collection. */
 	protected[this] def source :FitIterable[X]
 
@@ -44,18 +49,61 @@ trait IterableViewTemplate[+X, +E, +This] extends IterableTemplate[E, This] {
 	override def find(p: E => Boolean) :Option[E] = source.find(forSource(p)).map(mine)
 
 	override def find_?(p :E=>Boolean, where :Boolean): ?[E] =
-		source.find_?(forSource(p), where).fitMap(mine)(specialization)
+		source.find_?(forSource(p), where).map(mine) //fitMap(mine)(specialization) //not worth specializing
 
 	override def iterator :FitIterator[E] = source.iterator.fitMap(mine)(specialization) //new MappedIterator(mine)(source.iterator)
 
-	override def toSeq :FitSeq[E] = //todo: not specialized
-		source.map(mine)(breakOut)
-	//			(FitSeq.fitBuilder[E](specialization).mapInput(mine) ++= source).result()
+	override def toSeq :FitSeq[E] =  source.map(mine)(breakOut) /*todo: not specialized*/
+
+	override def toBuffer[U >: E] :FitBuffer[U] = source.map(mine)(breakOut)
 
 	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] =
-		(FitBuffer.fitBuilder[U].mapInput(mine) ++= source).result()
+		(FitBuffer.builder[U].mapInput(mine) ++= source).result()
 
 }
+
+
+
+
+
+
+/**
+  * @author Marcin Mościcki marcin@moscicki.net
+  */
+trait IterableViewTemplate[+E, +This] extends MappedIterableTemplate[E, E, This] {
+
+	/** Adapt a function working on this collection's element types to one accepting the element type of the backing collection. */
+	protected[this] def forSource[@specialized(Boolean, Unit) O](f :E=>O) :E=>O = f
+
+	protected[this] def mine: E=>E = identity
+
+//	override def foreach[@specialized(Unit) U](f: E => U) :Unit = source foreach forSource(f)
+//
+//	override protected def reverseForeach(f: E => Unit): Unit = source reverseTraverse forSource(f)
+
+//	override def map[@specialized(Fun1Vals) O, C](f: E => O)(implicit bf: CanBuildFrom[This, O, C]) :C =
+//		source.map(forSource(f))(breakOut)
+//
+//	override def flatMap[U, C](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[This, U, C]) :C =
+//		source.flatMap(forSource(f))(breakOut)
+
+
+	override def forall(p: E => Boolean) :Boolean = source forall p //forSource(p)
+	override def exists(p: E => Boolean) :Boolean = source exists p //forSource(p)
+	override def count(p: E => Boolean) :Int = source count p //forSource(p)
+
+	override def find(p: E => Boolean) :Option[E] = source.find(forSource(p)) //.map(mine)
+	override def find_?(p :E=>Boolean, where :Boolean): ?[E] = source.find_?(forSource(p), where)
+
+	override def iterator :FitIterator[E] = source.iterator
+
+
+	override def toSeq :FitSeq[E] =  source.toSeq
+	override def toBuffer[U >: E] :FitBuffer[U] = source.toBuffer[U]
+	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] = source.toFitBuffer[U]
+
+}
+
 
 
 
@@ -73,7 +121,7 @@ trait IterableViewTemplate[+X, +E, +This] extends IterableTemplate[E, This] {
   * @author Marcin Mościcki
   */
 abstract class IterableMapping[X, +That <: FitIterable[X] with IterableSpecialization[X, That], +E, +This]
-	extends IterableViewTemplate[X, E, This]
+	extends MappedIterableTemplate[X, E, This]
 {
 
 	override protected[this] def source :That

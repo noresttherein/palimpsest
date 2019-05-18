@@ -4,7 +4,7 @@ import net.turambar.palimpsest.specialty.tries.BinaryTrie.{BinaryTrieBranch, Bin
 import net.turambar.palimpsest.specialty.tries.Trie.KeyTypes
 import net.turambar.palimpsest.specialty.tries.TrieFriends.TrieOp
 import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrackingTrieKeyPatch, TrieKeyPatch}
-import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.GenericBinaryTrieBranch
+import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.{BranchPatch, GenericBinaryTrieBranch}
 
 import scala.annotation.unspecialized
 
@@ -32,7 +32,7 @@ trait TrieKeySetOps[K, F <: BinaryTrie[K, F], T <: GenericBinaryTrie[K, F, T] wi
   * @author Marcin Mościcki marcin@moscicki.net
   */
 trait BinaryTrieKeySetFactory[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T <: GenericBinaryTrie[K, F, T] with F]
-	extends TrieKeySetOps[K, F, T]
+	extends TrieKeySetOps[K, F, T] with BranchPatch[K, F, T, T]
 { ops =>
 
 	protected type Branch = GenericBinaryTrieBranch[K, F, T]
@@ -70,10 +70,10 @@ trait BinaryTrieKeySetFactory[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T
 	protected def reduce(parent :F)(left :F, right :F) :T
 
 	/** Target method invoked from the eponymous method of all patches defined here. */
-	protected def patchLeft(template :BinaryTrieBranch[K, F], left :T) :T
+	protected override def patchLeft(template :BinaryTrieBranch[K, F], left :T) :T
 
 	/** Target method invoked from the eponymous method of all patches defined here. */
-	protected def patchRight(template :BinaryTrieBranch[K, F], right :T) :T
+	protected override def patchRight(template :BinaryTrieBranch[K, F], right :T) :T
 
 
 
@@ -105,7 +105,7 @@ trait BinaryTrieKeySetFactory[@specialized(KeyTypes) K, F <: BinaryTrie[K, F], T
 
 		override def toString = "DeleteKey"
 	}
-
+//todo: inner classes are not specialized!
 	/** Full implementation of key deleting patches, delegating to this object's factory methods for new nodes. */
 	class DeleteKey extends DeleteKeyFoundation {
 		private[this] val empty = emptyTrie
@@ -396,7 +396,7 @@ trait StableBinaryTrieKeySetFactory[K, T <: BinaryTrie[K, T]] extends BinaryTrie
 
 
 
-	/** A trie keywise set difference subtracting the second argument from the first, working for a pair of immutable tries. */
+	/** A trie keywise set difference subtracting the second argument from the first, working for a two of immutable tries. */
 	@unspecialized
 	class StableDifference extends DifferenceFoundation {
 
@@ -412,7 +412,7 @@ trait StableBinaryTrieKeySetFactory[K, T <: BinaryTrie[K, T]] extends BinaryTrie
 
 
 
-	/** A trie keywise set union with left preference, working for a pair of immutable tries. */
+	/** A trie keywise set union with left preference, working for a two of immutable tries. */
 	@unspecialized
 	class StableUnion extends UnionFoundation {
 
@@ -432,7 +432,7 @@ trait StableBinaryTrieKeySetFactory[K, T <: BinaryTrie[K, T]] extends BinaryTrie
 
 
 
-	/** A trie keywise set symmetric difference, working for a pair of immutable tries. */
+	/** A trie keywise set symmetric difference, working for a two of immutable tries. */
 	@unspecialized
 	class StableSymmetricDifference extends SymmetricDifferenceFoundation {
 
@@ -452,7 +452,7 @@ trait StableBinaryTrieKeySetFactory[K, T <: BinaryTrie[K, T]] extends BinaryTrie
 
 
 
-	/** A trie keywise set intersection with left preference, working for a pair of immutable tries. */
+	/** A trie keywise set intersection with left preference, working for a two of immutable tries. */
 	@unspecialized
 	class StableIntersection extends IntersectionFoundation {
 
@@ -477,7 +477,7 @@ trait StableBinaryTrieKeySetFactory[K, T <: BinaryTrie[K, T]] extends BinaryTrie
 
 
 
-/** A variant of [[SharingTrieOp]] for mutable sets/maps/tries. Changes behaviour in the following way:
+/** A variant of [[TrieKeySetOps]] for mutable sets/maps/tries. Changes behaviour in the following way:
   *   - implemented trie factory methods call [[BinaryTrie#copy]] before reusing subtries of arguments in the result
   *   - default union, intersection, difference and symmetric difference implement in-place mutations of the first argument.
   *     Therefore, portions of the first trie are reused as-is in the result, without preventing cross-modification.

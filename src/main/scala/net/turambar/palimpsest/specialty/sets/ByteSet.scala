@@ -4,13 +4,14 @@ import java.lang.Long.highestOneBit
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenIterable, GenSet, GenTraversableOnce}
-import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
+import net.turambar.palimpsest.specialty.iterators.BaseIterator
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2, Specialized}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitTraversableOnce, RuntimeType, Sure}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.sets.OrderedSet.Mutable
 
 import scala.annotation.tailrec
 import scala.math.Ordering.ByteOrdering
@@ -177,11 +178,14 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 
 
 
-	override def subsetOf(that :GenSet[Byte]) :Boolean = that match {
+//	override def subsetOf(that :GenSet[Byte]) :Boolean = that match {
+//		case other :ByteSet[_] => bytes subsetOf other.bitmap
+//		case _ => super.subsetOf(that)
+//	}
+	override def subsetOf(that :ValSet[Byte]) :Boolean = that match {
 		case other :ByteSet[_] => bytes subsetOf other.bitmap
 		case _ => super.subsetOf(that)
 	}
-
 
 	override protected def trustedCopyTo(xs: Array[Byte], start: Int, total: Int): Int = {
 		var copied = 0; var i = 0
@@ -270,7 +274,10 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 
 	override def stringPrefix = "Set[Byte]"
 
-	override def typeStringPrefix = "ByteSet"
+	override def debugString = s"$debugPrefix<$size>"
+
+	override def debugPrefix = "ByteSet"
+
 }
 
 
@@ -304,7 +311,7 @@ private[sets] object ByteSet {
 	final class StableByteSet(bits :ByteSetBitmap)
 		extends ByteSet[StableOrderedSet[Byte]](bits) with StableOrderedSet[Byte]
 	{
-		override final def specialization  :RuntimeType[Byte] = RuntimeType.OfByte
+		override def specialization  :RuntimeType[Byte] = RuntimeType.OfByte
 
 		override protected[this] def newByteSet(bits: ByteSetBitmap) = new StableByteSet(bits)
 
@@ -350,7 +357,9 @@ private[sets] object ByteSet {
 
 		override def newBuilder = new ByteSetBuilder
 
-		override def mutable: Mutable[Byte] = new MutableByteSet(bitmap.copy)
+		override def mutable: MutableOrderedSet[Byte] = new MutableByteSet(bitmap.copy)
+
+		override def debugPrefix = "StableByteSet"
 	}
 
 
@@ -367,11 +376,17 @@ private[sets] object ByteSet {
 
 		override def clear() :Unit = bitmap.clear()
 
-		override def +=(elem: Byte): this.type = { bitmap += elem; this }
+		override def add(elem: Byte): Boolean = bitmap += elem
+
+		override def +=(elem :Byte) :this.type = { bitmap += elem; this }
+
+		override def remove(elem :Byte) :Boolean = { bitmap -= elem }
 
 		override def -=(elem: Byte): this.type = { bitmap -= elem; this }
 
-		override def ^=(elem :Byte): this.type = { bitmap ^= elem; this }
+		override def flip(elem :Byte): Boolean = { bitmap ^= elem }
+
+		override def ^=(elem :Byte) :this.type = { bitmap ^= elem; this }
 
 		override def --=(xs: FitTraversableOnce[Byte]) :this.type = xs match {
 			case other :ByteSet[_] => bitmap --= other.bitmap; this
@@ -411,6 +426,7 @@ private[sets] object ByteSet {
 
 		override def clone() = new MutableByteSet(bitmap.copy)
 
+		override def debugPrefix = "MutableByteSet"
 	}
 
 
@@ -734,25 +750,31 @@ private[sets] object ByteSet {
 
 
 
-		@inline def +=(elem :Byte) :Unit = {
+		@inline def +=(elem :Byte) :Boolean = {
 			val i = elem & 0xff
 			val cell = i /64
 			val mask = 1L << i
-			bitmap(cell) = bitmap(cell) | mask
+			val chunk = bitmap(cell)
+			bitmap(cell) = chunk | mask
+			(chunk & mask) == 0
 		}
 
-		@inline def -=(elem :Byte) :Unit = {
+		@inline def -=(elem :Byte) :Boolean = {
 			val i = elem & 0xff
 			val cell = i/64
 			val mask = 1L << i
-			bitmap(cell) = bitmap(cell) ^ mask
+			val chunk = bitmap(cell)
+			bitmap(cell) = chunk & ~mask
+			(chunk & mask) != 0
 		}
 
-		@inline def ^=(elem :Byte) :Unit = {
+		@inline def ^=(elem :Byte) :Boolean = {
 			val i = elem & 0xff
 			val cell = i/64
 			val mask = 1L << i
-			bitmap(cell) ^= mask
+			val chunk = bitmap(cell)
+			bitmap(cell) = chunk ^ mask
+			(chunk & mask) == 0
 		}
 
 

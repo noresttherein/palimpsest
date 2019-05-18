@@ -1,10 +1,10 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
-
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.RuntimeType.Fun2Vals
-import net.turambar.palimpsest.specialty.{Elements, FitIterator}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2Vals
+import net.turambar.palimpsest.specialty.Elements
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 /** A backwards view of another [[FitSeq]].
   * Index `i` of this seq refers to element `original.length -1 -i` in the `original` sequence.
@@ -40,7 +40,7 @@ class ReverseSeq[@specialized(Elements) +E](override val reverse :FitIndexedSeq[
 		(builder.filterInput(p) ++= this).result()
 	}
 
-	override def reverseMap[@specialized(Fun2Vals) U, That](f: (E) => U)(implicit bf: CanBuildFrom[FitIndexedSeq[E], U, That]): That =
+	override def reverseMap[@specialized(Fun2Vals) U, That](f: E => U)(implicit bf: CanBuildFrom[FitIndexedSeq[E], U, That]): That =
 		reverse.map(f)
 	
 	override def inverse = reverse

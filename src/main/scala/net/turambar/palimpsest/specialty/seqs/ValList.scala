@@ -4,10 +4,11 @@ import net.turambar
 import net.turambar.palimpsest
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterableTemplate, SpecializableIterable, SpecializedIterableFactory}
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableTemplate, FitCompanion, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.seqs.ValList.{Link, ListBuilder, ListIterator}
-import net.turambar.palimpsest.specialty.RuntimeType.Fun2
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.immutable.LinearSeq
@@ -18,10 +19,12 @@ import scala.collection.generic.CanBuildFrom
   * @author Marcin Mościcki marcin@moscicki.net
   */
 sealed trait ValList[@specialized(Elements) E]
-	extends LinearSeq[E] with LinearSeqLike[E, ValList[E]] with StableSeq[E]
+	extends LinearSeq[E] with LinearSeqLike[E, ValList[E]] with StableSeq[E] with StableIterableTemplate[E, ValList[E]]
 	   with ValSeq[E] with ValSeqLike[E, ValList[E]] with SpecializableIterable[E, ValList]
 {
-	override protected def section(from :Int, until :Int) :ValList[E] = drop(from).take(until-from)
+//	override def seq :ValList[E] = this
+
+//	override protected def section(from :Int, until :Int) :ValList[E] = drop(from).take(until-from)
 
 
 	override protected def at(idx :Int) :E = {
@@ -40,7 +43,7 @@ sealed trait ValList[@specialized(Elements) E]
 		else at(idx)
 
 
-	override def positionOf(elem :E, from :Int) :Int = {
+	override def offsetOf(elem :E, from :Int) :Int = {
 		var i = 0; var next = this
 		while (next.nonEmpty && i < from) {
 			next = next.tail
@@ -56,7 +59,7 @@ sealed trait ValList[@specialized(Elements) E]
 	}
 
 
-	override def lastPositionOf(elem :E, end :Int) :Int = {
+	override def lastOffsetOf(elem :E, end :Int) :Int = {
 		var i = 0; var next = this; var last = -1
 		while (i <= end && next.nonEmpty) {
 			if (elem == next.head)
@@ -113,9 +116,8 @@ sealed trait ValList[@specialized(Elements) E]
 	}
 
 
-	override def %:(elem :E) :ValList[E] = ::(elem)
+	override def #:(elem :E) :ValList[E] = ::(elem)
 
-	override def :%(elem :E) :ValList[E] = super.:%(elem)
 
 
 
@@ -131,7 +133,7 @@ sealed trait ValList[@specialized(Elements) E]
 
 
 
-object ValList extends SpecializedIterableFactory[ValList] {
+object ValList extends SpecializableIterableFactory[ValList] {
 
 	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[ValList[_], E, ValList[E]]) :CanBuildFrom[ValList[_], E, ValList[E]] = fit.cbf
 

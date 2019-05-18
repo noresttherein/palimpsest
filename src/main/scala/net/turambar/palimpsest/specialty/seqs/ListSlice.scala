@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import net.turambar.palimpsest.SerializationVersion
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, NonEmpty}
@@ -12,11 +12,12 @@ import scala.annotation.unspecialized
 import scala.collection.LinearSeqLike
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
-import net.turambar.palimpsest.specialty.RuntimeType.Fun2
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
 import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer}
-import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
+import net.turambar.palimpsest.specialty.iterators.CountdownIterator
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, SpecializableIterable, SpecializedIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.ListSlice.{ListSliceBuilder, ListSliceIterator, SerializedListSlice}
 
 /**
@@ -25,8 +26,9 @@ import net.turambar.palimpsest.specialty.seqs.ListSlice.{ListSliceBuilder, ListS
 @SerialVersionUID(SerializationVersion)
 class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], end :LinkedList[E], override val length :Int)
 	extends SeqFoundation[E, ListSlice[E]] with LinearSeq[E] with LinearSeqLike[E, ListSlice[E]]
-			with StableSeq[E] with IterableSpecialization[E, ListSlice[E]] with SliceLike[E, ListSlice[E]] with SpecializableIterable[E, ListSlice]
-			with OfKnownSize
+	   with StableSeq[E] with IterableSpecialization[E, ListSlice[E]] with SliceLike[E, ListSlice[E]]
+	   with SpecializableIterable[E, ListSlice]
+	   with StableIterableTemplate[E, ListSlice[E]] with CloneableIterable[E, ListSlice[E]] with OfKnownSize
 {
 	private[seqs] def firstLink = start
 	private[seqs] def lastLink = end
@@ -150,7 +152,7 @@ class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], 
 		last //todo: we could update coccyx here
 	}
 
-	override protected[this] def positionOf(elem: E, from: Int) :Int =
+	override protected[this] def offsetOf(elem: E, from: Int) :Int =
 		if (from>=length) -1
 		else if (from==length-1 && end.nonEmpty)
 			if (end.head==elem) from else -1
@@ -164,7 +166,7 @@ class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], 
 			-1
 		}
 
-	override protected[this] def lastPositionOf(elem: E, from: Int) :Int = {
+	override protected[this] def lastOffsetOf(elem: E, from: Int) :Int = {
 //		if (from>=length-1 && end.nonEmpty && end.head==elem)
 //			return length-1 //we should check if this.isEmpty first!
 		var last = -1; var l = start; var i = 0; val lim = Math.min(from, length-1)
@@ -284,7 +286,7 @@ class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], 
 
 
 
-object ListSlice extends SpecializedIterableFactory[ListSlice] {
+object ListSlice extends SpecializableIterableFactory[ListSlice] {
 	final val Empty = empty[Nothing]
 
 

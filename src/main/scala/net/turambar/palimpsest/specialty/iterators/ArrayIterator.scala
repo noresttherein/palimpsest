@@ -1,7 +1,7 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.iterators
 
-import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
-import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitSeq, ReverseSeq, SharedArray}
+import net.turambar.palimpsest.specialty.{Elements, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.seqs.{FitSeq, ReverseSeq, SharedArray}
 import net.turambar.palimpsest.specialty.seqs.ArrayView.UnknownArrayView
 
 
@@ -9,7 +9,6 @@ import net.turambar.palimpsest.specialty.seqs.ArrayView.UnknownArrayView
 
 
 /** All purpose iterator going up an array element by element.
-  * @param collection collection serving as the factory used in `toSeq` implementation to return sequence of correct mutability.
   * @param array the array with elements to be iterated.
   * @param from start index for the iteration, pointing to the head element of the new iterator.
   * @param until index of the element ending the iteration; initial size equals `until-from`.
@@ -87,6 +86,9 @@ class MutableArrayIterator[@specialized(Elements) E](array :Array[E], from :Int,
 			throw new NoSuchElementException("update on an empty iterator")
 	}
 }
+
+
+
 
 
 object ArrayIterator {

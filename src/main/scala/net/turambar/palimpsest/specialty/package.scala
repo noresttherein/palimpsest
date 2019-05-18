@@ -1,15 +1,11 @@
 package net.turambar.palimpsest
 
 import java.util
-import java.lang.Math
 
-import scala.Specializable.SpecializedGroup
-import scala.collection.{mutable, BitSet, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
+import scala.collection.{mutable, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
 import scala.reflect.ClassTag
-import net.turambar.palimpsest.specialty.FitCompanion.{CanBreakOut, CanFitFrom}
-import net.turambar.palimpsest.specialty.RuntimeType.Primitives
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Primitives
 
-import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.ListSet
 
 
@@ -48,29 +44,25 @@ package object specialty {
 
 
 
-	/** Same as `scala.collection.breakOut`, but for [[CanFitFrom]] instances.
-	  * Named differently to avoid conflicts when both are imported.
-	  * Adapts a builder factory tied to a specific source type to be used for any input collection types.
-	  * Used to escape default resolution of static and dynamic result type of collection operations
-	  * such as `map` and enforce the usage of a builder for a desired return type expressed as type
-	  * constraint on the result of the operation.
-	  */
-	//todo: I don't think it does anything more than breakOut - it's the builder that matters
-	def forceFit[F, E, T](implicit anyFactory :CanFitFrom[_, E, T]) :CanBuildFrom[F, E, T] =
-		new CanBreakOut[F, E, T].cbf
-	
-//	def breakOut[F, E, T](implicit anyFactory :FitCanBuildFrom[_, E, T]) :FitCanBuildFrom[F, E, T] =
-//		new CanBreakOut[F, E, T]
-	
-	
+//	/** Same as `scala.collection.breakOut`, but for [[CanFitFrom]] instances.
+//	  * Named differently to avoid conflicts when both are imported.
+//	  * Adapts a builder factory tied to a specific source type to be used for any input collection types.
+//	  * Used to escape default resolution of static and dynamic result type of collection operations
+//	  * such as `map` and enforce the usage of a builder for a desired return type expressed as type
+//	  * constraint on the result of the operation.
+//	  */
+//	//todo: I don't think it does anything more than breakOut - it's the builder that matters
+//	def forceFit[F, E, T](implicit anyFactory :CanFitFrom[_, E, T]) :CanBuildFrom[F, E, T] =
+//		new CanBreakOut[F, E, T].cbf
+
 
 	
 	@inline
 	private[palimpsest] final def ofKnownSize[T](col :GenTraversableOnce[T]) =  col match {
 		//todo: growing/shrinking collections' size can change during append; should they count as having fast size?
 		case fit :FitTraversableOnce[T] => fit.hasFastSize
-		case _ :IndexedSeqLike[_, _] => true
-		case _ :ListSet[_] => col.isEmpty
+		case _ :IndexedSeqLike[_, _] => true // ListSet is primarily used for hash collisions
+		case list :ListSet[_] => list.isEmpty || list.tail.isEmpty || list.tail.tail.isEmpty || list.tail.tail.tail.isEmpty
 		case _ :BitSetLike[_] => false
 		case _ :SetLike[_, _] => true
 		case _ => col.isEmpty
@@ -161,23 +153,20 @@ package object specialty {
 
 
 	@inline private[specialty] final def arrayCopy[E](array :Array[E]) :Array[E] = {
-		implicit val tag = ClassTag[E](array.getClass.getComponentType)
-		val res = new Array[E](array.length)
+		val res = newArray[E](array.getClass.getComponentType, array.length)
 		System.arraycopy(array, 0, res, 0, array.length)
 		res
 	}
 
 	@inline private[specialty] final def arrayCopy[E](array :Array[E], from :Int, length :Int) :Array[E] = {
-		implicit val tag = ClassTag[E](array.getClass.getComponentType)
-		val res = new Array[E](length)
+		val res = newArray[E](array.getClass.getComponentType, length)
 		System.arraycopy(array, from, res, 0, length)
 		res
 	}
 
 	@inline private[specialty] final def arraySlice[E](from :Int, array :Array[E], until :Int) :Array[E] = {
-		implicit val tag = ClassTag[E](array.getClass.getComponentType)
 		val length = until-from
-		val res = new Array[E](length)
+		val res = newArray[E](array.getClass.getComponentType, length)
 		System.arraycopy(array, from, res, 0, length)
 		res
 	}

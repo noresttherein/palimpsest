@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.seqs
 
 
-import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitIterator, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, NonEmpty}
 
 import scala.annotation.{tailrec, unspecialized}
@@ -60,14 +60,14 @@ trait MutableLinkedListLike[@specialized(Elements) E, +Repr<:MutableLinkedListLi
 
 	protected[this] def newCollection(beforeFirst :NonEmpty[E], last :NonEmpty[E], size :Int) :Repr
 
-	@unspecialized
-	override protected def section(from: Int, until: Int): Repr =
-		if (until==len)
-			newCollection(shouldNotBeEmpty(hat.blindDrop(from)), coccyx, until-from)
-		else {
-			val first = hat.blindDrop(from); val last = first.blindDrop(until-from)
-			newCollection(shouldNotBeEmpty(first), shouldNotBeEmpty(last), until-length)
-		}
+//	@unspecialized
+//	override protected def section(from: Int, until: Int): Repr =
+//		if (until==len)
+//			newCollection(shouldNotBeEmpty(hat.blindDrop(from)), coccyx, until-from)
+//		else {
+//			val first = hat.blindDrop(from); val last = first.blindDrop(until-from)
+//			newCollection(shouldNotBeEmpty(first), shouldNotBeEmpty(last), until-length)
+//		}
 
 
 //	override def overwrite(start: Int, length: Int): FitBuffer[E] = ???
@@ -79,19 +79,19 @@ trait MutableLinkedListLike[@specialized(Elements) E, +Repr<:MutableLinkedListLi
 
 
 
-	override def head =
+	override def head :E =
 		if (len>0) hat.t.head
 		else throw new NoSuchElementException(s"$stringPrefix().head")
 
-	override def headOption =
+	override def headOption :Option[E] =
 		if (len>0) Some(hat.t.head)
 		else None
 
-	override def last =
+	override def last :E =
 		if (len>0) coccyx.x
 		else throw new NoSuchElementException(s"$stringPrefix<$length>.last")
 
-	override def lastOption =
+	override def lastOption :Option[E] =
 		if (len>0) Some(coccyx.x)
 		else None
 
@@ -214,8 +214,9 @@ trait MutableLinkedListLike[@specialized(Elements) E, +Repr<:MutableLinkedListLi
 		elems2 foreach countDuplicates
 
 		filter( e  => counts.getOrElse(e, 0) match {
-			case 0 => true
-			case n => counts(e) = n-1; false
-		}, ourTruth = true)
+				case 0 => true
+				case n => counts(e) = n-1; false
+			}, ourTruth = true
+		)
 	}
 }

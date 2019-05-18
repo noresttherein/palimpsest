@@ -1,4 +1,5 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.iterators
+
 
 
 /** A generic base trait for iterators over indexed collections with fast random access.
@@ -69,6 +70,9 @@ trait StepIteratorLike[+E, +I<:Iterator[E]] extends BufferedIterator[E]
 	
 	override def toString = s"Iter[>$step>#$index>|$end]"
 }
+
+
+
 
 
 object StepIteratorLike {

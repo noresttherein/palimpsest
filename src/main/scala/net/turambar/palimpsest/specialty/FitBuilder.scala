@@ -5,7 +5,7 @@ import java.lang.Math
 
 import scala.annotation.tailrec
 import scala.collection.{mutable, GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce}
-import RuntimeType.{Fun1, Fun1Vals}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals}
 import net.turambar.palimpsest.specialty.FitBuilder.{BuilderAdapter, BuilderWrapper}
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, SharedArrayBuffer}
 

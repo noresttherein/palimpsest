@@ -1,11 +1,20 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, FitIterator, Var}
-import net.turambar.palimpsest.specialty.RuntimeType.Fun2
+import net.turambar.palimpsest.specialty.{?, FitTraversableOnce, Var}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
 import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableSpecialization, IterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.ValList
+import net.turambar.palimpsest.specialty.sets.{SetSpecialization, ValSet}
+import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.SharingTrieOp
+import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries.Trie.MutableTrieOwner
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
+
+import scala.annotation.unspecialized
+import scala.collection.{GenTraversableOnce, LinearSeq}
+import scala.collection.generic.CanBuildFrom
 
 
 /** A container of a single trie of type `T`. Base type for collections backed by tries. */
@@ -25,12 +34,13 @@ trait MutableTriePot[T] extends TriePot[T] with MutableTrieOwner[T] {
 
 
 
-trait IterableTriePot[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extends TriePot[T] with IterableTemplate[E, R] {
+
+trait TriePotIterable[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extends TriePot[T] with IterableTemplate[E, R] {
 	//this :R =>
 
 	protected[this] def empty :R = plant(trie.emptyTrie, 0)
 
-	protected[this] def copy :R
+//	protected[this] def copy :R
 
 	protected[this] def copy(trieCopy :T, size :Int = -1) :R = plant(trieCopy, size)
 
@@ -65,7 +75,7 @@ trait IterableTriePot[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extend
 
 	override def drop(n :Int) :R =
 		if (n <= 0)
-			copy
+			carbon
 		else if (hasFastSize && size <= n)
 			empty
 		else {
@@ -83,7 +93,7 @@ trait IterableTriePot[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extend
 		if (n <= 0)
 			empty
 		else if (hasFastSize && size <= n)
-			copy
+			carbon
 		else {
 			val count = Var[Int](n)
 			val res = trie.takeTrie(count)
@@ -98,7 +108,7 @@ trait IterableTriePot[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extend
 
 	override def dropRight(n :Int) :R =
 		if (n <= 0)
-			copy
+			carbon
 		else if (hasFastSize && size <= n)
 			empty
 		else {
@@ -116,7 +126,7 @@ trait IterableTriePot[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extend
 		if (n <= 0)
 			empty
 		else if (hasFastSize && size <= n)
-			copy
+			carbon
 		else {
 			val count = Var(n)
 			val res = trie.takeRightTrie(count)
@@ -152,9 +162,9 @@ trait IterableTriePot[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extend
 
 	override def splitAt(n :Int) :(R, R) =
 		if (n <= 0)
-			(empty, copy)
+			(empty, carbon)
 		else if (hasFastSize && size <= n)
-			(copy, empty)
+			(carbon, empty)
 		else {
 			val i = Var(n)
 			val s = trie.splitTrie(i)
@@ -244,9 +254,8 @@ trait IterableTriePot[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extend
 
 
 
-
-trait IterableTriePotSpecialization[+K, +F, +T <: TrieElements[K, F, T] with F, @specialized(TrieElements.Types) +E, +R]
-	extends IterableTriePot[K, F, T, E, R] with IterableSpecialization[E, R]
+trait TriePotIterableSpecialization[+K, +F, +T <: TrieElements[K, F, T] with F, @specialized(TrieElements.Types) +E, +R]
+	extends TriePotIterable[K, F, T, E, R] with IterableSpecialization[E, R]
 { //this :R =>
 
 	override def isEmpty :Boolean = trie.isEmpty
@@ -321,9 +330,9 @@ trait IterableTriePotSpecialization[+K, +F, +T <: TrieElements[K, F, T] with F, 
 
 
 
-abstract class IterableTriePotFoundation[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R]
+abstract class TriePotIterableFoundation[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R]
                                         (private[this] var root :T, trieSize :Int = -1)
-	extends IterableTriePot[K, F, T, E, R] //with MutableTriePot[K, T, R]
+	extends TriePotIterable[K, F, T, E, R] //with MutableTriePot[K, T, R]
 { //this :R =>
 	@volatile private[this] var _size = trieSize
 
@@ -374,4 +383,69 @@ abstract class IterableTriePotFoundation[+K, +F, +T <: TrieElements[K, F, T] wit
 
 
 
+
+
+/*
+trait BinaryTriePotIterableSpecialization[K, F <: BinaryTrie[K, F],
+                                          T <: GenericBinaryTrie[K, F, T] with TrieFriends[K, F, F] with TrieElements[K, F, T] with F,
+                                          @specialized(TrieElements.Types) +E, +R]
+	extends TriePotIterableFoundation[K, F, T, E, R] with TriePotIterableSpecialization[K, F, T, E, R] with ElementOf[E, F]
+{
+
+	override def head :E = elementOf(trie.viewHead)
+
+	override def last :E = elementOf(trie.viewLast)
+
+
+	//overriden to narrow down result type - elements now must accept tries of supertype F
+	@unspecialized
+	override protected[this] def elements :ElementOf[E, F] = this
+
+	//overriden to narrow down result type - elements now must accept tries of supertype F
+	override protected[this] def countingElements :ElementCounter[E, F]
+
+	protected[this] def plantFriend(trie :F, size :Int = -1) :R //= plant(trie.stable, size)
+
+
+	/** Check if the given collection is of a compatible type as this instance and, if so, retrieve its backing trie. */
+	protected[this] def friendTrie(elems :GenTraversableOnce[_]) :Option[F]
+
+
+//	protected[this] def ops :TrieKeySetOps[K, F, T]
+
+
+	protected[this] def patchTrie(t :T, element :E)(patch :BinaryTriePatch[K, F, T]) :T
+
+	protected[this] def patchTrie(t :T, elems :FitTraversableOnce[E])(patch :BinaryTriePatch[K, F, T]) :T = {
+		var res = t; val it = elems.toIterator
+		while (it.hasNext)
+			res = patchTrie(res, it.next())(patch)
+		res
+	}
+
+	protected[this] def patchTrie(t :T, elems :GenTraversableOnce[E])(patch :BinaryTriePatch[K, F, T]) :T = {
+		var res = t
+		elems match {
+			case list :LinearSeq[E] =>
+				var l = list
+				while (l.nonEmpty) {
+					res = patchTrie(res, l.head)(patch); l = l.tail
+				}
+			case it :Iterator[E] =>
+				while (it.hasNext)
+					res = patchTrie(res, it.next)(patch)
+			case _ =>
+				elems foreach { e => res = patchTrie(res, e)(patch) }
+		}
+		res
+	}
+
+
+
+	protected[this] def juxtaposition(other :F)(op :SharingTrieOp[F, F]) :R
+
+
+
+}
+*/
 

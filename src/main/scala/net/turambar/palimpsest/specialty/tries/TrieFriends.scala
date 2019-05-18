@@ -96,15 +96,15 @@ object TrieFriends {
 	  *   -  subtries containing disjoint key sets, but for which common longest prefix is longer than the prefix
 	  *      associated with the parent of either subtrie, are paired together. In other words, these are two key sets
 	  *      such that adding all keys from one to the other source trie would result in 'replanting' of the associated
-	  *      subtrie as a sibling of the second subtrie in the pair. This represents the case when recursion down the tries
+	  *      subtrie as a sibling of the second subtrie in the two. This represents the case when recursion down the tries
 	  *      can be cut short in knowledge that the key sets under each of those subtries must be disjoint and that they
 	  *      can be safely joint together under a common parent, which would exist as part of a trie union implementation.
 	  *   -  subtries containing keys sharing a prefix which does not exist in the other trie are left by themselves,
 	  *      symbolically paired with an empty trie.
 	  *
-	  *  Each such pair marks the termination of recursion and a map step involving invoking an appropriate method of
-	  *  this class returning a partial result for that pair. These results are then subsequently reduced by pairing
-	  *  a result for a given pair/subtrie with another of the longest common prefix. More procedurally, recursion
+	  *  Each such two marks the termination of recursion and a map step involving invoking an appropriate method of
+	  *  this class returning a partial result for that two. These results are then subsequently reduced by pairing
+	  *  a result for a given two/subtrie with another of the longest common prefix. More procedurally, recursion
 	  *  handles at each step one non-empty node from each trie, starting with whole tries. If the path to one of these
 	  *  nodes form a strict prefix of the other, the 'shorter' node is checked for a child which has a longer common
 	  *  prefix with the other node. If such a child exists, recursion substitutes it for its parent and continues.
@@ -118,11 +118,11 @@ object TrieFriends {
 	  *  equals the path of the two parents, it is matched with an empty trie and one of the methods
 	  *  [[TrieOp!.mapFirst]]/[[TrieOp!.mapSecond]] are called as before. Otherwise, there is such a child in the other trie
 	  *  (there can be at most one), that their common prefix is longer than the prefix to their parents and recursion
-	  *  continues for this pair. At the end of each step, results for such children pairs are subsequently reduced by
+	  *  continues for this two. At the end of each step, results for such children pairs are subsequently reduced by
 	  *  [[TrieOp!.reduce]]. In addition to partial results, that of the two nodes which has shorter prefix is given as an
-	  *  argument. As the reduced pair was computed for a pair of subtries which have longer prefix with each other than
+	  *  argument. As the reduced two was computed for a two of subtries which have longer prefix with each other than
 	  *  with any other key from their corresponding tries, it conceptually represents a prefix node which would be the
-	  *  parent of the pair in the union of the two tries. In case of binary tries, `reduce` is called exactly once
+	  *  parent of the two in the union of the two tries. In case of binary tries, `reduce` is called exactly once
 	  *  at each step; for tries with many potential children it may be called more than once for each such parent argument.
 	  *
 	  *  For the purpose of simplification, algorithm behaves as if each key ended with a 'end of word' symbol which cannot
@@ -162,7 +162,7 @@ object TrieFriends {
 		  */
 		def mapSecond(first :T, second :T) :O
 
-		/** Callback called when recursion encounters a trie pair with different prefixes and thus representing disjoint
+		/** Callback called when recursion encounters a trie two with different prefixes and thus representing disjoint
 		  * key sets.
 		  * @param first a subtrie of the first/left/this of the operator arguments.
 		  * @param second a subtrie of the second/right of the operator arguments.
@@ -180,7 +180,7 @@ object TrieFriends {
 		  * `res1` and `res2` will be the results of recursion down the left and right subtries of `path`, respectively.
 		  * For tries with more possible children, it can be called multiple times for the same `path` argument and
 		  * any of the arguments may be results of earlier reduction. In that case `path` will be the longest common
-		  * prefix of any pair of key sets included in computation of the partial results given. For example, in
+		  * prefix of any two of key sets included in computation of the partial results given. For example, in
 		  * implementation of trie union, it would correspond to the prefix associated with the new parent of `res1`
 		  * and `res2`.
 		  * @param path a prefix node defining the level of recursion; both partial results where computed for key sets

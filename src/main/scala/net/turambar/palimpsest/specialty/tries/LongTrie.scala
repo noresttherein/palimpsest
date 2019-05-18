@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.tries.BinaryTrie.{BinaryTrieBranch, BinaryTrieNode, MutableBinaryTrieLeaf, MutableEmptyBinaryTrie}
-import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.StableBinaryTrieBranch
-import net.turambar.palimpsest.specialty.tries.LongTrie.EmptyLongTrie
+import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.{BranchPatch, StableBinaryTrieBranch}
+import net.turambar.palimpsest.specialty.tries.LongTrie.{EmptyLongTrie, LongTrieBranch}
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.{centerLabel, EmptyLongKeys, GenericLongKeyBranch, LongKeyBranch, LongKeyLeaf, MutableLongKeyBranch}
 import net.turambar.palimpsest.specialty.tries.TrieFriends.TrieOp
 import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrackingTrieKeyPatch, TrieKeyPatch}
@@ -24,31 +24,40 @@ trait LongTrie extends LongTrieKeys[LongTrie, LongTrie] { this :BinaryTrieNode =
 
 
 
+trait BaseLongTriePatch extends BranchPatch[Long, LongTrie, LongTrie, LongTrie] {
+	final override def patchLeft(branch :BinaryTrieBranch[Long, LongTrie], left :LongTrie) :LongTrie =
+		if (left eq branch.left) branch.asTrie
+		else new LongTrieBranch(branch.asTrie.label, left, branch.right)
 
-object LongTrie extends BinaryTrieKeySetFactory[Long, LongTrie, LongTrie] with StableBinaryTrieKeySetFactory[Long, LongTrie] {
+	final override def patchRight(branch :BinaryTrieBranch[Long, LongTrie], right :LongTrie) :LongTrie =
+		if (right eq branch.right) branch.asTrie
+		else new LongTrieBranch(branch.asTrie.label, branch.left, right)
+}
+
+
+
+
+
+object LongTrie extends BinaryTrieKeySetFactory[Long, LongTrie, LongTrie]
+                   with StableBinaryTrieKeySetFactory[Long, LongTrie] with BaseLongTriePatch
+{
 
 	val EmptyLongTrie :LongTrie = MutableLongTrie.EmptyMutableLongTrie
 
 	type LongTrieLeaf = MutableLongTrie.MutableLongTrieLeaf
 
 
+
+
+
 	sealed class LongTrieBranch(centre :Long, l :LongTrie, r :LongTrie)
-		extends LongKeyBranch[LongTrie](centre, l, r) with StableBinaryTrieBranch[Long, LongTrie] with LongTrie
+		extends LongKeyBranch[LongTrie](centre, l, r) with StableBinaryTrieBranch[Long, LongTrie] with LongTrie with BaseLongTriePatch
 	{
 		override def emptyTrie :LongTrie = EmptyMutableLongTrie
 
 		override def cloneLeaf(leaf :LongTrie) :LongTrie = leaf
 
 		override def likeLeaf(leaf :LongTrie) :LongTrie = leaf
-
-
-		override protected def patchLeft(branch :BinaryTrieBranch[Long, LongTrie], left :LongTrie) :LongTrie =
-			if (left eq branch.left) branch.asTrie
-			else new LongTrieBranch(branch.asTrie.label, left, branch.right)
-
-		override protected def patchRight(branch :BinaryTrieBranch[Long, LongTrie], right :LongTrie) :LongTrie =
-			if (right eq branch.right) branch.asTrie
-			else new LongTrieBranch(branch.asTrie.label, branch.left, right)
 
 		override protected def patchBranch(branch :BinaryTrieBranch[Long, LongTrie])
 		                                  (left :LongTrie, right :LongTrie) :LongTrie =
@@ -85,19 +94,6 @@ object LongTrie extends BinaryTrieKeySetFactory[Long, LongTrie, LongTrie] with S
 	type LongTriePatch = TrieKeyPatch[Long, LongTrie, LongTrie]
 
 	type TrackingLongTriePatch = TrackingTrieKeyPatch[Long, LongTrie, LongTrie]
-
-
-	trait BaseLongTriePatch extends AbstractTriePatch {
-
-		override def patchLeft(branch :BinaryTrieBranch[Long, LongTrie], left :LongTrie) :LongTrie =
-			if (branch.left eq left) branch.asTrie
-			else new LongTrieBranch(branch.asTrie.label, left, branch.right)
-
-		override def patchRight(branch :BinaryTrieBranch[Long, LongTrie], right :LongTrie) :LongTrie =
-			if (branch.right eq right) branch.asTrie
-			else new LongTrieBranch(branch.asTrie.label, branch.left, right)
-	}
-
 
 
 
@@ -191,16 +187,6 @@ object LongTrie extends BinaryTrieKeySetFactory[Long, LongTrie, LongTrie] with S
 
 	@inline override protected def reduce(parent :LongTrie)(left :LongTrie, right :LongTrie) :LongTrie =
 		new LongTrieBranch(parent.label, left, right)
-
-
-	@inline override protected def patchLeft(template :BinaryTrieBranch[Long, LongTrie], left :LongTrie) :LongTrie =
-		if (left eq template.left) template.asTrie
-		else new LongTrieBranch(template.asTrie.label, left, template.right)
-
-	@inline override protected def patchRight(template :BinaryTrieBranch[Long, LongTrie], right :LongTrie) :LongTrie =
-		if (right eq template.right) template.asTrie
-		else new LongTrieBranch(template.asTrie.label, template.left, template.right)
-
 
 
 	override def trieTypeName = "LongTrie"

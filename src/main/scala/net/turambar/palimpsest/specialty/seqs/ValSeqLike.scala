@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.seqs
 
 import java.lang.Math
 
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, FitCompanion, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, ValSet}
 
 import scala.annotation.unspecialized
@@ -18,7 +18,7 @@ import scala.collection.{mutable, GenTraversableOnce}
   * @author Marcin Mościcki
   */
 trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
-	extends IterableSpecialization[E, Repr] with SeqTemplate[E, Repr] with Subtractable[E, Repr] with mutable.Cloneable[Repr]
+	extends IterableSpecialization[E, Repr] with SeqTemplate[E, Repr] with Subtractable[E, Repr] //with CloneableIterable[E, Repr]
 {
 
 	/** Runtime type used to store elements of this collection. Overriden to provide non-abstract type parameter
@@ -52,7 +52,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	}
 
 	@inline
-	final override def -(elem1: E, elem2: E, elems: E*): Repr = diff(FitSeq.pair(elem1, elem2), elems)
+	final override def -(elem1: E, elem2: E, elems: E*): Repr = diff(FitSeq.two(elem1, elem2), elems)
 
 	@inline
 	final override def --(xs: GenTraversableOnce[E]): Repr = diff(FitSeq.Empty, xs)
@@ -101,9 +101,9 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	}
 
 
-	def positionOf(elem :E) :Int = positionOf(elem, 0)
+	def offsetOf(elem :E) :Int = offsetOf(elem, 0)
 
-	def lastPositionOf(elem :E) :Int = lastPositionOf(elem, length-1)
+	def lastOffsetOf(elem :E) :Int = lastOffsetOf(elem, length-1)
 
 
 
@@ -112,22 +112,22 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	  * which actually is of our element type. Used by [[SeqTemplate#indexOf]] if the argument
 	  * can be cast to `E`.
 	  */
-	override def positionOf(elem: E, from: Int) :Int = superIndexOf(elem, from)
+	override def offsetOf(elem: E, from: Int) :Int = genericIndexOf(elem, from)
 
 	/** Specialized variant of [[SeqTemplate#lastIndexOf]] searching for a value of our actual element type.
 	  * Hotspot for subclasses to provide specialized implementation of searching for an element
 	  * which actually is of our element type. Used by [[SeqTemplate#indexOf]] if the argument
 	  * can be cast to `E`.
 	  */
-	override def lastPositionOf(elem: E, from: Int) :Int = superLastIndexOf(elem, from)
+	override def lastOffsetOf(elem: E, from: Int) :Int = genericLastIndexOf(elem, from)
 
 	/** Analogue of [[net.turambar.palimpsest.specialty.seqs.SeqTemplate#+:]], but builds this collection type
-	  * and thanks to invariance enforces the prepended element to be a subtype of this collection's element type.
-	  * Default implementation simply builds a new collection from scratch, but subclasses may provide a much more
-	  * efficient implementation. In particular, returned collection may share contents with this collection,
-	  * even if it is mutable.
+	  * and thanks to invariance enforces the prepended element to be a subtype of this collection's element type,
+	  * allowing specialization of this method. Default implementation simply builds a new collection from scratch,
+	  * but subclasses may provide a much more efficient implementation. In particular, returned collection may share
+	  * contents with this collection, even if it is mutable.
 	  */
-	def %:(elem :E) :Repr = {
+	def #:(elem :E) :Repr = {
 		val b = newBuilder
 		if (hasFastSize)
 			b.sizeHint(length + 1)
@@ -141,7 +141,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	  * efficient implementation. In particular, returned collection may share contents with this collection,
 	  * even if it is mutable.
 	  */
-	def :%(elem :E) :Repr = {
+	def :#(elem :E) :Repr = {
 		val b = newBuilder
 		if (hasFastSize)
 			b.sizeHint(length + 1)
@@ -150,16 +150,17 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 	}
 
 
-	/** The intent of this method is twofold: if this collection is mutable, than the
-	  * returned collection should be an exact but independent copy, and thus any future
-	  * changes to any of the instances will not affect the other. If the underlying collection
-	  * is immutable, then it can just return itself (and thus it is possible that `x.clone() eq x`).
-	  * However, if this instance is a slice of a larger collection, sharing representation with other
-	  * instances and possibly preventing garbage collection of a larger structure,
-	  * then it generally should create a new instance with 'minimised' representation.
-	  * Default implementation uses the builder associated with this collection to create a new instance.
-	  */
-	override def clone() :Repr = (newBuilder ++= this).result()
+//	/** The intent of this method is twofold: if this collection is mutable, than the
+//	  * returned collection should be an exact but independent copy, and thus any future
+//	  * changes to any of the instances will not affect the other. If the underlying collection
+//	  * is immutable, then it can just return itself (and thus it is possible that `x.clone() eq x`).
+//	  * However, if this instance is a slice of a larger collection, sharing representation with other
+//	  * instances and possibly preventing garbage collection of a larger structure,
+//	  * then it generally should create a new instance with 'minimised' representation.
+//	  * Default implementation uses the builder associated with this collection to create a new instance;
+//	  * The builder should take advantage of known size of this sequence and reserve no more space than is needed.
+//	  */
+//	override def clone() :Repr = (newBuilder ++= this).result()
 
 
 	@unspecialized
@@ -176,9 +177,12 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 
 
 
-trait ValSeq[@specialized(Elements) E] extends FitSeq[E] with ValSeqLike[E, ValSeq[E]] with SpecializableIterable[E, ValSeq] {
+trait ValSeq[@specialized(Elements) E]
+	extends FitSeq[E] with ValSeqLike[E, ValSeq[E]] with SpecializableIterable[E, ValSeq] with CloneableIterable[E, ValSeq[E]]
+{
 	override def companion :FitCompanion[ValSeq] = ValSeq
 }
+
 
 
 object ValSeq extends InterfaceIterableFactory[ValSeq] {

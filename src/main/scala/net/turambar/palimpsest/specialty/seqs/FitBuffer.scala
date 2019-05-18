@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, IndexedSeqLike}
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitTraversableOnce, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{FitIterableFactory, InterfaceIterableFactory, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, SpecializableIterable}
 
 import scala.annotation.unspecialized
 import scala.reflect.ClassTag
@@ -27,8 +27,8 @@ trait FitBufferLike[E, +Repr<:FitBufferLike[E, Repr]]
   */
 trait FitBuffer[@specialized(Elements) E]
 	extends mutable.Buffer[E] with mutable.BufferLike[E, FitBuffer[E]]
-			with MutableSeq[E] with ValSeqLike[E, FitBuffer[E]]
-			with SpecializableIterable[E, FitBuffer]
+	   with MutableSeq[E] with ValSeqLike[E, FitBuffer[E]] with CloneableIterable[E, FitBuffer[E]]
+	   with SpecializableIterable[E, FitBuffer]
 {
 //	import Specialized.Fun1
 	
@@ -101,7 +101,7 @@ trait FitBuffer[@specialized(Elements) E]
 
 	override def companion: FitCompanion[FitBuffer] = FitBuffer
 
-	override protected[this] def typeStringPrefix = "FitBuffer"
+	override protected[this] def typeStringPrefix = "Buffer"
 }
 
 
@@ -117,12 +117,11 @@ object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqF
 
 	@inline def emptyOf[E :RuntimeType](sizeHint :Int) :FitBuffer[E] = SharedArrayBuffer.emptyOf[E](sizeHint)
 
-	@inline def of[E :RuntimeType] :FitBuffer[E] = SharedArrayBuffer.of[E]
 
-	@inline def of[E <: AnyVal :RuntimeType](size :Int) :FitBuffer[E] = SharedArrayBuffer.of(size)
+	@inline def sized[E <: AnyVal :RuntimeType](size :Int) :FitBuffer[E] = SharedArrayBuffer.sized(size)
 
-	@inline def of[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :FitBuffer[E] =
-		SharedArrayBuffer.of(size, value)
+	@inline def fill[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :FitBuffer[E] =
+		SharedArrayBuffer.fill(size, value)
 
 
 

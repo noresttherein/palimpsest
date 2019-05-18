@@ -3,8 +3,9 @@ package net.turambar.palimpsest.specialty.iterables
 import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, ofKnownSize, Blank, Elements, FitIterator, Sure}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Res, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.{?, ofKnownSize, Blank, Elements, Sure}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
 
 import scala.collection.{mutable, GenIterable, GenTraversableOnce, LinearSeq}
@@ -202,7 +203,7 @@ trait DoubletonSpecialization[@specialized(Elements) +E, +This]
 //		else if (p(last) == where) Sure(last)
 //		else Blank
 
-	override def iterator: FitIterator[E] = FitIterator(head, last)
+	override def iterator: FitIterator[E] = FitIterator.two(head, last)
 
 	override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O =
 		op(op(z, head), last)
@@ -221,7 +222,7 @@ trait DoubletonSpecialization[@specialized(Elements) +E, +This]
 
 	override def copyToBuffer[B >: E](dest: mutable.Buffer[B]) :Unit = dest += head
 
-	override def toSeq :FitSeq[E] = FitSeq.pair(head, last)
+	override def toSeq :FitSeq[E] = FitSeq.two(head, last)
 }
 
 

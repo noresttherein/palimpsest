@@ -1,11 +1,12 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListIterator, NonEmpty}
 import net.turambar.palimpsest.specialty.seqs.ListSlice.ListSliceIterator
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.{SpecializableIterable, SpecializedIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, SpecializableIterable, SpecializableIterableFactory}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
@@ -21,8 +22,8 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 		private var coccyx :NonEmpty[E],
 		private[this] var len :Int)
 	extends mutable.LinearSeq[E] with LinearSeqLike[E, LinkedBuffer[E]]
-			with FitBuffer[E] with ValSeqLike[E, LinkedBuffer[E]] //MutableSliceLike[E, LinkedBuffer[E]]
-			with SpecializableIterable[E, LinkedBuffer] with OfKnownSize
+	   with FitBuffer[E] with ValSeqLike[E, LinkedBuffer[E]] with CloneableIterable[E, LinkedBuffer[E]]
+	   with SpecializableIterable[E, LinkedBuffer] with OfKnownSize
 { //todo: extend slicelike?
 
 	@inline final override def length: Int = len
@@ -56,7 +57,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 		}
 
 
-	override protected def section(from: Int, until: Int): LinkedBuffer[E] = ???
+//	override protected def section(from: Int, until: Int): LinkedBuffer[E] = ???
 
 	override def overwrite(start: Int, length: Int): FitBuffer[E] = ???
 
@@ -291,7 +292,7 @@ class LinkedBuffer[@specialized(Elements) E] private[seqs] (
 
 
 
-object LinkedBuffer extends SpecializedIterableFactory[LinkedBuffer] {
+object LinkedBuffer extends SpecializableIterableFactory[LinkedBuffer] {
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedBuffer[_], E, LinkedBuffer[E]]): CanBuildFrom[LinkedBuffer[_], E, LinkedBuffer[E]] =
 		fit.cbf

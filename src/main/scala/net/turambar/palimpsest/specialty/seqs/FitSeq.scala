@@ -2,11 +2,11 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.SeqLike
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables._
 import net.turambar.palimpsest.specialty.seqs.StableSeq.{Seq1, Seq2}
-import net.turambar.palimpsest.specialty.{Elements, FitCompanion, RuntimeType}
-
+import net.turambar.palimpsest.specialty.{Elements, RuntimeType}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized
 
 /** A scala `Seq` (either mutable or immutable underneath) which is specialized on its element type.
   * In order not to pollute the API with a counterpart of every scala collection interface, it rolls `IndexedSeq` and `Seq`
@@ -30,7 +30,7 @@ import net.turambar.palimpsest.specialty.{Elements, FitCompanion, RuntimeType}
 trait FitSeq[@specialized(Elements) +E]
 	extends Seq[E] with SeqLike[E, FitSeq[E]]
 			with FitIterable[E] with SeqTemplate[E, FitSeq[E]] with IterableSpecialization[E, FitSeq[E]]
-			with SpecializableIterable[E, FitSeq]
+			with SpecializableIterable[E, FitSeq] with CloneableIterable[E, FitSeq[E]]
 {
 	//Dope Vector, slice
 
@@ -61,7 +61,7 @@ trait FitSeq[@specialized(Elements) +E]
 
 /** Factory for sequences specialized on their element type. */
 object FitSeq extends InterfaceIterableFactory[FitSeq] {
-	import RuntimeType.Fun1Vals
+	import Specialized.Fun1Vals
 
 	type Stable[@specialized(Elements) +E] = StableSeq[E]
 	type Mutable[@specialized(Elements) E] = MutableSeq[E]
@@ -69,7 +69,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 
 	final val Empty :FitSeq[Nothing] = ArrayPlus.Empty
 
-	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.emptyOf[E]
+	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.of[E]
 	
 	protected[this] type RealType[@specialized(Elements) X] = StableArray[X]
 
@@ -85,9 +85,9 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	
 	
 
-	def single[@specialized(Elements) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
+	override def one[@specialized(Elements) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
 	
-	def pair[@specialized(Elements) E](first :E, second :E) :StableSeq[E] = new Seq2(first, second)
+	def two[@specialized(Elements) E](first :E, second :E) :StableSeq[E] = new Seq2(first, second)
 
 //	/** Adapt any sequence to a specialized interface. This is an unspecialized method creating
 //	  * an unspecialized (erased) instance.
@@ -116,28 +116,7 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 */
 
 
-	abstract class SeqFoundation[+E, +Repr<:FitSeq[E]] extends IterableFoundation[E, Repr] with SeqTemplate[E, Repr] {
-
-		override def indexOf[U >: E](elem: U, from: Int): Int =
-			if (specialization.boxType isAssignableFrom elem.getClass)
-				positionOf(elem.asInstanceOf[E], from)
-			else
-				iterator.indexOf(elem, from)
-
-		override protected[this] def positionOf(elem :E, from :Int) :Int = iterator.indexOf(elem, from)
-
-		override def lastIndexOf[U >: E](elem: U, end: Int): Int =
-			if (specialization.boxType isAssignableFrom elem.getClass)
-				lastPositionOf(elem.asInstanceOf[E], end)
-			else
-				iterator.indexOf(elem, end)
-
-		override protected[this] def lastPositionOf(elem :E, from :Int) :Int = iterator.indexOf(elem, from)
-
-
-
-
-	}
+	abstract class SeqFoundation[+E, +Repr<:FitSeq[E]] extends IterableFoundation[E, Repr] with SeqTemplate[E, Repr]
 	
 }
 

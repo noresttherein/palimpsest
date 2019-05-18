@@ -3,6 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.annotation.unspecialized
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 
 /** A mutable view of the tail of a buffer which allows to modify its contents only past some specified index.
@@ -19,13 +20,14 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 
 	override final def length: Int = buffer.length - offset
 	override def hasFastSize :Boolean = buffer.hasFastSize
-	override def ofAtLeast(elems :Int) :Boolean = elems<=0 || buffer.ofAtLeast(offset+elems)
+	override def ofAtLeast(elems :Int) :Boolean = elems <= 0 || buffer.ofAtLeast(offset + elems)
 
 	override protected[this] def at(idx: Int): E = buffer.get(offset+idx)
 
 	@unspecialized
 	override protected def section(from: Int, until: Int): FitBuffer[E] =
-		sectionOf(buffer, offset+from, offset+until)
+		buffer.slice(offset + from, offset + until)
+//		sectionOf(buffer, offset + from, offset + until)
 
 
 	override def appender: FitBuffer[E] = new TailBuffer[E](buffer)
@@ -99,7 +101,7 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 		else buffer.insertAll(offset+n, elems)
 	
 
-	override def -=(elem1: E, elem2: E, elems: E*): this.type = remove(FitSeq.pair(elem1, elem2), elems)
+	override def -=(elem1: E, elem2: E, elems: E*): this.type = remove(FitSeq.two(elem1, elem2), elems)
 
 	override def --=(xs: TraversableOnce[E]): this.type = remove(FitSeq.Empty, xs)
 
@@ -110,7 +112,7 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 			if (indices(oldPos+offset)) {
 				oldPos += 2; newPos += 1
 			} else {
-				buffer.uncheckedUpdate(newPos, buffer.get(oldPos))
+				buffer.trustedSet(newPos, buffer.get(oldPos))
 				oldPos += 1; newPos += 1
 			}
 		this
@@ -137,12 +139,13 @@ class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], o
 	override def clear(): Unit = buffer.remove(offset, buffer.length-offset)
 
 	@unspecialized
-	override def iterator = buffer.iterator.drop(offset)
+	override def iterator :FitIterator[E] = buffer.iterator.drop(offset)
 
 	@unspecialized
-	override def reverseIterator = buffer.reverseIterator.take(buffer.length-offset)
+	override def reverseIterator :FitIterator[E] = buffer.reverseIterator.take(buffer.length-offset)
 
-	override protected[this] def typeStringPrefix: String = "TailBuffer"
+
+	override protected[this] def debugPrefix: String = "TailBuffer"
 }
 
 

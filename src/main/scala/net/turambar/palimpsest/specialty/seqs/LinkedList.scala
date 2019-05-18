@@ -2,17 +2,18 @@ package net.turambar.palimpsest.specialty.seqs
 
 import net.turambar.palimpsest.SerializationVersion
 import net.turambar.palimpsest.specialty
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.BaseIterator
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListBuilder, LinkedListIterator, NonEmpty, SerializedLinkedList}
 import specialty._
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{LinearSeq, LinearSeqLike}
-import RuntimeType.Fun2
-import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, SpecializableIterable, SpecializedIterableFactory}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory}
 import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 
 
@@ -26,8 +27,9 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
   */
 @SerialVersionUID(SerializationVersion)
 sealed trait LinkedList[@specialized(Elements) +E]
-	extends SeqFoundation[E, LinkedList[E]] with LinearSeq[E] with LinearSeqLike[E, LinkedList[E]] //with SliceLike[E, LinkedList[E]]
-			with FitSeq[E] with IterableSpecialization[E, LinkedList[E]] with SpecializableIterable[E, LinkedList] with Serializable
+	extends SeqFoundation[E, LinkedList[E]] with LinearSeq[E] with LinearSeqLike[E, LinkedList[E]]
+	   with FitSeq[E] with IterableSpecialization[E, LinkedList[E]] with SpecializableIterable[E, LinkedList]
+	   with CloneableIterable[E, LinkedList[E]] with Serializable
 {
 //	override def isEmpty = false
 //	override def nonEmpty = true
@@ -40,11 +42,11 @@ sealed trait LinkedList[@specialized(Elements) +E]
 	}
 
 
-	@unspecialized
-	override protected def section(from: Int, until: Int): LinkedList[E] =
-		blindDrop(from).blindTake(until)
+//	@unspecialized
+//	override protected def section(from: Int, until: Int): LinkedList[E] =
+//		blindDrop(from).blindTake(until)
 
-	override private[seqs] def get(idx: Int) = blindDrop(idx).head
+	override private[seqs] def get(idx: Int) :E = blindDrop(idx).head
 
 	override protected[this] def at(idx: Int): E = blindDrop(idx).head
 
@@ -251,7 +253,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 		last
 	}
 
-	override protected[this] def positionOf(elem: E, from: Int) :Int = {
+	override protected[this] def offsetOf(elem: E, from: Int) :Int = {
 		var i = math.max(from, 0); var l = drop(i)
 		while(l.nonEmpty) {
 			if (l.head == elem) return i
@@ -260,7 +262,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 		-1
 	}
 
-	override protected[this] def lastPositionOf(elem: E, end: Int) :Int = {
+	override protected[this] def lastOffsetOf(elem: E, end: Int) :Int = {
 		var i = 0; var last = -1; var l = this
 		while(i<=end && l.nonEmpty) {
 			if (l.head == end) last = i
@@ -370,7 +372,7 @@ sealed trait LinkedList[@specialized(Elements) +E]
 
 
 
-object LinkedList extends SpecializedIterableFactory[LinkedList] {
+object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedList[_], E, LinkedList[E]]): CanBuildFrom[LinkedList[_], E, LinkedList[E]] =
 		fit.cbf

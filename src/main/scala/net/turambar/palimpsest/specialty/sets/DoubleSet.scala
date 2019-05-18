@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.lang.Double.{doubleToLongBits, doubleToRawLongBits, longBitsToDouble, NaN}
 
-import net.turambar.palimpsest.specialty.tries.{IterableTriePotFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
+import net.turambar.palimpsest.specialty.tries.{TriePotIterableFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
 import net.turambar.palimpsest.specialty.tries.LongTrie.{EmptyLongTrie, LongTrieLeaf}
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
 import net.turambar.palimpsest.specialty.{?, Blank, FitTraversableOnce, RuntimeType, Sure, Var}
@@ -18,7 +18,7 @@ import scala.collection.GenTraversableOnce
   * @author Marcin Mościcki marcin@moscicki.net
   */
 sealed trait DoubleSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: ValSet[Double] with DoubleSetLike[T, S]]
-	extends IterableTriePotFoundation[Long, LongTrie, T, Double, S] //for size tracking
+	extends TriePotIterableFoundation[Long, LongTrie, T, Double, S] //for size tracking
 		with SetSpecialization[Double, S]
 		with TrieKeySetSpecialization[Long, LongTrie, T, Double, S] //main set implementation
 		//	   with TraversableTrieKeySet[Long, MutableLongTrie, MutableLongTrie, Long, LongSet]  //traverse this set with foreach, not iterator
@@ -63,7 +63,10 @@ sealed trait DoubleSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Va
 
 
 	override def stringPrefix = "Set[Double]"
-	override def typeStringPrefix = "DoubleSet"
+
+	override def debugString :String =
+		if (hasFastSize) debugPrefix + "<" + size + ">"
+		else debugPrefix
 }
 
 
@@ -76,7 +79,7 @@ sealed trait DoubleSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Va
 
 /** An immutable set of `Long` values backed by a trie. */
 final class StableDoubleSet private[sets] (keys :LongTrie, keyCount :Int = -1)
-	extends IterableTriePotFoundation[Long, LongTrie, LongTrie, Double, StableDoubleSet](keys, keyCount)
+	extends TriePotIterableFoundation[Long, LongTrie, LongTrie, Double, StableDoubleSet](keys, keyCount)
 		with StableSet[Double] with DoubleSetLike[LongTrie, StableDoubleSet]
 		with StableTrieKeySetTemplate[Long, LongTrie, Double, StableDoubleSet]
 {
@@ -89,11 +92,14 @@ final class StableDoubleSet private[sets] (keys :LongTrie, keyCount :Int = -1)
 
 	override def empty :StableDoubleSet = StableDoubleSet.Empty
 
-	override def stable :StableDoubleSet = this
+//	override def stable :StableDoubleSet = this
 
 	override def mutable :MutableDoubleSet = new MutableDoubleSet(MutableLongTrie.newRoot(trie), unsureSize)
 
 	override def newBuilder = new ValSetBuilder[Double, MutableDoubleSet, StableDoubleSet](MutableDoubleSet.empty, _.stable)
+
+	override def debugPrefix = "StableDoubleSet"
+
 }
 
 
@@ -143,7 +149,7 @@ object StableDoubleSet {
 
 /** A mutable set of `Long` values backed by a trie. */
 class MutableDoubleSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
-	extends IterableTriePotFoundation[Long, LongTrie, MutableLongTrie, Double, MutableDoubleSet](keys, keyCount)
+	extends TriePotIterableFoundation[Long, LongTrie, MutableLongTrie, Double, MutableDoubleSet](keys, keyCount)
 		with MutableSet[Double] with MutableSetSpecialization[Double, MutableDoubleSet]
 		with MutableTrieKeySetSpecialization[Long, LongTrie, MutableLongTrie, Double, MutableDoubleSet] //override default mutable methods
 		//	   with MutableLongTrieSet[Long, MutableLongSet] //get mutable trie patches and operations for MutableLongTrie
@@ -168,9 +174,11 @@ class MutableDoubleSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 
 	override def stable :StableDoubleSet = new StableDoubleSet(trie.stable, unsureSize)
 
-	override def mutable :MutableDoubleSet = new MutableDoubleSet(trie.copy, unsureSize)
+	override def carbon :MutableDoubleSet = new MutableDoubleSet(trie.copy, unsureSize)
 
 	override def origin :AnyRef = MutableDoubleSet
+
+	override def debugPrefix = "MutableDoubleSet"
 }
 
 

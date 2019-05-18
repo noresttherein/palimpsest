@@ -3,11 +3,15 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import scala.annotation.unspecialized
-import scala.collection.{GenSeq, IndexedSeqLike, SeqLike}
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitCompanion, FitIterator, Sure}
-import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
+import scala.collection.{immutable, GenSeq, IndexedSeqLike, SeqLike}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, Sure}
+import net.turambar.palimpsest.specialty.iterators.{IndexedIterator, ReverseIndexedIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, IterableTemplate, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.FitIterator
+
+import scala.collection.generic.CanBuildFrom
 
 
 
@@ -86,18 +90,17 @@ trait FitIndexedSeqTemplate[+E, +S]
 
 
 
+
 /**
   * @author Marcin Mościcki
   */
 //todo: delete this class
 trait FitIndexedSeq[@specialized(Elements) +E]
 	extends IndexedSeq[E] with IndexedSeqLike[E, FitIndexedSeq[E]]
-	   with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]]
+	   with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]] with CloneableIterable[E, FitIndexedSeq[E]]
 	   with FitIndexedSeqTemplate[E, FitIndexedSeq[E]] with SpecializableIterable[E, FitIndexedSeq] with OfKnownSize
 { self =>
 	
-
-
 
 	override protected[this] def indexWhere(p: E => Boolean, ourTruth: Boolean, from: Int): Int = {
 		var i = Math.max(from, 0); val len = length
@@ -136,7 +139,7 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 	
 	
 	
-	override protected[this] def positionOf(elem: E, from: Int): Int = {
+	override protected[this] def offsetOf(elem: E, from: Int): Int = {
 		var i = Math.max(from, 0); val len = length
 		while(i<=len && at(i)!=elem) i+=1
 		if (i==len) -1 else i
@@ -144,24 +147,14 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 
 	
 	
-	override protected[this] def lastPositionOf(elem: E, end: Int): Int = {
+	override protected[this] def lastOffsetOf(elem: E, end: Int): Int = {
 		var i = Math.min(end, length-1)
 		while(i>=0 && elem!=at(i)) i-=1
 		i
 	}
 	
 	
-	
-	
-	
-	
-	
-	
 
-
-
-
-	
 
 	protected[this] override def trustedCopyTo(target :Array[E], start :Int, len :Int) :Int = {
 		var i = 0; val max = Math.min(len, length)
@@ -170,9 +163,6 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 	}
 	
 	
-
-
-
 
 	override def iterator: FitIterator[E] = new ForwardIterator
 
@@ -190,7 +180,7 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 		override def next() :E = { val res :E = at(index); index+=1; res }
 
 		@unspecialized
-		override def foreach[@specialized(Unit) U](f: (E) => U): Unit =
+		override def foreach[@specialized(Unit) U](f: E => U): Unit =
 			if (index==0 && end==length) toSeq.foreach(f)
 			else while(index < end) { f(at(index)); index+=1 }
 
@@ -222,4 +212,35 @@ trait FitIndexedSeq[@specialized(Elements) +E]
 
 
 	override def companion :FitCompanion[FitIndexedSeq] = ArrayView
+}
+
+
+
+
+
+
+
+
+
+
+trait StableIndexedSeq[+E]
+	extends immutable.IndexedSeq[E] with IndexedSeqLike[E, StableIndexedSeq[E]]
+		with FitIndexedSeq[E] with StableSeq[E] with StableIterableTemplate[E, StableIndexedSeq[E]]
+		with IterableSpecialization[E, StableIndexedSeq[E]] with SpecializableIterable[E, StableIndexedSeq]
+		with SliceLike[E, StableIndexedSeq[E]] with CloneableIterable[E, StableIndexedSeq[E]]
+{
+	override def toSeq :StableIndexedSeq[E] = this
+	override def companion :FitCompanion[StableIndexedSeq] = StableIndexedSeq
+}
+
+
+
+object StableIndexedSeq extends InterfaceIterableFactory[StableIndexedSeq] {
+	override protected[this] type RealType[@specialized(Elements) +X] = ArrayPlus[X]
+
+	override protected def default :FitIterableFactory[RealType] = ArrayPlus
+
+	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[StableIndexedSeq[_], E, StableIndexedSeq[E]])
+			:CanBuildFrom[StableIndexedSeq[_], E, StableIndexedSeq[E]] =
+		fit.cbf
 }

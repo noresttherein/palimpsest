@@ -1,8 +1,9 @@
 package net.turambar.palimpsest.specialty.ordered
 
 import net.turambar.palimpsest.specialty.sets.{OrderedSet, ValSet}
-import net.turambar.palimpsest.specialty.{?, some_?, FitIterator, Sure, Blank}
-import net.turambar.palimpsest.specialty.RuntimeType.MultiValue
+import net.turambar.palimpsest.specialty.{?, some_?, Blank, Sure}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.MultiValue
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 import scala.collection.generic.Sorted
 
@@ -111,9 +112,9 @@ object OrderedBy {
 //		override def reverseKeyIterator: FitIterator[K] = FitIterator(key)
 
 		override def keysIteratorFrom(key :K) :FitIterator[K] =
-			if (lte(key, firstKey)) FitIterator(key)
+			if (lte(key, firstKey)) FitIterator.one(key)
 			else FitIterator.empty
 
-		override def keySet :OrderedSet[K] = OrderedSet.singleton(firstKey)
+		override def keySet :OrderedSet[K] = OrderedSet.one(firstKey)
 	}
 }

@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.ordered
 
-import net.turambar.palimpsest.specialty.iterables.IterableAdapter
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, FitCompanion, FitIterator, Sure}
-import net.turambar.palimpsest.specialty.iterables.IterableSpecialization
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableAdapter, IterableSpecialization}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, Sure}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, SliceLike}
 import net.turambar.palimpsest.specialty.sets.OrderedSet
 
@@ -16,7 +16,7 @@ import scala.collection.GenTraversableOnce
   */
 class OrderedSeq[@specialized(Elements) E] private[ordered](override protected[this] val source :FitSeq[E])(implicit override val ordering :ValOrdering[E])
 	extends IterableAdapter[FitSeq[E], E, OrderedSeq[E]] with OrderedVals[E] with OrderedAs[E, OrderedSeq[E]]
-	   with IterableSpecialization[E, OrderedSeq[E]] //with SpecializableIterable[E, OrderedSeq]
+	   with IterableSpecialization[E, OrderedSeq[E]]
 {
 	//	type This = OrderedSeq[E]
 

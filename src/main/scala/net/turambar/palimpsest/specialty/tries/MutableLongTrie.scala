@@ -4,7 +4,8 @@ import net.turambar.palimpsest.specialty.tries.BinaryTrie.{BinaryTrieBranch, Bin
 import net.turambar.palimpsest.specialty.tries.LongTrie.{LongTrieBranch, LongTrieLeaf}
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.{centerLabel, EmptyLongKeys, GenericEmptyLongKeys, GenericLongKeyBranch, GenericLongKeyLeaf, LongKeyBranch, LongKeyLeaf, MutableLongKeyBranch}
 import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrieKeyPatch}
-import net.turambar.palimpsest.specialty.tries.MutableLongTrie.EmptyMutableLongTrie
+import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.BranchPatch
+import net.turambar.palimpsest.specialty.tries.MutableLongTrie.{EmptyMutableLongTrie, MutableLongTrieBranch}
 
 
 
@@ -24,7 +25,19 @@ sealed trait MutableLongTrie
 
 
 
-object MutableLongTrie extends MutableBinaryTrieKeySetFactory[Long, LongTrie, MutableLongTrie] {
+trait BaseMutableLongTriePatch extends BranchPatch[Long, LongTrie, MutableLongTrie, MutableLongTrie] {
+	@inline final override protected def patchLeft(template :BinaryTrieBranch[Long, LongTrie], left :MutableLongTrie) :MutableLongTrie =
+		new MutableLongTrieBranch(template.asTrie.label, left, template.rightView)
+
+	@inline final override protected def patchRight(template :BinaryTrieBranch[Long, LongTrie], right :MutableLongTrie) :MutableLongTrie =
+		new MutableLongTrieBranch(template.asTrie.label, template.left, template.rightView)
+}
+
+
+
+
+
+object MutableLongTrie extends MutableBinaryTrieKeySetFactory[Long, LongTrie, MutableLongTrie] with BaseMutableLongTriePatch {
 
 
 	object EmptyMutableLongTrie extends GenericEmptyLongKeys[LongTrie, MutableLongTrie]
@@ -38,7 +51,7 @@ object MutableLongTrie extends MutableBinaryTrieKeySetFactory[Long, LongTrie, Mu
 
 	final class MutableLongTrieBranch(centre :Long, l :LongTrie, r :LongTrie)
 		extends GenericLongKeyBranch[LongTrie, MutableLongTrie](centre, l, r)
-		   with MutableLongKeyBranch[LongTrie, MutableLongTrie] with MutableLongTrie
+		   with MutableLongKeyBranch[LongTrie, MutableLongTrie] with MutableLongTrie with BaseMutableLongTriePatch
 	{
 
 		override def stable :LongTrie = {
@@ -79,17 +92,8 @@ object MutableLongTrie extends MutableBinaryTrieKeySetFactory[Long, LongTrie, Mu
 		override protected def swapRight(branch :SuperBranch, right :LongTrie) :MutableLongTrie =
 			new MutableLongTrieBranch(branch.asTrie.label, branch.leftView, branch.right)
 
-		override protected def patchLeft(branch :SuperBranch, left :LongTrie) :MutableLongTrie =
-			new MutableLongTrieBranch(branch.asTrie.label, left, branch.rightView)
-
-		override protected def patchRight(branch :SuperBranch, right :LongTrie) :MutableLongTrie =
-			new MutableLongTrieBranch(branch.asTrie.label, branch.leftView, right)
-
 		override def patchBranch(branch :SuperBranch)(left :LongTrie, right :LongTrie) :MutableLongTrie =
 			new MutableLongTrieBranch(branch.asTrie.label, left, right)
-
-
-
 
 	}
 
@@ -136,12 +140,6 @@ object MutableLongTrie extends MutableBinaryTrieKeySetFactory[Long, LongTrie, Mu
 	@inline override protected def reduce(parent :LongTrie)(left :LongTrie, right :LongTrie) :MutableLongTrie =
 		new MutableLongTrieBranch(parent.label, left, right)
 
-
-	@inline override protected def patchLeft(template :BinaryTrieBranch[Long, LongTrie], left :MutableLongTrie) :MutableLongTrie =
-		new MutableLongTrieBranch(template.asTrie.label, left, template.rightView)
-
-	@inline override protected def patchRight(template :BinaryTrieBranch[Long, LongTrie], right :MutableLongTrie) :MutableLongTrie =
-		new MutableLongTrieBranch(template.asTrie.label, template.left, template.rightView)
 
 
 	override def trieTypeName = "MutableLongTrie"

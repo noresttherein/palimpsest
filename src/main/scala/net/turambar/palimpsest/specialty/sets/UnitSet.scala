@@ -1,16 +1,19 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, EmptyIterableFoundation, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization, StableIterableTemplate}
 import net.turambar.palimpsest.specialty.sets.UnitSet.MutableUnitSet
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, Sure}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
 
 
 /**
   * @author Marcin Mościcki marcin@moscicki.net
   */
-sealed trait UnitSet extends StableSet[Unit] with SetSpecialization[Unit, UnitSet]{
+sealed trait UnitSet extends StableSet[Unit] with SetSpecialization[Unit, UnitSet]
+	with CloneableIterable[Unit, UnitSet] with StableIterableTemplate[Unit, UnitSet] with OfKnownSize
+{
 	override def empty :UnitSet = UnitSet.Empty
 	override def mutable :MutableUnitSet = new MutableUnitSet(nonEmpty)
 }
@@ -34,7 +37,7 @@ object UnitSet {
 		override def +(elem :Unit) :UnitSet = this
 		override def -(elem :Unit) :UnitSet = Empty
 		override def ^(elem :Unit) :UnitSet = Empty
-		override val toSeq :StableSeq[Unit] = FitSeq.single(())
+		override val toSeq :StableSeq[Unit] = FitSeq.one(())
 	}
 
 
@@ -52,7 +55,7 @@ object UnitSet {
 
 		override def -=(elem :Unit) :this.type = { full = false; this }
 
-		override def ^=(elem :Unit) :this.type = { full = !full; this }
+		override def flip(elem :Unit) :Boolean = { full = !full; full }
 
 		override def contains(elem :Unit) :Boolean = full
 
@@ -70,7 +73,7 @@ object UnitSet {
 			else Blank
 
 		override def iterator :FitIterator[Unit] =
-			if (full) FitIterator(())
+			if (full) FitIterator.one(())
 			else FitIterator.Empty
 
 

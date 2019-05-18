@@ -7,9 +7,10 @@ import scala.reflect.ClassTag
 import scala.collection.{immutable, IndexedSeqLike, IndexedSeqOptimized, LinearSeqLike}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.RuntimeType.Fun2Vals
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2Vals
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, IterableSpecialization}
+import net.turambar.palimpsest.specialty.iterators.{ArrayIterator, ReverseArrayIterator}
 
 import scala.compat.Platform
 
@@ -137,7 +138,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 		i - end
 	}
 
-	override protected[this] def positionOf(elem: E, from: Int): Int =
+	override protected[this] def offsetOf(elem: E, from: Int): Int =
 		if (from>=length) -1 //also guards against arithmetic overflow on indices
 		else {
 			var i = headIdx + Math.max(from, 0); val e = headIdx+length
@@ -146,7 +147,7 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 			if (i==e) -1 else i-headIdx
 		}
 
-	override protected[this] def lastPositionOf(elem: E, end: Int): Int = {
+	override protected[this] def lastOffsetOf(elem: E, end: Int): Int = {
 		var i = Math.min(end, length-1) + headIdx; val hd = headIdx
 		val a = array
 		while (i >= hd && a(i) != elem) i -= 1
@@ -172,28 +173,8 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 	}
 
 
-	/* Predicate testing and traversing methods */
 
 
-
-
-
-	//todo: optimistic specialization
-//	override def toBuffer[U >: E]: FitBuffer[U] =
-
-	@unspecialized
-	override def toFitBuffer[U >: E: RuntimeType]: SharedArrayBuffer[U] =
-		if (storageClass isAssignableFrom RuntimeType[U].runType)
-			new GrowingArrayBuffer[E](array, headIdx, length, true).asInstanceOf[SharedArrayBuffer[U]]
-		else SharedArrayBuffer.of[U] ++= this
-
-
-//	override def toIndexedSeq: collection.immutable.IndexedSeq[E] =
-//		StableArray(array, headIdx, length)
-
-
-
-	
 	@inline @unspecialized
 	override final protected[this] def trustedCopyTo(xs: Array[E], start: Int, total: Int) :Int = {
 		val count = Math.min(total, length)
@@ -206,17 +187,44 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 		if (start < 0)
 			throw new IndexOutOfBoundsException(s"$stringPrefix.copyToArray([${xs.length}], $start, $len)")
 		else if (start < xs.length && len > 0)
-			if (xs.getClass isAssignableFrom array.getClass)
-				Platform.arraycopy(array, headIdx, xs, start, Math.min(xs.length - start, Math.min(len, length)))
-			else {
-				val end = Math.min(xs.length, start + Math.min(len, length))
-				var into = start; var from = headIdx
-				val a = array
-				while (into < end) {
-					xs(into) = a(from)
-					into += 1; from += 1
-				}
-			}
+			     if (xs.getClass isAssignableFrom array.getClass)
+				     Platform.arraycopy(array, headIdx, xs, start, Math.min(xs.length - start, Math.min(len, length)))
+			     else {
+				     val end = Math.min(xs.length, start + Math.min(len, length))
+				     var into = start; var from = headIdx
+				     val a = array
+				     while (into < end) {
+					     xs(into) = a(from)
+					     into += 1; from += 1
+				     }
+			     }
+
+
+
+	@unspecialized
+	override def stable :StableSeq[E] = (ArrayPlus.builder[E](specialization) ++= this).result()
+
+	//todo: optimistic specialization
+//	override def toBuffer[U >: E]: FitBuffer[U] =
+
+	@unspecialized
+	override def toFitBuffer[U >: E: RuntimeType]: SharedArrayBuffer[U] =
+		if (storageClass isAssignableFrom RuntimeType[U].runType)
+			new GrowingArrayBuffer[E](array, headIdx, length, true).asInstanceOf[SharedArrayBuffer[U]]
+		else SharedArrayBuffer.of[U] ++= this
+
+
+	@unspecialized
+	def toStableArray :StableArray[E] = StableArray.copy(array, headIdx, length)
+
+	@unspecialized
+	def toArrayPlus :ArrayPlus[E] = ArrayPlus.copy(array, headIdx, length)
+
+
+//	override def toIndexedSeq: collection.immutable.IndexedSeq[E] =
+//		StableArray(array, headIdx, length)
+
+//	@unspecialized override def seq :ArrayView[E] = repr
 
 	override def iterator: ArrayIterator[E] = new ArrayIterator[E](array, headIdx, headIdx+length)
 
@@ -230,5 +238,8 @@ trait ArrayViewLike[@specialized(Elements) +E, +Repr]
 	/** Includes the component type of the underlying array instead of specialization. */
 	override def stringPrefix: String = typeStringPrefix + "[" + storageClass.getSimpleName + "]"
 
-	override protected[this] def typeStringPrefix = "ArrayView"
+	protected[this] override def typeStringPrefix = "ArrayView"
+
+	protected[this] override def debugString :String =
+		debugPrefix + "[" + specialization + ":" + storageClass.getSimpleName + "]<" + length + ">"
 }

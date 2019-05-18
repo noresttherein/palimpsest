@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.ordered
 
 import net.turambar.palimpsest.specialty.Elements
-import net.turambar.palimpsest.specialty.RuntimeType.Fun1
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1
 import net.turambar.palimpsest.specialty.iterables.FitIterable
 import net.turambar.palimpsest.specialty.ordered.ValOrdering.GenericOrdering
 import net.turambar.palimpsest.specialty.ordered.ValOrdering.Reversed._
@@ -42,12 +42,19 @@ trait ValOrdering[@specialized(Elements) K] extends Ordering[K] { ord =>
 
 
 sealed class FallbackOrderingImplicits {
-	implicit def apply[E](implicit gen :Ordering[E]) :ValOrdering[E] = new GenericOrdering[E](gen)
+	implicit def genericOrdering[E](implicit gen :Ordering[E]) :ValOrdering[E] = new GenericOrdering[E](gen)
 }
 
 
 
 object ValOrdering extends FallbackOrderingImplicits  {
+
+	/** Summons implicit value for `ValOrdering[E]`. */
+	def apply[E](implicit ordering :ValOrdering[E]) :ValOrdering[E] = ordering
+
+
+
+
 
 	/** Marker trait for natural orderings of built-in value types. Sealed, so can be used to quickly determine
 	  * if an implicit parameter is one of the defaults provided here and perform some optimizations.

@@ -1,10 +1,10 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.slang.Nullable
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitIterator, Var}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, Var}
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, EmptyIterableTemplate}
 import net.turambar.palimpsest.specialty.tries.Trie.TrieOpRes
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun2}
 
 import scala.annotation.unspecialized
 import scala.collection.GenTraversableOnce

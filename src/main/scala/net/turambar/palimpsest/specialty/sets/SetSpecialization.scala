@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.lang.Math
 
-import net.turambar.palimpsest.specialty.iterables.{IterableSpecialization, IterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableSpecialization, IterableTemplate}
 import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
 import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitTraversableOnce, RuntimeType}
 
@@ -22,7 +22,7 @@ import scala.collection.{mutable, GenSet, GenTraversableOnce, SetLike}
   * @see [[SetSpecialization]]
   */
 trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
-	extends SetLike[E, This] with IterableTemplate[E, This] with mutable.Cloneable[This]
+	extends SetLike[E, This] with IterableTemplate[E, This] //with mutable.Cloneable[This]
 {
 
 	def ++(elems :FitTraversableOnce[E]) :This
@@ -42,21 +42,19 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	def ^(that :ValSet[E]) :This
 
 
-	override def clone() :This = repr
-
 	/** An immutable set for the same element type and specialization as this set and containing the same elements.
 	  * @return `this` if this is an immutable set or a related, specialized snapshot for mutable sets.
 	  */
-	def stable :ValSet.Stable[E]
+	override def stable :StableSet[E] = StableSet.of[E] ++ this
 
 	/** A mutable version of this set. For immutable sets this creates a new instance of a related class
 	  * initialized with elements of this set. For mutable sets, this will generally simply return `this` -
 	  * changes to either `this` or the returned set will be visible in the other!
 	  */
-	def mutable :ValSet.Mutable[E]
+	def mutable :MutableSet[E]
 
 	//todo:
-	def mutate :ValSet.Mutable[E] = mutable
+	def mutate :MutableSet[E] = mutable
 
 
 	/** Default set builder delegating to a wrapped set's `+` and `++` methods. This implementation is ''not'' specialized
@@ -73,7 +71,7 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
   * @author Marcin Mościcki
   */
 trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, This] with ValSet[E]]
-	extends SetTemplate[E, This] with IterableSpecialization[E, This]
+	extends SetTemplate[E, This] with IterableSpecialization[E, This] with CloneableIterable[E, This]
 {
 
 	/** Runtime type used to store elements of this collection. Overriden to provide non-abstract type parameter
@@ -90,7 +88,7 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 	  */
 	override def specialization :RuntimeType[E] = RuntimeType.specialized[E]
 
-	override def empty :This
+	override def empty :This //consider: making it non-specialized on this level (that is, simply removing it)
 
 
 	override def apply(elem: E) :Boolean = contains(elem)
@@ -135,13 +133,13 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 
 	override def ^(that :GenSet[E]) :This = that match {
 		case set :ValSet[E] => this ^ set
-		case _ if that.isEmpty => clone() //so it's safe if this is mutable
+		case _ if that.isEmpty => carbon
 		case _ => (repr /: that){ _ ^ _ }
 	}
 
 	override def ^(that :ValSet[E]) :This =
 		if (that.isEmpty)
-			clone() //to make sure we won't return this in case we are mutable
+			carbon //to make sure we won't return this in case we are mutable
 		else {
 			var res = repr //don't use fold as it will box the element type
 			val it = that.iterator
@@ -168,6 +166,21 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 		}
 
 
+	override def subsetOf(that :GenSet[E]) :Boolean = that match {
+		case vals :ValSet[E] => subsetOf(vals)
+		case _ => forall(that)
+	}
+
+	def subsetOf(that :ValSet[E]) :Boolean =
+		if (hasFastSize && that.hasFastSize && size > that.size)
+			false
+		else {
+			val it = iterator
+			while (it.hasNext)
+				if (!that.contains(it.next())) return false
+			true
+		}
+
 //	@unspecialized
 //	def copyToFitArray(xs: Array[E], start: Int=0, total: Int=Int.MaxValue): Unit =
 //		if (start<0)
@@ -178,6 +191,7 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 //				trustedCopyTo(xs, start, max)
 //		}
 
+
 	protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
 		if (isEmpty) 0
 		else {
@@ -186,8 +200,8 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 
 //	override def clone() :This = repr //empty ++ this //this should be in StableSetSpecialization, but we don't have such a trait, so instead we override it in MutableSetSpecialization ...
 
-	def stable :ValSet.Stable[E]
-	def mutable :ValSet.Mutable[E]
+//	def stable :StableSet[E]
+//	def mutable :MutableSet[E]
 
  //= newBuilder.result()
 	/** Default set builder delegating to a wrapped set's `+` and `++` methods. Good for most immutable sets,

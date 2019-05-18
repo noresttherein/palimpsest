@@ -1,10 +1,10 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.slang.Nullable
-import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.iterators.BaseIterator
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun2}
 import net.turambar.palimpsest.specialty.tries.Trie._
-import net.turambar.palimpsest.specialty.{?, Blank, FitIterator, RuntimeType, Specialize, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, RuntimeType, Specialize, Sure}
 import net.turambar.palimpsest.specialty.Var
 import net.turambar.palimpsest.specialty.iterables.IterableTemplate
 
@@ -168,9 +168,9 @@ trait TrieTemplate[+K, +T] { //extends IterableTemplate[Any, T] { //this :Trie[K
 	def sliceTrie(start :Var[Int], size :Var[Int]) :T
 
 	/** Similar to standard collection's `splitAt` method, but the argument is an in/out parameter.
-	  * @param idx number of leading keys to include in the first subtrie of the returned pair. After method's return
+	  * @param idx number of leading keys to include in the first subtrie of the returned two. After method's return
 	  *            contains number of keys by which this trie (and the first returned trie) is smaller than the initial value.
-	  * @return a pair of tries, the first containing `min(this.size, idx)` leading keys, the second all following keys.
+	  * @return a two of tries, the first containing `min(this.size, idx)` leading keys, the second all following keys.
 	  */
 	def splitTrie(idx :Var[Int]) :(T, T)
 
@@ -360,7 +360,7 @@ object Trie {
 		  */
 		def whenKeyExists(key :K, leaf :T) :O
 
-		/** Callback invoked in the reverse order for each `parent -> child` pair of nodes on the path in the trie
+		/** Callback invoked in the reverse order for each `parent -> child` two of nodes on the path in the trie
 		  * associated with `key`. When [[Trie#doForLeaf]] is executed for tries with more than one leaf, the value
 		  * returned by the method of this object appropriate to the given case is subsequently folded with the
 		  * parents of previous nodes while recursion retreats up the trie. So, the first call to this method

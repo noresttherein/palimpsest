@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitCompanion, FitTraversableOnce, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{FitIterableFactory, InterfaceIterableFactory, MutableIterableOverrides, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, MutableIterable, SpecializableIterable}
 
 import scala.annotation.unspecialized
 
@@ -14,11 +14,12 @@ import scala.annotation.unspecialized
   * @author Marcin Mościcki
   */
 trait MutableSeq[@specialized(Elements) E]
-	extends mutable.Seq[E] with mutable.SeqLike[E, MutableSeq[E]] with MutableIterableOverrides[E]
+	extends mutable.Seq[E] with mutable.SeqLike[E, MutableSeq[E]] //with IsMutable[E]
 	   with ValSeq[E] with ValSeqLike[E, MutableSeq[E]] with SpecializableIterable[E, MutableSeq]
+	   with MutableIterable[E] with CloneableIterable[E, MutableSeq[E]]
 {
 
-	override def seq: MutableSeq[E] = this
+//	override def seq: MutableSeq[E] = this
 
 	override def companion: FitCompanion[MutableSeq] = MutableSeq
 	
@@ -27,7 +28,7 @@ trait MutableSeq[@specialized(Elements) E]
 //	override def seq: MutableSeq[E] = this.asInstanceOf[MutableSeq[E]]
 	
 	@inline
-	final protected[seqs] def uncheckedUpdate(idx :Int, elem :E) :Unit = set(idx, elem)
+	final protected[seqs] def trustedSet(idx :Int, elem :E) :Unit = set(idx, elem)
 	
 	/** Set the value at the given index without checking the range. */
 	protected[this] def set(idx :Int, elem :E) :Unit
@@ -53,7 +54,7 @@ trait MutableSeq[@specialized(Elements) E]
 	def update(fromIndex :Int, value :E, count :Int) :Unit
 	
 	
-	override def transform(f: (E) => E): this.type = {
+	override def transform(f: E => E): this.type = {
 		var i=0; val l=length
 		while (i<l) {
 			set(i, f(at(i)))
@@ -90,15 +91,18 @@ trait MutableSeq[@specialized(Elements) E]
 }
 
 
+
+
+
 object MutableSeq extends InterfaceIterableFactory[MutableSeq] {
 	protected[this] type RealType[@specialized(Elements) X] = SharedArray[X]
 
 	override protected[this] final def default: FitIterableFactory[SharedArray] = SharedArray
 
-	def of[E <: AnyVal :RuntimeType](size :Int) :MutableSeq[E] =
+	def sized[E <: AnyVal :RuntimeType](size :Int) :MutableSeq[E] =
 		SharedArray(RuntimeType.arrayFor[E](size))
 
-	def of[E :RuntimeType](size :Int, value :E) :MutableSeq[E] =
+	def fill[E :RuntimeType](size :Int, value :E) :MutableSeq[E] =
 		SharedArray(arrayFill(RuntimeType.arrayFor[E](size), value))
 	
 

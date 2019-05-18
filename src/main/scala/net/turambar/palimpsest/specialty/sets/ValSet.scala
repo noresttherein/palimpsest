@@ -1,9 +1,9 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, FitIterableFactory, InterfaceIterableFactory, IterableAdapter, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterable, FitIterableFactory, InterfaceIterableFactory, IterableAdapter, SpecializableIterable}
 
 import scala.annotation.unspecialized
 import scala.collection.immutable.LongMap
@@ -36,6 +36,8 @@ trait ValSet[@specialized(Elements) E]
 
 	override def companion: FitCompanion[ValSet] = ValSet
 
+
+	override def mutable :MutableSet[E] = MutableSet.empty[E] ++= this
 //	override def toSeq = toFitSeq
 //	override def toFitSeq :FitSeq[E] = (FitSeq.newBuilder[E] ++= this).result()
 
@@ -43,7 +45,8 @@ trait ValSet[@specialized(Elements) E]
 //	def mutable :FitSet.Mutable[E] = MutableSet.from(this)
 //	override def newBuilder :FitBuilder[E, FitSet[E]] = companion.newBuilder
 
-	override def typeStringPrefix = "Set"
+	protected[this] override def typeStringPrefix = "Set"
+
 	override def stringPrefix :String = super[FitIterable].stringPrefix //typeStringPrefix + "[" + specialization.classTag + "]"
 }
 
@@ -55,26 +58,26 @@ object ValSet extends InterfaceIterableFactory[ValSet] {
 	override protected[this] final def default :FitIterableFactory[StableSet] = StableSet
 
 
-	type Sorted[@specialized(Elements) E] = OrderedSet[E]
-	type MakeSorted[@specialized(Elements) E] = OrderedSet[E]
-
-	type Mutable[@specialized(Elements) E] = MutableSet[E]
-	type Stable[@specialized(Elements) E] = StableSet[E]
-
-	/** Factory and companion for generic, specialized, mutable sets. */
-	final val Mutable = MutableSet
-
-	/** Factory and companion for generic, specialized and immutable sets. */
-	final val Stable = StableSet
-
-	/** Specialized ordered set types (using ordering default for the given element type). */
-	object Sorted {
-		/** Immutable specialized sets sorted by natural ordering for the given element type. */
-		type Stable[@specialized(Elements) E] = OrderedSet.Stable[E]
-
-		/** Mutable specialized sets sorted by natural ordering for the given element type. */
-		type Mutable[@specialized(Elements) E] = OrderedSet.Mutable[E]
-	}
+//	type Sorted[@specialized(Elements) E] = OrderedSet[E]
+//	type MakeSorted[@specialized(Elements) E] = OrderedSet[E]
+//
+//	type Mutable[@specialized(Elements) E] = MutableSet[E]
+//	type Stable[@specialized(Elements) E] = StableSet[E]
+//
+//	/** Factory and companion for generic, specialized, mutable sets. */
+//	final val Mutable = MutableSet
+//
+//	/** Factory and companion for generic, specialized and immutable sets. */
+//	final val Stable = StableSet
+//
+//	/** Specialized ordered set types (using ordering default for the given element type). */
+//	object Sorted {
+//		/** Immutable specialized sets sorted by natural ordering for the given element type. */
+//		type Stable[@specialized(Elements) E] = StableOrderedSet[E]
+//
+//		/** Mutable specialized sets sorted by natural ordering for the given element type. */
+//		type Mutable[@specialized(Elements) E] = MutableOrderedSet[E]
+//	}
 
 
 
@@ -98,8 +101,8 @@ object ValSet extends InterfaceIterableFactory[ValSet] {
 			(final protected[this] var source :Source)
 		extends IterableAdapter[Source, E, This] with SetTemplate[E, This] //with ValSet[E] with SetSpecialization[E, This]
 	{
-		override def stable :Stable[E] = source.stable
-		override def mutable :Mutable[E] = source.mutable
+		override def stable :StableSet[E] = source.stable
+		override def mutable :MutableSet[E] = source.mutable
 
 		override def ++(xs: GenTraversableOnce[E]) :This = fromSource(source ++ xs)
 

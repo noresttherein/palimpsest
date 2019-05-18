@@ -481,40 +481,6 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 	import java.{lang=>j}
 
 
-	/** An argument for `scala.specialized` annotation specializing for all primitives, including `Unit/void`.
-	  * This is equivalent to unparameterized `@specialized`, but may be useful as a switch value.
-	  */
-	final val All = new Specializable.Group((Byte, Short, Int, Long, Char, Float, Double, Boolean, Unit))
-
-	/** An argument for `scala.specialized` annotation specializing for all java primitives, excluding `Unit/void`. */
-	final val Primitives = new Specializable.Group((Byte, Short, Int, Long, Char, Float, Double, Boolean))
-
-	/** An argument for the `@specialized` annotation specializing for all primitives except `Boolean` (and `Unit`). */
-	final val MultiValue = new Specializable.Group((Byte, Short, Int, Long, Char, Float, Double))
-
-	/** An argument for `scala.specialized` annotation specializing for all numeric value classes. */
-	final val Numbers = new Specializable.Group((Byte, Short, Int, Long, Float, Double))
-
-	/** Types `scala.Function1`s argument is specialized for. */
-	final val Fun1 = new Specializable.Group((Int, Long, Float, Double))
-
-	/** Types `scala.Function1` result type is specialized for. */
-	final val Fun1Res = new Specializable.Group(Unit, Boolean, Int, Float, Long, Double)
-
-	/** Result types `scala.Function1` is specialized for with the exception of `Unit`. */
-	final val Fun1Vals = new Specializable.Group(Boolean, Int, Float, Long, Double)
-
-	/** Types `scala.Function2`s arguments are specialized for. */
-	final val Fun2 = new Specializable.Group((Int, Long, Double))
-
-	/** Types `scala.Function2` result type is specialized for - same as `Fun1Res`. */
-	final val Fun2Res = new Specializable.Group(Unit, Boolean, Int, Float, Long, Double)
-
-	/** Result types `scala.Function2` is specialized for, except for `Unit` - same as `Fun1Vals`. */
-	final val Fun2Vals = new Specializable.Group(Boolean, Int, Float, Long, Double)
-
-	/** Element types `scala.Tuple2` is specialized for. */
-	final val Tuple2Elem = new Specializable.Group(Int, Long, Double, Char, Boolean)
 
 
 
@@ -934,6 +900,46 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 
 	/** Provides access to representations of types after erasure and specialization. */
 	object Specialized extends SpecializedFromType {
+
+		/** An argument for `scala.specialized` annotation specializing for all primitives, including `Unit/void`.
+		  * This is equivalent to unparameterized `@specialized`, but may be useful as a switch value.
+		  */
+		final val All = new Specializable.Group((Byte, Short, Int, Long, Char, Float, Double, Boolean, Unit))
+
+		/** An argument for `scala.specialized` annotation specializing for all java primitives, excluding `Unit/void`. */
+		final val Primitives = new Specializable.Group((Byte, Short, Int, Long, Char, Float, Double, Boolean))
+
+		/** An argument for the `@specialized` annotation specializing for all primitives except `Boolean` (and `Unit`). */
+		final val MultiValue = new Specializable.Group((Byte, Short, Int, Long, Char, Float, Double))
+
+		/** An argument for `scala.specialized` annotation specializing for all numeric value classes. */
+		final val Numbers = new Specializable.Group((Byte, Short, Int, Long, Float, Double))
+
+		/** Types for which `scala.Function0` (that is, lazy expressions) is specialized. This includes every primitive type. */
+		final val Fun0 = All
+
+		/** Types `scala.Function1`s argument is specialized for. */
+		final val Fun1 = new Specializable.Group((Int, Long, Float, Double))
+
+		/** Types `scala.Function1` result type is specialized for. */
+		final val Fun1Res = new Specializable.Group(Unit, Boolean, Int, Float, Long, Double)
+
+		/** Result types `scala.Function1` is specialized for with the exception of `Unit`. */
+		final val Fun1Vals = new Specializable.Group(Boolean, Int, Float, Long, Double)
+
+		/** Types `scala.Function2`s arguments are specialized for. */
+		final val Fun2 = new Specializable.Group((Int, Long, Double))
+
+		/** Types `scala.Function2` result type is specialized for - same as `Fun1Res`. */
+		final val Fun2Res = new Specializable.Group(Unit, Boolean, Int, Float, Long, Double)
+
+		/** Result types `scala.Function2` is specialized for, except for `Unit` - same as `Fun1Vals`. */
+		final val Fun2Vals = new Specializable.Group(Boolean, Int, Float, Long, Double)
+
+		/** Element types `scala.Tuple2` is specialized for. */
+		final val Tuple2Elem = new Specializable.Group(Int, Long, Double, Char, Boolean)
+
+
 
 		/** Fetches implicit value for [[Specialized]]`[T]` representing the way it would be used
 		  * in context of a generic call, after erasure or specialization. There will always be a value

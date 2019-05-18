@@ -3,14 +3,16 @@ package net.turambar.palimpsest.specialty.sets
 import java.lang
 
 import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, EmptyIterableFoundation, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure}
-import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, FastSizeIterator}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitTraversableOnce, RuntimeType, Sure}
+import net.turambar.palimpsest.specialty.iterators.{BaseIterator, FastSizeIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.BooleanSet.{BooleanSetIterator, IsTrue}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun1Vals, Fun2, Specialized}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.ordered.OrderedBy.OrderedEmpty
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.sets.ValSet.{StableSetBuilder, Mutable, Stable}
+import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized
 
 import scala.collection.{GenSet, GenTraversableOnce}
 import scala.collection.generic.CanBuildFrom
@@ -160,9 +162,10 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 		this
 	}
 
-	override def ^=(elem :Boolean): this.type = {
-		bitmap ^= (if (elem) 1 else 2)
-		this
+	override def flip(elem :Boolean): Boolean = {
+		val bit = if (elem) 1 else 2
+		bitmap ^= bit
+		(bitmap & bit) != 0
 	}
 
 	override def +=(elem1: Boolean, elem2: Boolean, elems: Boolean*): this.type = {
@@ -289,7 +292,7 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 
 
 
-	override def stable: OrderedSet.Stable[Boolean] = bitmap match {
+	override def stable: StableOrderedSet[Boolean] = bitmap match {
 		case 0 => BooleanSet.Empty
 		case 1 => BooleanSet.False
 		case 2 => BooleanSet.True
@@ -301,7 +304,7 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 
 	override def stringPrefix = "Set[Boolean]"
 
-	override def typeStringPrefix = "BooleanSet"
+	override def debugPrefix = "BooleanSet"
 
 	override def toString :String = bitmap match {
 		case 0 => "Set[Boolean]()"
@@ -469,7 +472,7 @@ private[sets] object BooleanSet {
 		override def mutable: MutableOrderedSet[Boolean] = new BooleanSet(if (value) 2 else 1)
 
 		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
-			if (start && !value) FitIterator.empty else FitIterator(value)
+			if (start && !value) FitIterator.empty else FitIterator.one(value)
 
 		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] =
 			if (until.isDefined)
@@ -560,8 +563,8 @@ private[sets] object BooleanSet {
 
 
 		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
-			if (start) FitIterator(true)
-			else FitIterator(false, true)
+			if (start) FitIterator.one(true)
+			else FitIterator.two(false, true)
 
 		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] =
 			if (until.isDefined)

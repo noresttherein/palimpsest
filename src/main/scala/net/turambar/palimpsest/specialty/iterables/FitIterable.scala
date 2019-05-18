@@ -3,12 +3,13 @@ package net.turambar.palimpsest.specialty.iterables
 import java.io.{ObjectInputStream, ObjectOutputStream}
 
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitList, FitSeq, SharedArray}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.seqs.{ArrayPlus, FitBuffer, FitList, FitSeq, SharedArray}
 
 import scala.annotation.unspecialized
-import scala.collection.{breakOut, mutable, GenIterable, GenTraversableOnce}
+import scala.collection.{breakOut, immutable, mutable, GenIterable, GenTraversableOnce}
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
 
@@ -21,12 +22,14 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
   * @author Marcin Mościcki
   */
 trait FitIterable[@specialized(Elements) +E]
-	extends FitTraversableOnce[E] with Iterable[E]
-	   with SpecializableIterable[E, FitIterable] with IterableSpecialization[E, FitIterable[E]]
+	extends FitTraversableOnce[E] with Iterable[E] with SpecializableIterable[E, FitIterable]
+	   with IterableSpecialization[E, FitIterable[E]] with CloneableIterable[E, FitIterable[E]]
 {
 
 	override def companion: FitCompanion[FitIterable] = FitIterable
 }
+
+
 
 
 
@@ -197,10 +200,106 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	}
 
 
-
-
-
 } //object FitIterable
+
+
+
+
+
+
+
+
+
+
+/** Common 'implementation' mixin for immutable collections defining `stable`, `carbon` and `clone()` to independently
+  * to return this collection (`repr`). As it doesn't actually extend any standard immutable interfaces, subclasses
+  * will generally extend also [[net.turambar.palimpsest.specialty.iterables.StableIterable]], but it is not enforced or
+  * strictly required.
+  */
+trait StableIterableTemplate[+E, +Repr <: StableIterable[E]] extends CloneableIterable[E, Repr] {
+	/** Returns `this.repr`. */
+	override def stable :Repr = repr
+
+	/** Returns `this.repr`. */
+	override def carbon :Repr = repr
+
+	/** Returns `this.repr`. */
+	override def clone() :Repr = repr
+}
+
+
+
+/** Base trait for all immutable collection classes. Note that it is not specialized regarding its parameter unlike
+  * the base `FitIterable`. This doesn't impact specialization of actual implementations, as the proper version
+  * of each specialized `FitIterable` method will be executed, providing subclasses extend the specialized version
+  * of `FitIterable` separately. The only consequence for client code is that having this trait as part of method
+  * signature doesn't make it a candidate for specialization. In order to enforce specialization of such methods, other
+  * specialized interfaces must be included either as parameters or the result type.  The limitation for implementing
+  * classes on the other hand is the requirement of having `FitIterable` and its specialized base traits before
+  * this trait in the linearization of each class. In order not to separate a specialized version of any trait from its
+  * generic supertype, which would break the wirering of synthetic specialized methods, each extending trait and class
+  * must mix this trait ''after'' `FitIterable` (or some of its derived specialized traits), which will ensure that
+  * all specialized base traits of this trait precede it in linearization.
+  */
+trait StableIterable[+E]
+	extends immutable.Iterable[E] with StableIterableTemplate[E, StableIterable[E]]
+	   with FitIterable[E] with IterableSpecialization[E, StableIterable[E]] with SpecializableIterable[E, StableIterable]
+{
+	override def companion :FitCompanion[StableIterable] = StableIterable
+}
+
+
+
+object StableIterable extends InterfaceIterableFactory[StableIterable] {
+	override protected[this] type RealType[@specialized(Elements) X] = ArrayPlus[X]
+
+	override protected def default :FitIterableFactory[RealType] = ArrayPlus
+
+	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[StableIterable[_], E, StableIterable[E]])
+			:CanBuildFrom[StableIterable[_], E, StableIterable[E]] =
+		fit.cbf
+}
+
+
+
+
+
+
+
+
+/** Base trait for all mutable collection classes. Note that it is not specialized regarding its parameter unlike
+  * the base `FitIterable`. This doesn't impact specialization of actual implementations, as the proper version
+  * of each specialized `FitIterable` method will be executed, providing subclasses extend the specialized version
+  * of `FitIterable` separately. The only consequence for client code is that having this trait as part of method
+  * signature doesn't make it a candidate for specialization. In order to enforce specialization of such methods, other
+  * specialized interfaces must be included either as parameters or the result type.  The limitation for implementing
+  * classes on the other hand is the requirement of having `FitIterable` and its specialized base traits before
+  * this trait in the linearization of each class. In order not to separate a specialized version of any trait from its
+  * generic supertype, which would break the wirering of synthetic specialized methods, each extending trait and class
+  * must mix this trait ''after'' `FitIterable` (or some of its derived specialized traits), which will ensure that
+  * all specialized base traits of this trait precede it in linearization.
+  */
+trait MutableIterable[E]
+	extends mutable.Iterable[E] with CloneableIterable[E, MutableIterable[E]]
+		with FitIterable[E] with IterableSpecialization[E, MutableIterable[E]] with SpecializableIterable[E, MutableIterable]
+{
+	override def companion :FitCompanion[MutableIterable] = MutableIterable
+
+}
+
+
+
+object MutableIterable extends InterfaceIterableFactory[MutableIterable] {
+	override protected[this] type RealType[@specialized(Elements) X] = SharedArray[X]
+
+	override protected def default :FitIterableFactory[RealType] = SharedArray
+
+	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[MutableIterable[_], E, MutableIterable[E]])
+	:CanBuildFrom[MutableIterable[_], E, MutableIterable[E]] =
+		fit.cbf
+}
+
+
 
 
 

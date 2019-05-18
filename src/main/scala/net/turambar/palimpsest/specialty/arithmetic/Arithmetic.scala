@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.arithmetic
 
 
-import net.turambar.palimpsest.specialty.RuntimeType.Numbers
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Numbers
 
 /**
   * @author Marcin Mościcki marcin@moscicki.net

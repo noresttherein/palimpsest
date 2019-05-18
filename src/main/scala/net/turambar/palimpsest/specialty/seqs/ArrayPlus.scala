@@ -4,14 +4,15 @@ import java.lang.System.arraycopy
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{breakOut, immutable, GenTraversableOnce}
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, SpecializableIterable}
-import net.turambar.palimpsest.specialty.seqs.StableSeq.MakeStableIndexed
-import net.turambar.palimpsest.specialty.{concat, newArray, ofKnownSize, slowcopy, Elements, FitBuilder, FitCompanion, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.{concat, newArray, ofKnownSize, slowcopy, Elements, FitBuilder, RuntimeType}
 
 import scala.annotation.unspecialized
 
-/** An immutable, specialized view on a section of an array with O(n) recursive concatenation/extension.
+
+
+/** An immutable, specialized view on a section of an array with O(1) recursive append/prepend.
   * It is a variation of mutable buffer implementation backed by a growing array with amortized O(1) append,
   * using ownership passing to achieve ''effective'' immutability. A new instance obtained from the companion factory
   * always owns its buffer; first append/prepend operation writes the new data to the shared buffer and passes the
@@ -20,46 +21,60 @@ import scala.annotation.unspecialized
   * a mutable growing buffer, and passed to the new instance after copying all data, with ownership of the old buffer
   * staying with the original sequence. Ownership of the prefix and suffix is tracked independently,
   *
-  *
   * It is thus as efficient as its mutable counterpart in one single, but very common scenario, where the final sequence
   * is built by recursively growing an accumulator sequence, for example like:
   * {{{
-  * (ArrayPlus.empty /: seqs){ (acc, elems) => acc :++ elems }
+  * (ArrayPlus.empty[T] /: seqs){ (acc, elems) => acc :++ elems }
   * }}}
-  * As such, its mainly a means for more convenient building of the final sequence without an intermediate
+  * As such, it's mainly a means for more convenient building of the final sequence without an intermediate
   * builder / linked list, rather than an implementation suited towards common concatenation,
-  * as only the result of the concatenation is guaranteed to be expandable in amortized constant time per element.
-  * All intermediate values of the accumulator in the above case will cause buffer copying on subsequent expansion.
+  * as only the first concatenation is guaranteed to be expandable in amortized constant time per element, and only
+  * on instances being either returned from a companion factory method or being concatenation results themselves (and not,
+  * for example, slices from other sequences). All intermediate values of the accumulator in the above case will cause
+  * buffer copying on subsequent expansion. Similarly, any writes or element update takes `O(n)` time.
   *
+  * There is one additional feature differentiating this class from other `ArrayView` implementations: slice operations
+  * which would require creating a view of only a (small) percentage of this array, reallocate the contents.
+  * This is done in order to eliminate the most grievous cases of memory leaks from referenced much larger arrays,
+  * which still makes any recursive sequence of slicing (such as traversing the sequence using `tail`) run in amortized
+  * `O(1)` time. This makes this class less suitable to algorithms which traverse a sequence repeatedly taking small
+  * slices from it, such as in pattern matching. For that purpose, `StableArray` will be more suitable. Methods which
+  * convert between them in `O(1)` time exist to facilitate that use scenario.
   *
   * While neither the range, nor the array or its contents within the range of this sequence can be mutated
   * by either this instance or any external source, the contents of the array outside of the  given section
   * are not immutable. Whenever an element is appended/prepended or this instance is concatenated
   * with another sequence, if the backing array has enough space in the corresponding fragment
-  * (preceding or succeeding this section) '''and''' this instance ''owns'' the corresponding section
-  * of the array (that is, either its whole suffix or whole prefix), new content is simply copied to the
-  * underlying array and a view over the whole, extended section is returned as the result sequence, now
+  * (preceding or succeeding this section) '''and''' this instance ''owns'' the array, new content is simply copied
+  * to the underlying array and a view over the whole, extended section is returned as the result sequence, now
   * becoming the whole owner of the underlying section.
   *
-  * This class is both effectively immutable and thread safe; the only mutable state are ownership
-  * flags which can only be changed from `true` to `false`.
+  * This class is both effectively immutable and thread safe; the only mutable state is the ownership
+  * flag which can only be changed from `true` to `false`.
   *
   * @author Marcin Mościcki
   */
-sealed class ArrayPlus[@specialized(Elements) E] protected[seqs](
+sealed class ArrayPlus[@specialized(Elements) +E] protected[seqs](
 		buffer :Array[E],
 		offset :Int,
 		len :Int,
 		/** Ownership flag granting this instance the right to write to the backing array past its index range. Single use only.*/
 		private[this] var mutable :Boolean = false
 	)
-	extends IterableFoundation[E, ArrayPlus[E]] with MakeStableIndexed[E] with StableSeq[E]
-	   with ArrayView[E] with ArrayViewLike[E, ArrayPlus[E]]
-	   with SpecializableIterable[E, ArrayPlus]
+	extends IterableFoundation[E, ArrayPlus[E]] with CloneableIterable[E, ArrayPlus[E]] //with FitIndexedSeq[E] //enforce the desired linearization
+	   with ArrayView[E] with ArrayViewLike[E, ArrayPlus[E]] with SpecializableIterable[E, ArrayPlus]
+	   with StableSeq[E] with StableIndexedSeq[E] with StableIterableTemplate[E, ArrayPlus[E]]
+//	   with ArrayView[E] with ArrayViewLike[E, ArrayPlus[E]] with SpecializableIterable[E, ArrayPlus]
 {
 
 	@unspecialized
 	override def seq :ArrayPlus[E] = this
+
+	@unspecialized
+	override def toArrayPlus :ArrayPlus[E] = this
+
+	@unspecialized
+	override def toStableArray :StableArray[E] = StableArray.shared(new ArrayBounds[E](array, headIdx, length))
 
 	override def companion: FitCompanion[ArrayPlus] = ArrayPlus
 
@@ -71,15 +86,18 @@ sealed class ArrayPlus[@specialized(Elements) E] protected[seqs](
 
 	@inline final override def length :Int = len
 
-	@inline final override protected def section(from: Int, until: Int): ArrayPlus[E] =
-		new ArrayPlus[E](buffer, offset + from, until - from, false)
+	@inline final override protected def section(from: Int, until: Int): ArrayPlus[E] = {
+		val size = until - from
+		if (size < (len >> ArrayPlus.ShrinkLogFactor)) {
+			val a = newArray[E](buffer.getClass.getComponentType, size)
+			arraycopy(buffer, offset + from, a, 0, size)
+			new ArrayPlus[E](a, 0, size, true)
+		} else
+			new ArrayPlus[E](buffer, offset + from, size, false)
+	}
 
 
-	override def clone(): ArrayPlus[E] =
-		if (buffer.length>0 && buffer.length / len >= 2)
-			new ArrayPlus(toArray, 0, len, true)
-		else this
-	
+
 
 	/** Returns the value of the `mutable` flag and atomically sets it to false. This method will return true at most once. */
 	@inline final private[this] def canPassArray :Boolean =
@@ -182,7 +200,7 @@ sealed class ArrayPlus[@specialized(Elements) E] protected[seqs](
 			newElementType = elementType
 
 		//caution: unsynchronized mutable field access! We don't much care though if we read stale 'true' value
-		//caution: as the only purpose is guaranteeing O()) amortized first grow on any side.
+		//caution: as the only purpose is guaranteeing O(n) amortized first grow on any side.
 		//caution: What we don't want is preserve the unused space on instances sliced from other sequences;
 		//caution: in that case though the `mutable` field is always false since construction.
 		val reserve = //free capacity at the back that needs preserving.
@@ -379,11 +397,12 @@ sealed class ArrayPlus[@specialized(Elements) E] protected[seqs](
 	  */
 	final private[this] def nextArrayLength(extras :Int, reserved :Int = 0) :Int = {
 		val current = buffer.length
+		val total = current - reserved
 		var capacity = //new capacity discounting the reserved space
-			if (current - reserved >= extras) //reallocation due to immutability or different component types
+			if (total >= extras) //reallocation due to immutability or different component types
 				reserved + (len + extras << 1) //smaller than current * 2, so can't overflow past the negative range
 			else
-	            (current - reserved) << 1 //like above, won't overflow past the negative Int range
+	            total << 1 //like above, won't overflow past the negative Int range
 
 		if (capacity < 0 | capacity > ArrayPlus.MaxLength) { //can't overflow past the negative Int range
 			if (ArrayPlus.MaxLength - len < extras)
@@ -410,8 +429,20 @@ sealed class ArrayPlus[@specialized(Elements) E] protected[seqs](
 	}
 
 
+	override def clone() :ArrayPlus[E] =
+		if (buffer.length == len)
+			this
+		else {
+			val copy = newArray[E](buffer.getClass.getComponentType, len)
+			arraycopy(buffer, offset, copy, 0, len)
+//			ArrayPlus.using(copy, 0, len)
+			new ArrayPlus[E](copy, 0, len, true)
+		}
 
-	override def typeStringPrefix: String = "Array+"
+
+	protected[this] override def typeStringPrefix: String = "Array+"
+
+	protected[this] override def debugPrefix :String = "ArrayPlus"
 }
 
 
@@ -426,6 +457,7 @@ sealed class ArrayPlus[@specialized(Elements) E] protected[seqs](
   */
 object ArrayPlus extends ArrayViewFactory[ArrayPlus] { factory =>
 
+	@inline private final val ShrinkLogFactor = 4
 	@inline private final val MaxLength = Int.MaxValue - 8
 	@inline private final val MinCapacity = 16
 

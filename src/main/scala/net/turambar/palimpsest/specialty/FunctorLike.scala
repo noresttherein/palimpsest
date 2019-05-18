@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty
 
-import net.turambar.palimpsest.specialty.RuntimeType.Fun1Vals
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
 
 /**
   * @author Marcin Mościcki marcin@moscicki.net

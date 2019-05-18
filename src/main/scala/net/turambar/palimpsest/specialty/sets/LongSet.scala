@@ -1,10 +1,11 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitIterator, FitTraversableOnce, RuntimeType, Sure, Var}
+import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitTraversableOnce, RuntimeType, Sure, Var}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.StableLongSet.{flipSign, LongElementCounter}
 import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
-import net.turambar.palimpsest.specialty.tries.{IterableTriePotFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
+import net.turambar.palimpsest.specialty.tries.{TriePotIterableFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
 import net.turambar.palimpsest.specialty.tries.BinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries.LongTrie.{EmptyLongTrie, LongTrieLeaf}
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.LongKeyBranch
@@ -49,7 +50,7 @@ trait MutableLongTrieSet[E, +S <: MutableSet[E] with MutableSetSpecialization[E,
   * @author Marcin Mościcki marcin@moscicki.net
   */
 sealed trait LongSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: OrderedSet[Long] with LongSetLike[T, S]]
-	extends IterableTriePotFoundation[Long, LongTrie, T, Long, S] //for size tracking
+	extends TriePotIterableFoundation[Long, LongTrie, T, Long, S] //for size tracking
        with SetSpecialization[Long, S] with OrderedSetTemplate[Long, S]
        with TrieKeySetSpecialization[Long, LongTrie, T, Long, S] //main set implementation
 //	   with TraversableTrieKeySet[Long, MutableLongTrie, MutableLongTrie, Long, LongSet]  //traverse this set with foreach, not iterator
@@ -122,7 +123,10 @@ sealed trait LongSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Orde
 
 
 	override def stringPrefix = "Set[Long]"
-	override def typeStringPrefix = "LongSet"
+
+	override def debugString :String =
+		if (hasFastSize) debugPrefix + "<" + size + ">"
+		else debugPrefix
 }
 
 
@@ -135,7 +139,7 @@ sealed trait LongSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Orde
 
 /** An immutable set of `Long` values backed by a trie. */
 final class StableLongSet private[sets] (keys :LongTrie, keyCount :Int = -1)
-	extends IterableTriePotFoundation[Long, LongTrie, LongTrie, Long, StableLongSet](keys, keyCount)
+	extends TriePotIterableFoundation[Long, LongTrie, LongTrie, Long, StableLongSet](keys, keyCount)
 	   with StableOrderedSet[Long] with LongSetLike[LongTrie, StableLongSet]
 	   with StableTrieKeySetTemplate[Long, LongTrie, Long, StableLongSet]
 {
@@ -150,11 +154,14 @@ final class StableLongSet private[sets] (keys :LongTrie, keyCount :Int = -1)
 
 	override def empty :StableLongSet = StableLongSet.Empty
 
-	override def stable :StableLongSet = this
+//	override def stable :StableLongSet = this
 
 	override def mutable :MutableLongSet = new MutableLongSet(MutableLongTrie.newRoot(trie), unsureSize)
 
 	override def newBuilder = new ValSetBuilder[Long, MutableLongSet, StableLongSet](MutableLongSet.empty, _.stable)
+
+	protected[this] override def debugPrefix = "StableLongSet"
+
 }
 
 
@@ -198,7 +205,7 @@ object StableLongSet {
 
 /** A mutable set of `Long` values backed by a trie. */
 class MutableLongSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
-	extends IterableTriePotFoundation[Long, LongTrie, MutableLongTrie, Long, MutableLongSet](keys, keyCount)
+	extends TriePotIterableFoundation[Long, LongTrie, MutableLongTrie, Long, MutableLongSet](keys, keyCount)
 	   with MutableOrderedSet[Long] with MutableSetSpecialization[Long, MutableLongSet]
 	   with MutableTrieKeySetSpecialization[Long, LongTrie, MutableLongTrie, Long, MutableLongSet] //override default mutable methods
 //	   with MutableLongTrieSet[Long, MutableLongSet] //get mutable trie patches and operations for MutableLongTrie
@@ -228,10 +235,13 @@ class MutableLongSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 
 	override def stable :StableLongSet = new StableLongSet(trie.stable, unsureSize)
 
-	override def mutable :MutableLongSet = new MutableLongSet(trie.copy, unsureSize)
+//	override def mutable :MutableLongSet = new MutableLongSet(trie.copy, unsureSize)
 
 	override def origin :AnyRef = MutableLongSet
 //	override def newBuilder :FitBuilder[Long, MutableLongSet] = empty
+
+	protected[this] override def debugPrefix = "MutableLongSet"
+
 }
 
 

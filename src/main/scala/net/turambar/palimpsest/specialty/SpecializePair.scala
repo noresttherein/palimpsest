@@ -46,10 +46,10 @@ object SpecializePair {
 
 	type SpecializeFirst[R[X, Y]] = { type T[X] = Specialize[Curry[R]#T1[X]#T2] }
 
-//	private class SpecializeSecond[R[X, Y], @specialized T :RuntimeType](pair :SpecializePair[R])
+//	private class SpecializeSecond[R[X, Y], @specialized T :RuntimeType](two :SpecializePair[R])
 //		extends Specialize[Curry[R]#T1[T]#T2]
 //	{
-//		override def specialized[@specialized Y :RuntimeType] :R[T, Y] = pair.specialized[T, Y]
+//		override def specialized[@specialized Y :RuntimeType] :R[T, Y] = two.specialized[T, Y]
 //	}
 
 

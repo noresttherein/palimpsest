@@ -2,9 +2,10 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.reflect._
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, SpecializableIterable, SpecializedIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable, SpecializableIterableFactory}
 import net.turambar.palimpsest.specialty._
+import net.turambar.palimpsest.specialty.iterators.ArrayIterator
 
 import scala.annotation.unspecialized
 import scala.collection.{IndexedSeqOptimized, LinearSeq, LinearSeqLike}
@@ -19,7 +20,8 @@ import scala.collection.{IndexedSeqOptimized, LinearSeq, LinearSeqLike}
   */
 trait ArrayView[@specialized(Elements) +E]
 	extends LinearSeq[E] with LinearSeqLike[E, ArrayView[E]] with IndexedSeqOptimized[E, ArrayView[E]] //generic interface extracted so it doesn't override FitIndexedSeq methods
-	   with FitIndexedSeq[E] with ArrayViewLike[E, ArrayView[E]] with SpecializableIterable[E, ArrayView]
+	   with FitIndexedSeq[E] with ArrayViewLike[E, ArrayView[E]] with CloneableIterable[E, ArrayView[E]]
+	   with SpecializableIterable[E, ArrayView]
 {
 	@unspecialized override protected[this] def thisCollection :ArrayView[E] = this
 	@unspecialized override protected[this] def toCollection(repr :ArrayView[E]) :ArrayView[E] = repr
@@ -59,7 +61,7 @@ trait ArrayView[@specialized(Elements) +E]
 
 
 abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with SpecializableIterable[X, S]]
-	extends SpecializedIterableFactory[S]
+	extends SpecializableIterableFactory[S]
 { outer =>
 
 	/** An immutable, empty, erased instance of the collection. */
@@ -86,7 +88,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
       * @tparam E element type of the created sequence (and array)
       * @return an empty sequence backed by an empty array with component type equal to the given class.
 	  */
-	@inline final def emptyOfClass[E](elementType :Class[E]) :S[E] = emptyOf(RuntimeType.ofClass(elementType))
+	@inline final def emptyOfClass[E](elementType :Class[E]) :S[E] = of(RuntimeType.ofClass(elementType))
 	
 	
 	/** Creates an empty specialized sequence based on implicit class information for `E`.
@@ -94,8 +96,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @tparam E element type of the created sequence (and array)
 	  * @return an empty sequence backed by an empty array with component type equal to the given class.
 	  */
-	@inline final override def emptyOf[E :RuntimeType] :S[E] =
-		ForArray(new ArrayBounds[E])
+	@inline final override def of[E :RuntimeType] :S[E] = ForArray(new ArrayBounds[E])
 
 
 	/** Create a sequence with contents given in this array.
@@ -156,13 +157,13 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @return a specialized sequence backed by the array of the given length.
 	  * @see [[of(Int, _)]]
 	  */
-	@inline final def of[E <:AnyVal :RuntimeType](size :Int) :S[E] = {
+	@inline final def sized[E <:AnyVal :RuntimeType](size :Int) :S[E] = {
 		val buffer = RuntimeType.arrayFor[E](size)
 		if (!buffer.getClass.getComponentType.isPrimitive)
 			throw new IllegalArgumentException(s"$this.of[${RuntimeType[E]}]: not a primitive component type")
 		shared(new ArrayBounds[E](buffer, 0, size))
 	}
-	
+
 	/** Create a specialized sequence backed by an array of the given size, initialized with the given default value.
 	  * The component type `E` of the backing array will be determined by either implicit [[ClassTag]] for `E`, or
 	  * or runtime class of the given default value. Note that if `value` is a boxed primitive,
@@ -174,7 +175,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @tparam E element type of the sequence.
 	  * @return a sequence with `size` copies of `value`
 	  */
-	@inline final def of[E](size :Int, value :E)(implicit elementType :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :S[E] = {
+	@inline final def fill[E](size :Int, value :E)(implicit elementType :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :S[E] = {
 		val array = new Array[E](size)
 		val spec = RuntimeType.of(elementType)
 		if (size > 0 && value != spec.default)
@@ -182,7 +183,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 		shared(new ArrayBounds[E](array, 0, size)(spec))
 	}
 
-	
+
 	/** Create a specialized sequence backed by an array of the given type, initialized by runtime default value for `E`.
 	  * This method is intended to be used only for primitive types, and calling it for user-defined value types
 	  * will result in an exception. Use the variant with an explicit default value if you wish to do so.
@@ -191,8 +192,8 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @return a specialized sequence backed by the array of the given length.
 	  * @see [[of(Int, _)]]
 	  */
-	def ofClass[E<:AnyVal](elementType :Class[E], size :Int) :S[E] = of(size)(RuntimeType.ofClass(elementType))
-	
+	def ofClass[E<:AnyVal](elementType :Class[E], size :Int) :S[E] = sized(size)(RuntimeType.ofClass(elementType))
+
 	/** Create a specialized sequence backed by an array of the given size, initialized with the given default value.
 	  * The component type `E` of the backing array will be determined by either implicit [[ClassTag]] for `E`, or
 	  * or runtime class of the given default value. If `value` is a boxed primitive, created sequence
@@ -204,7 +205,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @tparam E element type of the sequence.
 	  * @return a sequence with `size` copies of `value`
 	  */
-	def ofClass[E](elementType :Class[E], size :Int, value :E) :S[E] = of(size, value)(ClassTag[E](elementType))
+	def ofClass[E](elementType :Class[E], size :Int, value :E) :S[E] = fill(size, value)(ClassTag[E](elementType))
 
 
 	/** Create a sequence of the given elements, backed by a new array with component type equal to the given array.
@@ -266,7 +267,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * Returned builder will be specialized - and build a specialized sequence - only if
 	  * this method is called from specialized code (or when `E` is statically known to be a specializable type).
 	  * For this reason, if you want to ensure a specialized instance from within generic code,
-	  * it is safer to use [[fitBuilder]] instead.
+	  * it is safer to use [[builder]] instead.
       * @tparam E element type of the built sequence
       * @return a builder for `S[E]` specialized according to the variant of this method.
 	  */
@@ -283,7 +284,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	  * @param specialization implicit specialization information used to determine both
 	  *                       proper specialized variant of this sequence and backing array component type.
 	  */
-	@inline final override def fitBuilder[E](implicit specialization :RuntimeType[E]) :FitBuilder[E, S[E]] =
+	@inline final override def builder[E](implicit specialization :RuntimeType[E]) :FitBuilder[E, S[E]] =
 		specialization.call(SpecificBuilder)
 	//todo: rename ^this to build[E]
 
@@ -332,7 +333,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 	protected class CanBuildRefArray[E :RuntimeType] extends CanBuildSpecialized[E] {
 
 		override def apply(from: S[_]): FitBuilder[E, S[E]] =
-			from.fitBuilder[E](specialization)
+			from.builder[E](specialization)
 
 		override def apply(): FitBuilder[E, S[E]] = //newBuilder[E]
 			new ArrayViewBuilder[E](runtimeType.emptyArray.asInstanceOf[Array[E]])
@@ -345,7 +346,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 			case _ => false
 		}
 
-		override def toString = s"$outer.CBF[${runtimeType.classTag}]"
+		override def toString = s"$outer.CFF[${runtimeType.classTag}]"
 	}
 
 
@@ -357,7 +358,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 
 		protected[this] final var len = 0
 		protected[palimpsest] final var headIdx=0
-		override protected var unmodifiable: Boolean = false
+		override protected var immutable: Boolean = false
 
 
 		override def sizeHint(targetSize :Int) :Unit =
@@ -368,7 +369,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 			if (length>0 || specialization =:= specialization)
 				this
 			else if (specialization.isValueType)
-				specialization.asInstanceOf[RuntimeType[E]].call(NewBuilder)
+				outer.builder[E](specialization.asInstanceOf[RuntimeType[E]])
 			else
 				this
 //				new ArrayViewBuilder[L](specialization.emptyArray.asInstanceOf[Array[L]])
@@ -380,7 +381,7 @@ abstract class ArrayViewFactory[S[@specialized(Elements) X] <: ArrayView[X] with
 
 		override def result(): S[E] = { //todo: verify this is properly specialized
 			val res = outer.using(array, headIdx, length)
-			unmodifiable = true
+			immutable = true
 			res
 		}
 
@@ -465,7 +466,7 @@ object ArrayView extends ArrayViewFactory[ArrayView] {
 	type Mutable[@specialized(Elements) E] = SharedArray[E]
 
 
-	@inline def Acc[E :RuntimeType] :ArrayView[E] = ArrayPlus.emptyOf[E]
+	@inline def acc[E :RuntimeType] :ArrayView[E] = ArrayPlus.of[E]
 
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[ArrayView[_], E, ArrayView[E]]): CanBuildFrom[ArrayView[_], E, ArrayView[E]] =
@@ -480,7 +481,7 @@ object ArrayView extends ArrayViewFactory[ArrayView] {
 
 	/** `ArrayView` implementation serving as an immutable view over an array possibly mutable by other collections.
 	  *  Needed for some `toSeq` implementations to not inadvertently expose the array to mutation or give false promises.
-	  *  Used by [[net.turambar.palimpsest.specialty.ArrayIterator]].
+	  *  Used by [[ArrayIterator]].
 	  */
 	private[palimpsest] final class UnknownArrayView[@specialized(Elements) E](
             final override protected[this] val array :Array[E],

@@ -1,10 +1,11 @@
 package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitIterator, Sure}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1Res, Fun1Vals, Fun2}
+import net.turambar.palimpsest.specialty.{?, Blank, Elements, Sure}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 import scala.collection.{mutable, GenIterable, GenTraversableOnce, LinearSeq}
 import scala.collection.generic.CanBuildFrom
@@ -139,7 +140,7 @@ trait SingletonSpecialization[@specialized(Elements) +E, +Repr] extends Iterable
 	override def find_?(p :E => Boolean, where :Boolean): ?[E] = if (p(head) == where) Sure(head) else Blank
 
 
-	override def iterator: FitIterator[E] = FitIterator(head)
+	override def iterator: FitIterator[E] = FitIterator.one(head)
 
 	/** Overriden for speed. */
 	override def foreach[@specialized(Unit) U](f :E=>U) :Unit = f(head)
@@ -164,7 +165,7 @@ trait SingletonSpecialization[@specialized(Elements) +E, +Repr] extends Iterable
 
 	override def copyToBuffer[B >: E](dest: mutable.Buffer[B]) :Unit = dest += head
 
-	override def toSeq :FitSeq[E] = FitSeq.single(head)
+	override def toSeq :FitSeq[E] = FitSeq.one(head)
 
 
 }

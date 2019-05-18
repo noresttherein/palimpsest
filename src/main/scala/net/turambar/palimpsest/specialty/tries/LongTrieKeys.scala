@@ -1,6 +1,7 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, Elements, FitIterator, Sure}
+import net.turambar.palimpsest.specialty.{?, Elements, Sure}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.tries.BinaryTrie._
 import net.turambar.palimpsest.specialty.tries.EmptyTrie.EmptyTrieFoundation
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.LongKeyBranch
@@ -370,7 +371,7 @@ object LongTrieKeys {
 
 
 
-	/** A leaf in a trie indexed by `Long` keys, storing exactly one key-value pair and terminating any path leading to it.
+	/** A leaf in a trie indexed by `Long` keys, storing exactly one key-value two and terminating any path leading to it.
 	  * @param k immutable value of the key associated with this leaf
 	  * @tparam This self-type being the common root type of all node types in a larger trie implementation any extending class may be part of.
 	  *              Enforced here to be self-type of this, that is `this.type <: This` for any instance of this class.
@@ -405,7 +406,7 @@ object LongTrieKeys {
 		}
 
 		override def iteratorFrom[@specialized(Elements) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E] =
-			if (flipSign(start) <= flipSign(key)) FitIterator(elems.elementOf(this))
+			if (flipSign(start) <= flipSign(key)) FitIterator.one(elems.elementOf(this))
 			else FitIterator.empty[E]
 
 
@@ -639,7 +640,7 @@ object LongTrieKeys {
 			if (end == -1L) this //only '1' bits, avoid overflow
 			else if (end == Long.MaxValue) //'0' followed by '1's; avoid overflow
 				if (center > 0) this
-				else if (center == SignBit) export(share(left)) //left.copy()
+				else if (center == SignBit) export(share(left))
 				else emptyTrie
 			else export(keyRange(0, end + 1)) //safe from overflow now
 
@@ -788,8 +789,6 @@ object LongTrieKeys {
 
 		override def nodeFor(key :Long) :This = likeLeaf(viewNode(key))
 
-//		override def hasKey(key :Long) :Boolean = viewNode(key).nonEmpty
-
 
 
 
@@ -864,16 +863,6 @@ object LongTrieKeys {
 				case leaf =>
 					op.patchRight(parent, op.whenNoKey(key, leaf))
 			}
-
-
-//		override def patchKey[U >: This <: Trie[Long, U]](op :BinaryTriePatch[Long, S, U])(key :Long) :U = {
-//			val DiffBit = path & -path
-//			(key & -path | ~key & path) ^ (key & DiffBit) match {
-//				case 0 => patchRightChild(op, key)(this)
-//				case DiffBit => patchLeftChild(op, key)(this)
-//				case _ => op.whenNoKey(key, this)
-//			}
-//		}
 
 
 		override def patchKey[F >: S <: BinaryTrie[Long, F], U >: This <: Trie[Long, U]]

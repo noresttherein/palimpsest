@@ -1,14 +1,9 @@
-package net.turambar.palimpsest.specialty
+package net.turambar.palimpsest.specialty.iterables
 
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitTraversableOnce, RuntimeType, Specialize, SpecializedGeneric}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
 
-import scala.annotation.tailrec
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, SpecializableIterable}
-
-import scala.collection.generic.{CanBuildFrom, GenericCompanion, GenTraversableFactory}
-import scala.collection._
-import net.turambar.palimpsest.specialty.seqs.FitSeq
-
+import scala.collection.generic.{CanBuildFrom, GenericCompanion}
 import scala.reflect.ClassTag
 
 
@@ -25,34 +20,38 @@ import scala.reflect.ClassTag
 trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	extends GenericCompanion[S]
 { factory =>
-	
 
-	/** An empty collection `S[E]` instance specialized in regard to `E` as described by
-	  * implicit specialization information.
-	  */
-	def emptyOf[E :RuntimeType] :S[E] //= NewEmpty()
 
-	/** An empty collection `S[E]` instance specialized in regard to `E`.
-	  * Note that this method can rely on local specialization context only.
-	  * Consider using [[emptyOf]] which takes an implicit parameter and can create
+	/** An empty, erased instance of this collection. */
+	def generic[E] :S[E] = empty[E]
+
+
+	/** An empty collection `S[E]` instance specialized in regard to `E` as described by implicit specialization information. */
+	def of[E :RuntimeType] :S[E]
+
+	/** An empty collection `S[E]` instance specialized in regard to `E`. Note that this method can rely on local
+	  * specialization context only. Consider using [[of]] if `E` is not known or an implementation dedicated to
+	  * a given reference type is desired, as it takes an implicit parameter carrying type information and can create
 	  * a properly specialized instance in any context where one is available.
 	  */
-	override def empty[@specialized(Elements) E]: S[E] = newBuilder[E].result()
+	override def empty[@specialized(Elements) E]: S[E] //= newBuilder[E].result()
 
 	/** A single element collection. By default delegates to `newBuilder`, but specific companions may decide to
 	  * return a specialized singleton subclass.
 	  */
-	def singleton[@specialized(Elements) E](elem :E) :S[E] = (newBuilder += elem).result()
+	def one[@specialized(Elements) E](elem :E) :S[E] //= (newBuilder += elem).result()
+
+
 
 	/** Create a new instance containing the given elements.
-	  * '''Do not use it with empty argument list''' - not only [[net.turambar.palimpsest.specialty.FitCompanion#empty empty[E]] will be more efficient, but due to
+	  * '''Do not use it with empty argument list''' - not only [[FitCompanion#empty empty[E]] will be more efficient, but due to
 	  * a bug in scala up to 2.11.8 such call won't be specialized if `apply` method is overloaded.
 	  *
 	  * @return a specialized subclass of `S[E]`
 	  */
-	override def apply[@specialized(Elements) E](elems: E*): S[E] =
-		if (elems.isEmpty) empty
-		else (newBuilder[E] ++= elems).result()
+	override def apply[@specialized(Elements) E](elems: E*): S[E] //=
+//		if (elems.isEmpty) empty
+//		else (newBuilder[E] ++= elems).result()
 
 
 //	def apply[E](elems :TraversableOnce[E])(implicit specializationHint :Specialized[E]) :S[E] = {
@@ -61,23 +60,27 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 //			case items :FitIterable[E] => items.specialization.asInstanceOf[Specialized[E]]
 //			case _ => specializationHint
 //		}
-//		(fitBuilder(spec) ++= elems).result()
+//		(builder(spec) ++= elems).result()
 //	}
 	
 	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] //= specializedBuilder[E]
 
 	/** Builder specialized on `E` if any information about type `E` is available (see [[RuntimeType]]). */
-	def fitBuilder[E :RuntimeType] :FitBuilder[E, S[E]] = NewBuilder() //todo: rename to builder
-	
-	protected[this] type SpecializedBuilder[E] = FitBuilder[E, S[E]]
+	def builder[E :RuntimeType] :FitBuilder[E, S[E]]
 
-	protected[this] final val NewBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
-		override def specialized[@specialized E : RuntimeType]: SpecializedBuilder[E] = newBuilder[E] //specializedBuilder[E]
-	}
-//
-//	def specializedBuilder[@specialized(Elements) E :Specialized] :FitBuilder[E, S[E]] = newBuilder[E]
-	
 
+
+
+	/*  Methods lifted up from GenTraversableFactory. They must be overriden in SpecializableIterableFactory anway, so
+	 *  let's leave the implementation to the subclass and keep this a pure interface.
+	 */
+
+	def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E]
+
+	def tabulate[@specialized(Fun1Vals) E](n: Int)(f: Int => E): S[E]
+
+
+	def iterate[@specialized(Fun1Vals) E](start: E, len: Int)(f: E => E): S[E]
 
 }
 
@@ -89,7 +92,6 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
   * @author Marcin Moscicki
   */
 object FitCompanion {
-	import RuntimeType.{Fun1, Fun1Vals}
 	
 	
 	
@@ -113,14 +115,12 @@ object FitCompanion {
 		}
 
 		def cbf :CanBuildFrom[From, E, To] = this
-//		override def apply(from: From): FitBuilder[E, To]
-//
-//		override def apply(): FitBuilder[E, To]
+
 		def apply(from: From): FitBuilder[E, To]
 		
 		def apply(): FitBuilder[E, To]
 
-		def copy(from :FitSeq[E]) :To = (apply() ++= from).result()
+//		def copy(from :FitSeq[E]) :To = (apply() ++= from).result()
 
 		def mapped[O](from :From, f :O => E) :FitBuilder[O, To]
 
@@ -133,7 +133,7 @@ object FitCompanion {
 			mapper(f, (this :CanFitFrom[From, E, To]).apply())
 
 		/** If `true`, `this(from)` takes its builder, as is customary, from
-		  * [[SpecializableIterable#genericBuilder]] / [[SpecializableIterable#fitBuilder]].
+		  * [[SpecializableIterable#genericBuilder]] / [[SpecializableIterable#builder]].
 		  */
 		def honorsBuilderFrom = true
 
@@ -153,7 +153,7 @@ object FitCompanion {
 
 		override def hashCode :Int = companion.hashCode * 31 + runtimeType.hashCode
 
-		override def toString = s"CBF[$runtimeType]"
+		override def toString = s"CFF[$runtimeType]"
 
 
 		private[specialty] def companion :Any = this
@@ -162,6 +162,7 @@ object FitCompanion {
 
 
 
+/*
 	class CanBreakOut[-From, -E, +To]()(implicit cbf :CanFitFrom[_, E, To])
 		extends CanFitFrom[From, E, To] with CanBuildFrom[From, E, To]
 	{
@@ -191,7 +192,8 @@ object FitCompanion {
 		override def honorsBuilderFrom: Boolean = false
 		
 	}
-	
+*/
+
 	
 
 	

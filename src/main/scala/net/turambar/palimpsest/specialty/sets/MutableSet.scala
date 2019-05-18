@@ -1,10 +1,11 @@
 package net.turambar.palimpsest.specialty.sets
 
 
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.sets.ValSet.{SetAdapter, Sorted, Stable}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.sets.ValSet.SetAdapter
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.SpecializedIterableFactory
+import net.turambar.palimpsest.specialty.iterables.{FitCompanion, MutableIterable, SpecializableIterableFactory}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 
 import scala.annotation.unspecialized
@@ -14,35 +15,35 @@ import scala.collection.{mutable, GenSet, GenTraversableOnce}
 
 
 trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] with MutableSetSpecialization[E, This]]
-	extends mutable.SetLike[E, This] with FitBuilder[E, This] with SetSpecialization[E, This]
+	extends mutable.SetLike[E, This] with FitBuilder[E, This] with SetSpecialization[E, This] //with IsMutable[E]
 {
 
-	override def +(elem :E) :This = clone() += elem
+	override def +(elem :E) :This = carbon += elem
 
-	override def -(elem :E) :This = clone() -= elem
+	override def -(elem :E) :This = carbon -= elem
 
-	override def ^(elem :E) :This = clone() ^= elem
+	override def ^(elem :E) :This = carbon ^= elem
 
-	override def +(elem1 :E, elem2 :E, elems :E*) :This = clone() += elem1 += elem2 ++= elems
+	override def +(elem1 :E, elem2 :E, elems :E*) :This = carbon += elem1 += elem2 ++= elems
 
-	override def -(elem1 :E, elem2 :E, elems :E*) :This = clone() -= elem1 -= elem2 --= elems
+	override def -(elem1 :E, elem2 :E, elems :E*) :This = carbon -= elem1 -= elem2 --= elems
 
 
-	override def ++(xs :GenTraversableOnce[E]) :This = clone() ++= xs.seq
+	override def ++(xs :GenTraversableOnce[E]) :This = carbon ++= xs.seq
 
-	override def --(xs :GenTraversableOnce[E]) :This = clone() --= xs.seq
+	override def --(xs :GenTraversableOnce[E]) :This = carbon --= xs.seq
 
-	override def ++(elems :FitTraversableOnce[E]) :This = clone() ++= elems
+	override def ++(elems :FitTraversableOnce[E]) :This = carbon ++= elems
 
-	override def --(elems :FitTraversableOnce[E]) :This = clone() --= elems
+	override def --(elems :FitTraversableOnce[E]) :This = carbon --= elems
 
-	override def ^(elems :GenSet[E]) :This = clone() ^= elems
+	override def ^(elems :GenSet[E]) :This = carbon ^= elems
 
-	override def ^(elems :ValSet[E]) :This = clone() ^= elems
+	override def ^(elems :ValSet[E]) :This = carbon ^= elems
 
-	override def intersect(that :GenSet[E]) :This = clone() &= that
+	override def intersect(that :GenSet[E]) :This = carbon &= that
 
-	override def &(that :ValSet[E]) :This = clone() &= that
+	override def &(that :ValSet[E]) :This = carbon &= that
 
 
 	override def +=(elem1 :E, elem2 :E, elems :E*) :this.type = this += elem1 += elem2 ++= elems
@@ -53,7 +54,7 @@ trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] 
 
 	override def -=(elem :E) :this.type
 
-	def ^=(elem :E) :this.type
+	def ^=(elem :E) :this.type = { flip(elem); this }
 
 	override def add(elem :E) :Boolean = {
 		val r = contains(elem)
@@ -76,6 +77,8 @@ trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] 
 	@inline final override def update(elem :E, included :Boolean) :Unit =
 		if (included) this += elem else this -= elem
 
+
+	def flip(elem :E) :Boolean
 
 	override def --=(xs :TraversableOnce[E]) :this.type = xs match {
 		case vals :FitTraversableOnce[E] => this --= vals
@@ -133,12 +136,20 @@ trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] 
 	}
 
 
+	@unspecialized
+	override def carbon :This = clone()
+
 	override def clone() :This = (this :SetSpecialization[E, This]).empty ++= this
+
+	@unspecialized
+	override def mutable :MutableSet[E] = carbon
+
+	override def stable :StableSet[E] = StableSet.empty[E] ++ this
+
+
 
 	/** Default mutable builder simply repurposing `this.empty`. Should be good for all set implementations. */
 	override def newBuilder :FitBuilder[E, This] = (this :SetSpecialization[E, This]).empty
-
-
 
 }
 
@@ -150,34 +161,28 @@ trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] 
   * @author Marcin Mościcki
   */
 trait MutableSet[@specialized(Elements) E]
-	extends mutable.Set[E] with mutable.SetLike[E, MutableSet[E]]
+	extends mutable.Set[E] with mutable.SetLike[E, MutableSet[E]] //with IsMutable[E]
 	   with ValSet[E] with MutableSetSpecialization[E, MutableSet[E]] with SpecializableSet[E, MutableSet]
+	   with MutableIterable[E]
 {
-
-	//	override def retain(p: (E) => Boolean) = super.retain(p)
-
-	@unspecialized
-	override def mutable :MutableSet[E] = clone()//this
-
-	override def stable :StableSet[E] = StableSet.empty[E] ++ this
-
 	override def companion :FitCompanion[MutableSet] = MutableSet
 
 	override def origin :AnyRef = companion
 
-	override def typeStringPrefix = "MutableSet"
+	protected[this] override def debugPrefix = "MutableSet"
 }
 
 
 
 
-object MutableSet extends SpecializedIterableFactory[MutableSet] {
+
+object MutableSet extends SpecializableIterableFactory[MutableSet] {
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSet[_], E, MutableSet[E]]): CanBuildFrom[MutableSet[_], E, MutableSet[E]] =
 		fit.cbf
 
 
-	@inline def of[E :RuntimeType] :MutableSet[E] = emptyOf[E]
+//	@inline def of[E :RuntimeType] :MutableSet[E] = of[E]
 
 	/** Creates a mutable wrapper over another specialized set. This is especially useful if {{immutable}} is
 	  * an immutable set, but it isn't required. Result of concurrent modifications done to the argument and
@@ -226,7 +231,7 @@ object MutableSet extends SpecializedIterableFactory[MutableSet] {
 
 		override def -=(elem1: E, elem2: E, elems: E*) :this.type = { source = source - (elem1, elem2, elems:_*); this }
 
-		override def ^=(elem :E) :this.type = { source = source ^ elem; this }
+		override def flip(elem :E) :Boolean = { source = source ^ elem; source.contains(elem) }
 
 
 
@@ -239,7 +244,7 @@ object MutableSet extends SpecializedIterableFactory[MutableSet] {
 
 
 		@unspecialized
-		override def stable :Stable[E] = source.stable
+		override def stable :StableSet[E] = source.stable
 
 
 		override def ++=(xs: TraversableOnce[E]) :this.type = { source = source ++ xs; this }
@@ -277,17 +282,17 @@ object MutableSet extends SpecializedIterableFactory[MutableSet] {
 
 
 
-	private class MutableOrderedSetAdapter[@specialized(Elements) E](src :ValSet.Sorted[E])
-		extends SetAdapter[ValSet.Sorted[E], E, MutableOrderedSet[E]](src)
-		   with MutableOrderedSet[E] with MutableSetAdapterTemplate[Sorted[E], E, MutableOrderedSet[E]]
+	private class MutableOrderedSetAdapter[@specialized(Elements) E](src :OrderedSet[E])
+		extends SetAdapter[OrderedSet[E], E, MutableOrderedSet[E]](src)
+		   with MutableOrderedSet[E] with MutableSetAdapterTemplate[OrderedSet[E], E, MutableOrderedSet[E]]
 	{
-		protected[this] def fromSource(other: ValSet.Sorted[E]): MutableOrderedSet[E] =
+		protected[this] def fromSource(other: OrderedSet[E]): MutableOrderedSet[E] =
 			new MutableOrderedSetAdapter(other)
 
 		override implicit def ordering: ValOrdering[E] = source.ordering
 
-		override def stable :ValSet.Sorted.Stable[E] = source.stable
-		override def mutable :ValSet.Sorted.Mutable[E] = fromSource(source)
+		override def stable :StableOrderedSet[E] = source.stable
+		override def mutable :MutableOrderedSet[E] = fromSource(source)
 
 
 		override def keyAt(idx :Int) :E = source.keyAt(idx)
@@ -318,7 +323,7 @@ object MutableSet extends SpecializedIterableFactory[MutableSet] {
 			{ source = source - (elem1, elem2, elems:_*); this }
 
 
-		override def origin :AnyRef = OrderedSet.Mutable
+		override def origin :AnyRef = MutableOrderedSet
 	}
 
 }

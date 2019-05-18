@@ -1,15 +1,15 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.RuntimeType.Fun1
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1
 import net.turambar.palimpsest.specialty.tries.BinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries._
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
 import net.turambar.palimpsest.specialty.tries.TrieFriends.{KeySubset, SameKeys}
 import net.turambar.palimpsest.specialty.{FitBuilder, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrieKeyPatch}
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.concat
-import net.turambar.palimpsest.specialty.iterables.FitIterable
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, StableIterable, StableIterableTemplate}
 import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
 
 import scala.annotation.{tailrec, unspecialized}
@@ -24,7 +24,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
                                T <: GenericBinaryTrie[K, F, T] with TrieFriends[K, F, F] with TrieElements[K, F, T] with F,
                                @specialized(TrieElements.Types) E,
                                +S <: ValSet[E] with SetSpecialization[E, S]]
-	extends IterableTriePotFoundation[K, F, T, E, S] with SetSpecialization[E, S] with IterableTriePotSpecialization[K, F, T, E, S]
+	extends TriePotIterableFoundation[K, F, T, E, S] with SetSpecialization[E, S] with TriePotIterableSpecialization[K, F, T, E, S]
 	   with ElementOf[E, F]
 { //this :S =>
 
@@ -75,7 +75,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 	protected[this] def newSet(trie :F, size :Int = -1) :S //= plant(trie.stable, size)
 
-
+	//@unspecialized
 	override def empty :S = plant(trie.emptyTrie, 0)
 
 
@@ -87,14 +87,14 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 	override def +(elem :E) :S = {
 		val t = patchTrie(trie, elem)(ops.InsertKey)
-		if (t eq trie) copy
+		if (t eq trie) carbon
 		else replant(t, 1)
 	}
 
 
 	override def -(elem :E) :S = {
 		val t = patchTrie(trie, elem)(ops.DeleteKey)
-		if (t eq trie) copy
+		if (t eq trie) carbon
 		else replant(t, -1)
 	}
 
@@ -163,7 +163,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 	@unspecialized
 	protected[this] def ++/--(elems :GenTraversableOnce[E])(patch :TrieKeyPatch[K, F, T]) :S =
 		if (elems.isEmpty)
-			copy //clone()
+			carbon
 		else friendTrie(elems) match {
 			case Some(other) => juxtaposition(other)(patch.collective)
 
@@ -194,7 +194,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 	@unspecialized
 	protected[this] def ++/--(elems :FitTraversableOnce[E])(patch :TrieKeyPatch[K, F, T]) :S =
 		if (elems.isEmpty)
-			copy
+			carbon
 		else friendTrie(elems) match {
 			case Some(other) =>
 				juxtaposition(other)(patch.collective)
@@ -259,7 +259,14 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 		}
 
 
-	override def subsetOf(that :GenSet[E]) :Boolean =
+//	override def subsetOf(that :GenSet[E]) :Boolean =
+//		friendTrie(that) match {
+//			case Some(other) =>
+//				(trie correlated other)(KeySubset)
+//			case None =>
+//				forall(that)
+//		}
+	override def subsetOf(that :ValSet[E]) :Boolean =
 		friendTrie(that) match {
 			case Some(other) =>
 				(trie correlated other)(KeySubset)
@@ -339,8 +346,8 @@ trait TraversableTrieKeySet[K, F <: BinaryTrie[K, F],
 
 
 trait StableTrieKeySetTemplate[K, T <: GenericBinaryTrie[K, T, T] with TrieFriends[K, T, T] with TrieElements[K, T, T],
-E, +S <: ValSet[E] with SetSpecialization[E, S]]
-	extends IterableTriePot[K, T, T, E, S]
+                               E, +S <: StableSet[E] with SetSpecialization[E, S]]
+	extends TriePotIterable[K, T, T, E, S] with StableIterableTemplate[E, S]
 { this :TrieKeySetSpecialization[K, T, T, E, S] with S =>
 
 	override protected[this] def juxtaposition(other :T)(op :SharingTrieOp[T, T]) :S = {
@@ -354,9 +361,16 @@ E, +S <: ValSet[E] with SetSpecialization[E, S]]
 	}
 
 
-	override protected[this] def copy :S = this
-
 	override protected[this] def copy(contents :T, unsureSize :Int) :S = this
+
+//	override def stable :S = this
+//
+//	override def carbon :S = this
+//
+//	override def clone() :S = this
+//	override def clone() :S =
+//		if (isEmpty) this //this is in case we are a make key set. Or maybe map key sets should override?
+//		else (this :TrieKeySetSpecialization[K, T, T, E, S]).empty ++ this
 }
 
 
@@ -370,7 +384,7 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
                                       T <: MutableBinaryTrie[K, F, T] with TrieFriends[K, F, F] with TrieElements[K, F, T] with F,
                                       @specialized(TrieElements.Types) E,
                                       +S <: MutableSet[E] with MutableSetSpecialization[E, S]]
-	extends IterableTriePotFoundation[K, F, T, E, S] with MutableTriePot[T]
+	extends TriePotIterableFoundation[K, F, T, E, S] with MutableTriePot[T]
 	   with MutableSetSpecialization[E, S] with TrieKeySetSpecialization[K, F, T, E, S] //override default mutable set ops like ++
 { //this :S =>
 
@@ -407,9 +421,6 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 	override protected[this] def newSet(trie :F, size :Int) :S = plant(newRoot(trie), size)
 
-	override protected[this] def copy :S = plant(trie.copy, unsureSize)
-
-	override protected[this] def copy(contents :T, unsureSize :Int) :S = plant(trie, size)
 
 
 
@@ -454,6 +465,11 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 		res
 	}
 
+	override def flip(elem :E) :Boolean = {
+		val track = ops.FlipKey.trackSize
+		patchTrie(elem)(track)
+		track.deltaSize == 1
+	}
 
 	override def +=(elem :E) :this.type = {
 		if (patchTrie(elem)(ops.InsertKey) && hasFastSize)
@@ -473,7 +489,7 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 			patchTrie(elem)(feedback)
 			size_+=(feedback.deltaSize)
 		} else
-			  patchTrie(elem)(ops.FlipKey)
+			patchTrie(elem)(ops.FlipKey)
 		this
 	}
 
@@ -597,7 +613,14 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 		size = 0
 	}
 
-	override def clone() :S = plant(trie.copy, unsureSize)
+
+	override def mutable :S = carbon
+
+	override def carbon :S = plant(trie.copy, unsureSize)
+
+	override def clone() :S =
+		if (isEmpty) empty
+		else plant(trie.clone(), unsureSize)
 
 }
 

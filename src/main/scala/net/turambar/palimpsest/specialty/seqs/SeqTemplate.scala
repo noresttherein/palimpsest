@@ -2,11 +2,13 @@ package net.turambar.palimpsest.specialty.seqs
 
 import java.lang.Math
 
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.RuntimeType.Fun1Vals
-import net.turambar.palimpsest.specialty.{ofKnownSize, FitBuilder, FitIterator}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
+import net.turambar.palimpsest.specialty.{ofKnownSize, FitBuilder}
 import net.turambar.palimpsest.specialty.iterables.IterableTemplate
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 
+import scala.annotation.unspecialized
 import scala.collection.{GenSeq, IndexedSeqLike, SeqLike}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.IndexedSeq
@@ -17,18 +19,14 @@ import scala.collection.immutable.IndexedSeq
 trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, Repr] {
 
 	
-//	/** Fixed to equal [[SeqTemplate#length]]. */
+//	def length :Int
+
+//	/** Create a slice of this instance assuming the indices are already validated. Delegated to from [[slice]] and other subsequence methods. */
+//	protected def section(from: Int, until: Int): Repr
+//
+//	/** Access to protected `section` method of sibling collections. */
 //	@inline
-//	final override def size: Int = length
-
-	def length :Int
-
-	/** Create a slice of this instance assuming the indices are already validated. Delegated to from [[slice]] and other subsequence methods. */
-	protected def section(from: Int, until: Int): Repr
-
-	/** Access to protected `section` method of sibling collections. */
-	@inline
-	final protected[this] def sectionOf(seq: SeqTemplate[_, Repr], from: Int, until: Int): Repr = seq.section(from, until)
+//	final protected[this] def sectionOf(seq: SeqTemplate[_, Repr], from: Int, until: Int): Repr = seq.section(from, until)
 
 
 	
@@ -52,8 +50,8 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 	/** Basis for implementation of [[segmentLength]] and [[indexWhere]], which means that also all other
 	  * method searching for an index based on a predicate. Default implementation delegates
-	  * to the corresponding method of the iterator: [[net.turambar.palimpsest.specialty.FitIterator#indexWhere]].
-	  * It's a good idea to overridde either this, or both `segmentLength` and `indexWhere`.
+	  * to the corresponding method of the iterator: [[net.turambar.palimpsest.specialty.iterators.FitIterator#indexWhere]].
+	  * It's a good idea to override either this, or both `segmentLength` and `indexWhere`.
 	  */
 	protected[this] def indexWhere(p: E => Boolean, ourTruth: Boolean, from: Int): Int = {
 		val start = Math.max(from, 0)
@@ -101,22 +99,26 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 	/** Checks if the given argument is compatible with the specialization of this collection and,
 	  * if so, forwards the call to specialized [[SeqTemplate#fitIndexOf]] after casting,
-	  * otherwise using [[SeqTemplate#superIndexOf]], which forwards the call to the iterator.
+	  * otherwise using [[SeqTemplate#genericIndexOf]], which forwards the call to the iterator.
 	  */
-	override def indexOf[U >: E](elem: U, from: Int): Int =
-		if (specialization.boxType isAssignableFrom elem.getClass)
-			positionOf(elem.asInstanceOf[E], from)
+	override def indexOf[U >: E](elem: U, from: Int): Int = {
+		val elements = specialization
+		if (elements.boxType isAssignableFrom elem.getClass)
+			offsetOf(elem.asInstanceOf[E], from)
+		else if (elements.isValueType)
+			-1
 		else
-			superIndexOf(elem, from)
+			genericIndexOf(elem, from)
+	}
 
 	/** Search for the element by delegating to this instance's iterator.
 	  * Used particularly when `elem` is not an instance of `E` (or transparently convertible to such),
 	  * so we can afford to not tune this to any extent as the result is most likely `-1`
 	  * (and possibly a bug) anyway.
 	  */
-	protected[this] def superIndexOf[U >: E](elem: U, from: Int): Int = {
+	protected[this] def genericIndexOf[U >: E](elem: U, from: Int): Int = {
 		val it = iterator.drop(from)
-		val i = iterator.indexOf(elem)
+		val i = it.indexOf(elem)
 		if (i < 0) -1 else Math.max(from, 0) + i
 	}
 
@@ -125,7 +127,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	  * which actually is of our element type. Used by [[SeqTemplate#indexOf]] if the argument
 	  * can be cast to `E`.
 	  */
-	protected[this] def positionOf(elem :E, from :Int) :Int = superIndexOf(elem, from)
+	protected[this] def offsetOf(elem :E, from :Int) :Int = genericIndexOf(elem, from)
 
 	/** Fixed to delegate to [[SeqTemplate#lastIndexOf(U, Int)]]. */
 	@inline
@@ -134,20 +136,24 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 	/** Checks if the given argument is compatible with the specialization of this collection and,
 	  * if so, forwards the call to specialized [[SeqTemplate#fitLastIndexOf]] after casting,
-	  * otherwise using [[SeqTemplate#superLastIndexOf]], which forwards the call to the iterator.
+	  * otherwise using [[SeqTemplate#genericLastIndexOf]], which forwards the call to the iterator.
 	  */
-	override def lastIndexOf[U >: E](elem: U, end: Int): Int =
-		if (specialization.boxType isAssignableFrom elem.getClass)
-			lastPositionOf(elem.asInstanceOf[E], end)
+	override def lastIndexOf[U >: E](elem: U, end: Int): Int = {
+		val elements = specialization
+		if (elements.boxType isAssignableFrom elem.getClass)
+			lastOffsetOf(elem.asInstanceOf[E], end)
+		else if (elements.isValueType)
+			-1
 		else
-			superLastIndexOf(elem, end)
+			genericLastIndexOf(elem, end)
+	}
 
 	/** Specialized variant of [[SeqTemplate#lastIndexOf]] searching for a value of our actual element type.
 	  * Hotspot for subclasses to provide specialized implementation of searching for an element
 	  * which actually is of our element type. Used by [[SeqTemplate#indexOf]] if the argument
 	  * can be cast to `E`.
 	  */
-	protected[this] def lastPositionOf(elem :E, from :Int) :Int = superLastIndexOf(elem, from)
+	protected[this] def lastOffsetOf(elem :E, from :Int) :Int = genericLastIndexOf(elem, from)
 
 
 
@@ -156,7 +162,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	  * so we can afford to not tune this to any extent as the result is most likely `-1`
 	  * (and possibly a bug) anyway.
 	  */
-	protected[this] def superLastIndexOf[U >: E](elem: U, end: Int): Int =
+	protected[this] def genericLastIndexOf[U >: E](elem: U, end: Int): Int =
 		if (end < 0) -1
 		else {
 			val len = length
@@ -198,7 +204,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 	override def reverseIterator :FitIterator[E] = inverse.toIterator
 
-
+//todo: sorted
 
 	override def reverse: Repr = {
 		val b = newBuilder
@@ -207,10 +213,10 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	}
 
 
+	override def stable :StableSeq[E] = (StableSeq.builder[E](specialization) ++= this).result()
 
-
-	def immutable[U >: E](implicit cbf: CanFitFrom[_, E, StableSeq[U]]): StableSeq[U] =
-		(cbf() ++= this).result()
+//	def immutable[U >: E](implicit cbf: CanFitFrom[_, E, StableSeq[U]]): StableSeq[U] =
+//		(cbf() ++= this).result()
 
 	override def toSeq: FitSeq[E] = toFitSeq
 
@@ -218,12 +224,12 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	override def toFitSeq: FitSeq[E] = this.asInstanceOf[FitSeq[E]]
 
 	override def toIndexedSeq: IndexedSeq[E] =
-		(StableArray.fitBuilder[E](specialization) ++= this).result()
+		(StableArray.builder[E](specialization) ++= this).result()
 
 	override def inverse: FitSeq[E] = (FitList.reverseBuilder(specialization) ++= this).result()
 
 
-
+	protected[this] override def typeStringPrefix = "Seq"
 
 
 

@@ -5,10 +5,10 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.IndexedSeq
 import scala.collection.{GenIterable, GenSeq, GenTraversableOnce, IndexedSeqLike, IndexedSeqOptimized, SeqLike, immutable, mutable}
 
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitIterator.{IndexedIterator, ReverseIndexedIterator}
-import net.turambar.palimpsest.specialty.RuntimeType.Fun1Vals
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, RuntimeType, ofKnownSize}
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.{IndexedIterator, ReverseIndexedIterator}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
+import net.turambar.palimpsest.specialty.{Elements, FitBuilder, RuntimeType, ofKnownSize}
 
 
 /** An interface base trait for sequence-like collections which provide reasonably efficient slicing
@@ -30,6 +30,14 @@ import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitIterator, Run
   * @author Marcin Mościcki
   */
 trait SliceLike[+E, +Repr] extends SeqLike[E, Repr] with SeqTemplate[E, Repr] { //SeqLike for super calls
+
+
+	/** Create a slice of this instance assuming the indices are already validated. Delegated to from [[slice]] and other subsequence methods. */
+	protected def section(from: Int, until: Int): Repr
+
+	/** Access to protected `section` method of sibling collections. */
+	@inline
+	final protected[this] def sectionOf(seq: SliceLike[_, Repr], from: Int, until: Int): Repr = seq.section(from, until)
 
 
 	/** Empty collection returned when requested for slices of zero length; implemented as `section(0, 0)`. */
@@ -88,8 +96,8 @@ trait SliceLike[+E, +Repr] extends SeqLike[E, Repr] with SeqTemplate[E, Repr] { 
 
 	/** Validates against [[SliceLike#length]] and delegates to [[SliceLike#section]]. */
 	override def splitAt(n: Int): (Repr, Repr) =
-		if (n >= length) repr -> empty //(repr, section(length, length))
-		else if (n <= 0) empty -> repr //(section(0, 0), repr)
+		if (n >= length) (repr, empty) //(repr, section(length, length))
+		else if (n <= 0) (empty, repr) //(section(0, 0), repr)
 		else (section(0, n), section(n, length))
 
 	/** Validates against [[SliceLike#length]] and delegates to [[SliceLike#section]]. */

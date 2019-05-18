@@ -1,9 +1,10 @@
 package net.turambar.palimpsest.specialty.seqs
 
 
+import scala.collection.breakOut
 import scala.reflect.ClassTag
-import net.turambar.palimpsest.specialty.{forceFit, Elements, FitCompanion, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.SpecializableIterable
+import net.turambar.palimpsest.specialty.{Elements, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{FitCompanion, SpecializableIterable}
 import net.turambar.palimpsest.testutil._
 import org.scalacheck.Prop._
 import org.scalacheck.Properties
@@ -59,7 +60,7 @@ object FitSeqProps extends App {
 		
 		property("tail") = (
 			if (size==0) seq.tail.throws[UnsupportedOperationException]
-			else seq.tail.toSeq ?= ((1 until size).map(values)(forceFit) :FitSeq[E])
+			else seq.tail.toSeq ?= ((1 until size).map(values)(breakOut) :FitSeq[E])
 			) :| "tail"
 		
 		

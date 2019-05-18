@@ -1,22 +1,18 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import net.turambar.palimpsest.specialty.{Elements, FitIterator, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.iterables.IterableViewTemplate
-import net.turambar.palimpsest.specialty.RuntimeType.Fun1Res
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Res
 
 import scala.collection.{mutable, GenTraversableOnce}
 
 /**
   */
 class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
-	extends FitBuffer[U] with IterableViewTemplate[U, U, FitBuffer[U]]
+	extends FitBuffer[U] with IterableViewTemplate[U, FitBuffer[U]]
 { outer =>
 
 	@inline final protected def source :FitBuffer[U] = target
-
-	override protected def forSource[@specialized(Boolean, Unit) O](f :U => O) :U => O = f
-
-	override protected def mine :U => U = identity[U]
 
 	private[this] var target :FitBuffer[U] =
 		optimistic.asInstanceOf[FitBuffer[U]]
@@ -28,11 +24,11 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 
 	override protected def at(idx :Int) :U = target.get(idx)
 
-	override protected def section(from :Int, until :Int) :FitBuffer[U] =
-		if (optimistic != null)
-			new OptimisticFitBuffer[U, E](sectionOf(target, from, until).asInstanceOf[FitBuffer[E]])
-		else
-			sectionOf(target, from, until)
+//	override protected def section(from :Int, until :Int) :FitBuffer[U] =
+//		if (optimistic != null)
+//			new OptimisticFitBuffer[U, E](optimistic.slice(from, until))
+//		else
+//			target.slice(from, until)
 
 
 	protected def goPessimistic() :Unit = {
@@ -52,11 +48,11 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 
 	override protected def set(idx :Int, elem :U) :Unit =
 		try {
-			target.uncheckedUpdate(idx, elem)
+			target.trustedSet(idx, elem)
 		} catch {
 			case _ :ClassCastException | _ :ArrayStoreException if optimistic != null =>
 				goPessimistic()
-				target.uncheckedUpdate(idx, elem)
+				target.trustedSet(idx, elem)
 		}
 
 

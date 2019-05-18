@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty
 
-import RuntimeType.{All, Primitives, Fun2, Fun2Vals}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{All, Primitives, Fun2, Fun2Vals}
 import ValFun.{ArgTypes, ResTypes, =>:}
 
 trait FunctionArgumentSpecialization[-X, +Y] extends (X => Y) {
@@ -34,8 +34,8 @@ trait ValFun[@specialized(Primitives) -X, @specialized(All) +Y] extends (X => Y)
 
 
 object ValFun {
-	val ArgTypes = RuntimeType.Primitives
-	val ResTypes = RuntimeType.All
+	val ArgTypes = Primitives
+	val ResTypes = All
 
 //	type =>:[@specialized(ArgTypes) -X, @specialized(ResTypes) +Y] = ValFun[X, Y]
 

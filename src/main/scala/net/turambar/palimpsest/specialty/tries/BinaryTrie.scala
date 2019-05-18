@@ -1,12 +1,12 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, Elements, FitIterator, Var}
-import net.turambar.palimpsest.specialty.RuntimeType.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.{?, Elements, Var}
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun2}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementOf, EmptyElements, LeafElement}
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie._
 import net.turambar.palimpsest.specialty.tries.Trie.{FoldPath, KeyTypes, MutableTrieOwner}
-
-import net.turambar.palimpsest.specialty.FitIterator.BaseIterator
+import net.turambar.palimpsest.specialty.iterators.BaseIterator
 
 import scala.annotation.{tailrec, unspecialized}
 
@@ -62,7 +62,7 @@ trait GenericBinaryTrie[@specialized(KeyTypes) K,
                         +S <: GenericBinaryTrie[K, S, S],
                         +T <: GenericBinaryTrie[K, S, T] with S]
 //trait GenericBinaryTrie[@specialized(KeyTypes) K, +S, +T <: S]
-	extends Trie[K, T] with TrieElements[K, S, T]
+	extends Trie[K, T] with TrieElements[K, S, T] with Cloneable
 { this :T with BinaryTrieNode =>
 
 //	/** Returns `Nullable(this)` if this is an empty trie, or a safe null wrapper otherwise. */
@@ -188,6 +188,9 @@ trait GenericBinaryTrie[@specialized(KeyTypes) K,
 	  */
 	def copy :T
 
+	/** Performs a deep copy of the whole trie. */
+	@unspecialized
+	override def clone() :T = super.clone().asInstanceOf[T]
 
 	/** Prevents any future modification to the subtries of this trie. Note that:
 	  *   - leaf instances with associated additional values can still have them modified;
@@ -369,6 +372,9 @@ object GenericBinaryTrie {
 
 		override def copy :T = this
 
+		@unspecialized
+		override def clone() :T = this
+
 		override def view :S = this
 
 		override def freeze() :Unit = ()
@@ -462,6 +468,9 @@ object GenericBinaryTrie {
 
 		override def copy :T = this //todo: when implementing mutable leaves, remove it
 
+		@unspecialized
+		override def clone() :T = copy
+
 		override def view :S = this
 
 		override def freeze() :Unit = ()
@@ -542,7 +551,7 @@ object GenericBinaryTrie {
 	  */
 	abstract class GenericBinaryTrieBranch[K, +S <: GenericBinaryTrie[K, S, S], +T <: GenericBinaryTrie[K, S, T] with S]
 	                                      (private[this] var _left :S, private[this] var _right :S)
-		extends TrieBranchTemplate[K, S, T] with BinaryTrieNode with GenericBinaryTrie[K, S, T]
+		extends TrieBranchTemplate[K, S, T] with BinaryTrieNode with GenericBinaryTrie[K, S, T] with BranchPatch[K, S, S, T]
 	{ this :T => //with GenericBinaryTrie[K, S, T] =>
 
 		/** Supertype of all branches in this trie. */
@@ -575,6 +584,7 @@ object GenericBinaryTrie {
 
 		override def copy :T = this
 
+		@unspecialized
 		override def clone() :T = {
 			def rec(node :S) :T = node match {
 				case branch :SuperBranch => branchLike(branch.asTrie)(rec(branch.left), rec(branch.right))
@@ -625,7 +635,7 @@ object GenericBinaryTrie {
 		  * @param branch a node located under this trie.
 		  * @param left a possibly modified version of `branch.left`, already deemed safe to share.
 		  */
-		protected[this] def patchLeft(branch :SuperBranch, left :S) :T =
+		protected[this] override def patchLeft(branch :SuperBranch, left :S) :T =
 			branchLike(branch.asTrie)(left, branch.right)
 
 
@@ -638,7 +648,7 @@ object GenericBinaryTrie {
 		  * @param branch a node located under this trie.
 		  * @param right a possibly modified version of `branch.right`, already deemed safe to share.
 		  */
-		protected[this] def patchRight(branch :SuperBranch, right :S) :T =
+		protected[this] override def patchRight(branch :SuperBranch, right :S) :T =
 			branchLike(branch.asTrie)(branch.left, right)
 
 
@@ -1433,6 +1443,45 @@ object GenericBinaryTrie {
 	}
 
 
+	/** A trait inherited by several classes building binary tries which need to create a modification of a branch
+	  * by swapping one of its children. It exists to provide their implementation as a single mixin and to resolve
+	  * inheritance conflicts from the same signatures.
+	  * @tparam T the binary trie being patched
+	  * @tparam C the type of substitute children.
+	  * @tparam O produced trie type.
+	  * @see [[net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.BinaryTriePatch]]
+	  */
+	trait BranchPatch[K, +T <: BinaryTrie[K, T], +C, +O] {
+
+		/** Create a new trie branch using the first argument as the template and the provided left child.
+		  * This method is invoked when the modification process backtracks up the trie and is used to obtain the
+		  * replacement for the node `template` on the path. The left child given as arguments is guaranteed to belong
+		  * under the branch `template` in its position and is a sharable node returned by previous steps of this process.
+		  * The right child should be preserved the same regarding the contents, but possibly updated to allow sharing
+		  * with a new instance. Any other information present in the branch and introduced by subclasses should also
+		  * remain the same.
+		  * @param branch a branch in the patched trie to update with the new child
+		  * @param left a non-empty replacement for the left child of `branch`
+		  * @return a replacement for `branch` with the new left child to use as a valid new trie.
+		  */
+		protected[this] def patchLeft(branch :BinaryTrieBranch[K, T], left :C) :O
+
+
+		/** Create a new trie branch using the first argument as the template and the provided right child.
+		  * This method is invoked when the modification process backtracks up the trie and is used to obtain the
+		  * replacement for the node `template` on the path. The right child given as arguments is guaranteed to belong
+		  * under the branch `template` in its position and is a sharable node returned by previous steps of this process.
+		  * The left child should be preserved the same regarding the contents, but possibly updated to allow sharing
+		  * with a new instance. Any other information present in the branch and introduced by subclasses should also
+		  * remain the same.
+		  * @param branch a branch in the patched trie to update with the new child
+		  * @param right a non-empty replacement for the right child of `branch`
+		  * @return a replacement for `branch` with the new right child to use as a valid new trie.
+		  */
+		protected[this] def patchRight(branch :BinaryTrieBranch[K, T], right :C) :O
+
+	}
+
 
 
 	/** Modification of a binary trie concerning a single leaf. After the initial callback for a leaf returns a replacement,
@@ -1448,8 +1497,8 @@ object GenericBinaryTrie {
 	  * @tparam T the type of the input trie
 	  * @tparam U type of the trie resulting from this modification
 	  */
-	trait BinaryTriePatch[@specialized(KeyTypes) K, T <: BinaryTrie[K, T], U]
-		extends FoldPath[K, T, U]
+	trait BinaryTriePatch[@specialized(KeyTypes) K, T <: BinaryTrie[K, T], U] //todo: this doesn't really need specialization
+		extends FoldPath[K, T, U] with BranchPatch[K, T, U, U]
 	{
 
 		/** Replace the child `child` of `parent` (which must be a [[BinaryTrieBranch]] with `res`. After determining
@@ -1478,7 +1527,7 @@ object GenericBinaryTrie {
 		  * @param left a non-empty replacement for the left child of `branch`
 		  * @return a replacement for `branch` with the new left child to use as a valid new trie.
 		  */
-		def patchLeft(branch :BinaryTrieBranch[K, T], left :U) :U
+		override def patchLeft(branch :BinaryTrieBranch[K, T], left :U) :U
 
 
 		/** Create a new trie branch using the first argument as the template and the provided right child.
@@ -1492,7 +1541,7 @@ object GenericBinaryTrie {
 		  * @param right a non-empty replacement for the right child of `branch`
 		  * @return a replacement for `branch` with the new right child to use as a valid new trie.
 		  */
-		def patchRight(branch :BinaryTrieBranch[K, T], right :U) :U
+		override def patchRight(branch :BinaryTrieBranch[K, T], right :U) :U
 
  	}
 

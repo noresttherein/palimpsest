@@ -4,14 +4,14 @@ import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
 import scala.collection.{mutable, GenSeq, LinearSeqLike, SeqLike}
-import net.turambar.palimpsest.specialty
-import net.turambar.palimpsest.specialty.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, IterableSpecialization, SpecializableIterable, SpecializedIterableFactory}
-import net.turambar.palimpsest.specialty.FitIterator.CountdownIterator
+import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterators.{CountdownIterator, FitIterator}
 import net.turambar.palimpsest.specialty.seqs.FitList.{FitListBuilder, FitListIterator, FullLink, Link, Terminus}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized
 
 /** Specialized linked list with O(1) `length` and O(1) `take` operations.
   * Random indexing and `drop` still take O(n), though.
@@ -25,9 +25,11 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 		override val length :Int,
 		start :Link[E]
 	) extends SeqFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
-			  with IterableSpecialization[E, FitList[E]] with StableSeq[E] with SliceLike[E, FitList[E]] with SpecializableIterable[E, FitList] with OfKnownSize
+	     with IterableSpecialization[E, FitList[E]] with StableSeq[E] with SliceLike[E, FitList[E]]
+	     with SpecializableIterable[E, FitList]
+	     with StableIterableTemplate[E, FitList[E]] with CloneableIterable[E, FitList[E]] with OfKnownSize
 {
-	import RuntimeType.Fun2Vals
+	import Specialized.Fun2Vals
 
 //	override def isEmpty :Boolean = length == 0
 //	override def nonEmpty :Boolean = length > 0
@@ -144,7 +146,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 	}
 
 
-	override protected[this] def positionOf(elem: E, from: Int): Int =
+	override protected[this] def offsetOf(elem: E, from: Int): Int =
 		if (from>=length) -1
 		else {
 			var i = math.max(from, 0); var l = dropped(i)
@@ -154,7 +156,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 			if (i==length) -1 else i
 		}
 
-	override protected[this] def lastPositionOf(elem: E, end: Int): Int = {
+	override protected[this] def lastOffsetOf(elem: E, end: Int): Int = {
 		var i = 0; var l = start; var last = -1; val e = math.min(end, length)
 		while(i<e) {
 			if (l.head==elem) last = i
@@ -281,7 +283,7 @@ class FitList[@specialized(Elements) +E] private[seqs] (
 
 
 
-object FitList extends SpecializedIterableFactory[FitList] {
+object FitList extends SpecializableIterableFactory[FitList] {
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitList[_], E, FitList[E]]): CanBuildFrom[FitList[_], E, FitList[E]] =
 		fit.cbf
