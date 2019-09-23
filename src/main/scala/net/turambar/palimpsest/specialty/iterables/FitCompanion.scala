@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
   * It is a root of seeming blown up hierarchy of companion traits, but this one is needed as
   * it is covariant with regard to built collection type, which means that it can be returned
   * by methods of immutable collections, and overridden in more specific collections
-  * (invariance towards built type prevents that as part of non `private[this]` api).
+  * (invariance towards built type prevents that as part of non `private[this]` API).
   *
   * @author Marcin Mościcki
   */
@@ -45,7 +45,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 
 	/** Create a new instance containing the given elements.
 	  * '''Do not use it with empty argument list''' - not only [[FitCompanion#empty empty[E]] will be more efficient, but due to
-	  * a bug in scala up to 2.11.8 such call won't be specialized if `apply` method is overloaded.
+	  * a bug in scala up to 2.11.8 such call won't be specialized if the `apply` method is overloaded.
 	  *
 	  * @return a specialized subclass of `S[E]`
 	  */
@@ -145,13 +145,22 @@ object FitCompanion {
 		def canEqual(that :Any) :Boolean = that.isInstanceOf[CanFitFrom[_, _, _]]
 
 		override def equals(that :Any) :Boolean = that match {
-			case cbf :CanFitFrom[_, _, _] =>
-				(cbf eq this) || cbf.canEqual(this) && canEqual(cbf) &&
-					companion == cbf.companion && runtimeType == cbf.runtimeType
+			case other :CanFitFrom[_, _, _] => companion match {
+				case _ if other eq this => true
+				case ref :AnyRef if ref eq this => false
+				case _ if !canEqual(other) || !other.canEqual(this) => false
+				case source => other.companion match {
+					case ref :AnyRef if ref eq other => false
+					case otherSource => source == otherSource
+				}
+			}
 			case _ => false
 		}
 
-		override def hashCode :Int = companion.hashCode * 31 + runtimeType.hashCode
+		override def hashCode :Int = companion match {
+			case ref :AnyRef if ref eq this => runtimeType.hashCode
+			case other => other.hashCode * 31 + runtimeType.hashCode
+		}
 
 		override def toString = s"CFF[$runtimeType]"
 

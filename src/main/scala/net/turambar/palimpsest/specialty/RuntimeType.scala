@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty
 
 
 import net.turambar.palimpsest.specialty.RuntimeType.{Enforce, OfBoolean, OfDouble, OfFloat, OfInt, OfLong, OfUnit, Specialized}
-
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Primitives, Fun1, Fun1Vals}
 import scala.annotation.{implicitNotFound, unspecialized}
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.{runtimeMirror, typeOf, TypeTag}
@@ -181,14 +181,15 @@ sealed trait RuntimeType[@specialized T] {
 	  * the semantics of java generics and scala specialization as well as their runtimes with regard to autoboxing
 	  * mean that usually the cast `(_ :RunType).asInstanceOf[T]` is safe as long as this instance was obtained in
 	  * the context of casting. This is because either `RunType` and `T` are the same specialized value type and
-	  * the cast is removed at compilation, or `T` is erased
+	  * the cast is removed at compilation, or `T` is erased.
 	  */
 	type RunType >: T
 
 	/** Type to which values of `T` are boxed whenever a reference type is expected. For primitive types it is declared
-	  * as their corresponding wrappers, for a reference type `T <: AnyRef` it is simply `T`.
+	  * as their corresponding wrappers, for a reference type `T <: AnyRef` it is simply `T`. The tricky case are
+	  * custom value classes which are promoted to `AnyRef` without nominally extending it.
 	  */
-	type BoxType <: AnyRef
+	type BoxType
 
 
 
@@ -205,18 +206,18 @@ sealed trait RuntimeType[@specialized T] {
 	  * @return `Array[Any]` (`Object[]`) if `T &lt:: AnyRef` or is an erased and boxed scala `AnyVal`, or a java array of the primitive
 	  *        type corresponding to `T &lt:: AnyVal`, if `T` is known (either fully instantiated, or by being a specialized type parameter).
 	  */
-	def emptyArray :Array[RunType]
+	def emptyArray :Array[RunType] = classTag.newArray(0)
 
 	/** An array storing `T` in its erased/specialized form.
 	  * @return `Array[AnyRef]` or one of java's primitive arrays.
 	  */
-	def emptyErasedArray :Array[ErasedType]
+	def emptyErasedArray :Array[ErasedType] = erasedClassTag.newArray(0)
 
 
 	/** An array which can store any value of `T` after autoboxing.
 	  * @return an array of some reference element type.
 	  */
-	def emptyBoxArray :Array[BoxType]
+	def emptyBoxArray :Array[BoxType] = boxClassTag.newArray(0)
 
 
 	/** Create an array of the given length which can be used to store values of type `T`. If `T` is known to be a built-in
@@ -275,17 +276,17 @@ sealed trait RuntimeType[@specialized T] {
 	def boxTypeName :String = boxClassTag.toString
 
 	/** `ClassTag` representing the type used in the bytecode to represent values of `T` in place of obtaining this instance. */
-	implicit def classTag :ClassTag[RunType]
+	implicit def classTag :ClassTag[RunType] = ClassTag(runType)
 
 	/** `ClassTag` representing the type used in the bytecode to represent values of `T` in contexts where `T` is an unbound,
 	  * but possibly specialized, type parameter of a generic type.
 	  */
-	def erasedClassTag :ClassTag[ErasedType]
+	def erasedClassTag :ClassTag[ErasedType] = ClassTag(erasedType)
 
 	/** `ClassTag` representing the type to which `T` is boxed wherever a reference type is required (such as type parameters
 	  * for generic, non specialized types).
 	  */
-	def boxClassTag :ClassTag[BoxType]
+	def boxClassTag :ClassTag[BoxType] = ClassTag(boxType)
 
 
 
@@ -304,7 +305,7 @@ sealed trait RuntimeType[@specialized T] {
 	@inline final def isRef :Boolean = RuntimeType.AnyRefClass.isAssignableFrom(runType)
 
 	/** Is all type information about `T` erased and its values are represented as instances of `java.lang.Object`? */
-	@inline def isErased :Boolean = false
+	def isErased :Boolean = true
 
 	/** Does this instance represent a type scala `Function1`'s arguments are specialized for? */
 	@inline final def isFun1Arg :Boolean = (this eq OfInt) || (this eq OfLong) || (this eq OfFloat) || (this eq OfDouble)
@@ -479,12 +480,6 @@ abstract class SecondaryRuntimeTypeImplicits extends FallbackRuntimeTypeImplicit
 
 object RuntimeType extends SecondaryRuntimeTypeImplicits {
 	import java.{lang=>j}
-
-
-
-
-
-
 
 
 
@@ -853,6 +848,8 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 		override def emptyErasedArray :Array[ErasedType] = emptyArray
 		override def erasedClassTag :ClassTag[ErasedType] = classTag
 
+		override def isErased = false
+
 		override protected[specialty] val discriminator :Enforce[T]
 
 		override def toString :String = "[@specialized(" + classTag + ")]"
@@ -1056,7 +1053,6 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 		implicit val SpecializedAny :Specialized[Any] = SpecializedAnyRef.asInstanceOf[Specialized[Any]]
 
 
-
 	}
 
 
@@ -1083,20 +1079,24 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 	}
 
 	/** Base class for all instances representing a ''jvm'' primitive type, including `void`. */
-	sealed abstract class SpecializedPrimitive[@specialized T, B<:AnyRef]
+	sealed abstract class SpecializedPrimitive[@specialized T, B <: AnyRef]
 			(override final val discriminator :Enforce[T], override final val default :T)
 			(implicit classTag :ClassTag[T])
 		extends PrimitiveBugWorkaround[T, B] with Specialized[T]
 
 
+
+
+
+
 	/** Any representation of a reference type by a java/scala class specified by implicit `ClassTag[T]`. This is different
-	  * from erasure in that `T` is not a value class and this instance may represent any super type of `T`.
+	  * from erasure in that `T` is not a value type and this instance may represent any super type of `T`.
 	  * Values of the same type may be represented by many different instances of [[RefRuntimeType]] representing different
 	  * levels of generalisation after taking type bounds into the equation, from full type information to `AnyRef`.
 	  * @param classTag the class representing the static type assignable from `T`.
 	  * @tparam T any scala type, usually itself a type parameter of a generic method/class; this is not the final erased/unboxed type.
 	  */
-	sealed class RefRuntimeType[T >: Null <:AnyRef] private[RuntimeType]()(implicit final val classTag :ClassTag[T])
+	sealed class RefRuntimeType[T >: Null <:AnyRef] private[RuntimeType]()(implicit final override val classTag :ClassTag[T])
 		extends RuntimeType[T]
 	{
 		private[RuntimeType] def this(runClass :Class[T]) =
@@ -1137,6 +1137,96 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 
 
 
+
+
+
+	/** A representation of custom value type `T` wrapping a standard scala value type `V`. While in any generic
+	  * context, specialized or not, value class instances are promoted to `AnyRef` and thus this type class
+	  * is analogous to a `RuntimeType` instance representing a reference type as itself, there are applications
+	  * in which such information is desirable. In particular, it allows specialized collection implementations to store
+	  * value classes as their wrapped primitives instead and box them only on access. By providing an implicit
+	  * value of this type for your custom value class you can instruct supporting collections to store
+	  * the values as their member field instead, as per its specialization information. Note that functions
+	  * accepting or returning custom value classes will always instantiate their class, meaning collection
+	  * methods would result in boxing of each element at every access: this is a trade off between speed and space.
+	  */
+	trait ValueClass[@specialized(Primitives) V <: AnyVal, T] extends RuntimeType[T] {
+		override type ErasedType = Any
+		override type RunType = T
+		override type BoxType = T
+
+		/** The standard scala value type which consists the runtime representation of `T` in non-generic contexts. */
+		type ValueType = V
+		/** Specialization for the base primitive value of the custom value class `T`. */
+		val valueType :Specialized[V]
+
+		/** Convert the primitive representation of the value to the custom type `T`. */
+		def apply(value :V) :T
+
+		/** Convert the custom value type to the primitive value forming its runtime representation. */
+		def unapply(box :T) :V
+
+		override def default :T = apply(valueType.default)
+
+		override def erasedType :Class[Any] = classOf[Any]
+		override def erasedClassTag :ClassTag[Any] = implicitly[ClassTag[Any]]
+		override def emptyErasedArray :Array[Any] = ValueClass.EmptyAnyArray
+		override def boxType :Class[T] = runType
+		override def boxClassTag :ClassTag[T] = classTag
+
+		override private[specialty] def call[R[X]](callback :SpecializeIndividually[R])(implicit force :Enforce[T]) :R[T] =
+			callback.forRef(this)
+
+		override protected[specialty] def discriminator :Enforce[T] = new Enforce[T]
+	}
+
+
+
+	object ValueClass {
+
+		/** Creates a `RuntimeType` instance for a value class `T` wrapping a standard value type `V`.
+		  * Relies on implicit specialization information for `V` and the class tag for `T`.
+		  * @param wrap the constructor function creating a value class instance boxing the given value
+		  * @param unwrap the getter function accessing the field of the value class `T`.
+		  * @tparam T a custom box class, typically, but not necessarily, a value class.
+		  * @tparam V the type of the single member field of `T`.
+		  */
+		def apply[@specialized(Primitives) V <: AnyVal :Specialized, T :ClassTag](wrap :V => T)(unwrap :T=>V) :ValueClass[V, T] = {
+			val tag = implicitly[ClassTag[T]]
+			new ValueClass[V, T] {
+				override def apply(value :V) :T = wrap(value)
+				override def unapply(box :T) :V = unwrap(box)
+
+				override val valueType = Specialized[V]
+				override val classTag = tag
+				override def runType :Class[T] = tag.runtimeClass.asInstanceOf[Class[T]]
+			}
+		}
+
+
+		/** Convenience base class for custom [[net.turambar.palimpsest.specialty.RuntimeType.ValueClass]] implementations
+		  * relying on implicit runtime type information for the representation for the wrapped type `V` and class tag
+		  * for the described value class `T`.
+		  */
+		abstract class ValueClassType[@specialized(Primitives) V <: AnyVal, T]
+		                             (implicit val valueType :Specialized[V], override val classTag :ClassTag[T])
+			extends ValueClass[V, T]
+		{
+			override def runType :Class[T] = classTag.runtimeClass.asInstanceOf[Class[T]]
+		}
+
+
+		/** Implicit conversions performing the boxing and unboxing based on an implicit `ValueClass` instance. */
+		object conversions {
+			implicit def implicitBoxing[@specialized(Fun1) V <: AnyVal, T](implicit valueClass :ValueClass[V, T]) :V => T =
+				valueClass(_)
+
+			implicit def implicitUnboxing[@specialized(Fun1Vals) V <: AnyVal, T](implicit valueClass :ValueClass[V, T]) :T => V =
+				valueClass.unapply(_)
+		}
+
+		private val EmptyAnyArray = new Array[Any](0)
+	}
 
 
 

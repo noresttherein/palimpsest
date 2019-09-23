@@ -4,7 +4,7 @@ import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, Sure}
 import net.turambar.palimpsest.specialty.iterators.FitIterator.MappedIterator
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableFoundation
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun2}
-import net.turambar.palimpsest.specialty.sets.ValSet.{Mutable, Stable}
+
 /*
 /**
   * @author Marcin Mościcki

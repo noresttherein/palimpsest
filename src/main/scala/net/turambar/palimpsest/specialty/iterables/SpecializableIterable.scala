@@ -11,7 +11,7 @@ import scala.collection.generic.GenericTraversableTemplate
   */
 trait SpecializableIterable[@specialized(Elements) +E, +S[@specialized(Elements) X] <: FitIterable[X] with GenericTraversableTemplate[X, S]]
 	extends GenericTraversableTemplate[E, S]
-{
+{ //todo: rename to SpecializedIterable - shorter and in line with the the annotation and type class
 	override def companion: FitCompanion[S]
 
 	override protected[this] def newBuilder: FitBuilder[E, S[E]] = companion.newBuilder[E]

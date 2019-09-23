@@ -27,7 +27,6 @@ abstract class FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIt
 
 	override def generic[E] :S[E] = empty[E]
 
-	//todo: maybe simply rename it to 'of', as several subclasses already define this alias.
 	override def of[E :RuntimeType] :S[E] = NewEmpty()
 
 	override def empty[@specialized(Elements) E] :S[E] = newBuilder[E].result()
@@ -249,14 +248,16 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 	@inline final override def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] = Impl.newBuilder[E]
 
 	@inline final override def builder[E: RuntimeType]: FitBuilder[E, S[E]] = Impl.builder[E]
-	
 
+	override def one[@specialized(Elements) E](elem :E) :S[E] = Impl.one(elem)
 
-	override def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E] = Impl.fill(n)(elem)
+	@inline final override def apply[@specialized(Elements) E](elems :E*) :S[E] = Impl(elems : _*)
 
-	override def tabulate[@specialized(Fun1Vals) E](n: Int)(f: Int => E): S[E] = Impl.tabulate(n)(f)
+	@inline final override def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E] = Impl.fill(n)(elem)
 
-	override def iterate[@specialized(Fun1Vals) E](start: E, len: Int)(f: E => E): S[E] = Impl.iterate(start, len)(f)
+	@inline final override def tabulate[@specialized(Fun1Vals) E](n: Int)(f: Int => E): S[E] = Impl.tabulate(n)(f)
+
+	@inline final override def iterate[@specialized(Fun1Vals) E](start: E, len: Int)(f: E => E): S[E] = Impl.iterate(start, len)(f)
 
 }
 
