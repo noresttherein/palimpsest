@@ -256,8 +256,8 @@ sealed class ArrayPlus[@specialized(Elements) +E] protected[seqs](
 			  newElementType = elementType
 
 		//caution: unsynchronized mutable field access! We don't much care though if we read stale 'true' value
-		//caution: as the only purpose is guaranteeing O()) amortized first grow on any side.
-		//caution: What we don't want is preserve the unused space on instances sliced from other sequences;
+		//caution: as the only purpose is guaranteeing O(1)) amortized first grow on any side.
+		//caution: What we don't want is to preserve the unused space on instances sliced from other sequences;
 		//caution: in that case though the `mutable` field is always false since construction.
 		val reserve = //free capacity at the back that needs preserving.
 			if (mutable) capacity - offset - len

@@ -83,7 +83,7 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 	override final def runtimeType :RuntimeType[E] = specialization
 
 	/** Runtime type used to store elements of this collection. The difference from
-	  * [[net.turambar.palimpsest.specialty.sets.SetSpecialization#specialization]] is that this method is specialized,
+	  * [[net.turambar.palimpsest.specialty.sets.SetSpecialization#runtimeType]] is that this method is specialized,
 	  * while the former simply delegates to this instance.
 	  */
 	override def specialization :RuntimeType[E] = RuntimeType.specialized[E]
