@@ -4,7 +4,7 @@ import java.lang.Math
 
 import scala.annotation.unspecialized
 import scala.collection.{immutable, GenSeq, IndexedSeqLike, SeqLike}
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.iterators.{IndexedIterator, ReverseIndexedIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, StableIterableTemplate}
@@ -95,7 +95,7 @@ trait FitIndexedSeqTemplate[+E, +S]
   * @author Marcin Mościcki
   */
 //todo: delete this class
-trait FitIndexedSeq[@specialized(Elements) +E]
+trait FitIndexedSeq[@specialized(ItemTypes) +E]
 	extends IndexedSeq[E] with IndexedSeqLike[E, FitIndexedSeq[E]]
 	   with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]] with CloneableIterable[E, FitIndexedSeq[E]]
 	   with FitIndexedSeqTemplate[E, FitIndexedSeq[E]] with SpecializableIterable[E, FitIndexedSeq] with OfKnownSize
@@ -236,7 +236,7 @@ trait StableIndexedSeq[+E]
 
 
 object StableIndexedSeq extends InterfaceIterableFactory[StableIndexedSeq] {
-	override protected[this] type RealType[@specialized(Elements) +X] = ArrayPlus[X]
+	override protected[this] type RealType[@specialized(ItemTypes) +X] = ArrayPlus[X]
 
 	override protected def default :FitIterableFactory[RealType] = ArrayPlus
 

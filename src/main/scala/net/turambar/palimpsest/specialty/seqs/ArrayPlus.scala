@@ -6,7 +6,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.{breakOut, immutable, GenTraversableOnce}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.{concat, newArray, ofKnownSize, slowcopy, Elements, FitBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.{concat, newArray, ofKnownSize, slowcopy, ItemTypes, FitBuilder, RuntimeType}
 
 import scala.annotation.unspecialized
 
@@ -54,7 +54,7 @@ import scala.annotation.unspecialized
   *
   * @author Marcin Mościcki
   */
-sealed class ArrayPlus[@specialized(Elements) +E] protected[seqs](
+sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 		buffer :Array[E],
 		offset :Int,
 		len :Int,
@@ -465,12 +465,19 @@ object ArrayPlus extends ArrayViewFactory[ArrayPlus] { factory =>
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[ArrayPlus[_], E, ArrayPlus[E]]): CanBuildFrom[ArrayPlus[_], E, ArrayPlus[E]] =
 		fit.cbf
 
+	/** Creates an empty sequence backed by an array of the specified size. The array component type and specialization
+	  * of created instance will be based solely on the implicit value of `RuntimeType[E]`. This is similar to creating
+	  * an empty array buffer with a predefined capacity: as appending to the new sequence will use the backing
+	  * array without copying, with precise information about the target size it is possible to avoid repeated reallocation.
+	  */
+	def ofCapacity[E :RuntimeType](capacity :Int) :ArrayPlus[E] =
+		shared(new ArrayBounds[E](RuntimeType.arrayOf[E](capacity), 0, 0))
 
 
 	protected[seqs] override def apply[E](contents: ArrayBounds[E]): ArrayPlus[E] = shared(contents.copy)
 
 
-	protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): ArrayPlus[E] =
+	protected def using[@specialized(ItemTypes) E](array: Array[E], offset: Int, length: Int): ArrayPlus[E] =
 		new ArrayPlus[E](array, offset, length, true)
 	
 }

@@ -350,7 +350,7 @@ trait CloneableIterable[+E, +Repr <: AnyRef] extends IterableTemplate[E, Repr] {
 	  * @see [[net.turambar.palimpsest.specialty.iterables.IterableTemplate#clone]]
 	  */
 	@unspecialized
-	override def carbon :Repr = clone()
+	override def carbon :Repr = clone() //alternative name: snapshot
 
 	/** Creates a deep copy of this iterable. Not only any future modifications to one will have no effect on the other,
 	  * but the clone should be free of any crud and have optimal inner structure. This means that any view-like collections
@@ -380,7 +380,7 @@ trait CloneableIterable[+E, +Repr <: AnyRef] extends IterableTemplate[E, Repr] {
   *
   * @author Marcin Mościcki
   */
-trait IterableSpecialization[@specialized(Elements) +E, +Repr] extends IterableTemplate[E, Repr] /*with mutable.Cloneable[Repr]*/ {
+trait IterableSpecialization[@specialized(ItemTypes) +E, +Repr] extends IterableTemplate[E, Repr] /*with mutable.Cloneable[Repr]*/ {
 
 	
 	/** Specialization of this iterable. Double call necessary to enforce specialized call and covariance type clash. */

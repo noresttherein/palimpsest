@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.iterators
 
-import net.turambar.palimpsest.specialty.{Elements, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType, Specialize}
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, ReverseSeq, SharedArray}
 import net.turambar.palimpsest.specialty.seqs.ArrayView.UnknownArrayView
 
@@ -14,7 +14,7 @@ import net.turambar.palimpsest.specialty.seqs.ArrayView.UnknownArrayView
   * @param until index of the element ending the iteration; initial size equals `until-from`.
   * @author Marcin Mościcki
   */
-class ArrayIterator[@specialized(Elements) +E](array :Array[E], from :Int, until :Int)
+class ArrayIterator[@specialized(ItemTypes) +E](array :Array[E], from :Int, until :Int)
 	extends IndexedIterator[E](from, until) with FitIterator[E]
 {
 
@@ -48,7 +48,7 @@ class ArrayIterator[@specialized(Elements) +E](array :Array[E], from :Int, until
 
 
 /** Iterator going down an array in the direction of decreasing indices. */
-class ReverseArrayIterator[@specialized(Elements) +E](array :Array[E], from :Int, downto :Int)
+class ReverseArrayIterator[@specialized(ItemTypes) +E](array :Array[E], from :Int, downto :Int)
 	extends ReverseIndexedIterator[E](from, downto) with FitIterator[E]
 {
 	override def head: E = array(index)
@@ -67,7 +67,7 @@ class ReverseArrayIterator[@specialized(Elements) +E](array :Array[E], from :Int
 
 
 
-class MutableArrayIterator[@specialized(Elements) E](array :Array[E], from :Int, until :Int)
+class MutableArrayIterator[@specialized(ItemTypes) E](array :Array[E], from :Int, until :Int)
 	extends IndexedIterator[E](from, until) with MutableIterator[E]
 {
 	override def head :E = array(index)

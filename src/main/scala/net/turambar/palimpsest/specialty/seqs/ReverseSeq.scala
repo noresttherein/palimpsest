@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2Vals
-import net.turambar.palimpsest.specialty.Elements
+import net.turambar.palimpsest.specialty.ItemTypes
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 /** A backwards view of another [[FitSeq]].
@@ -11,7 +11,7 @@ import net.turambar.palimpsest.specialty.iterators.FitIterator
   *
   * @author Marcin Mościcki
   */
-class ReverseSeq[@specialized(Elements) +E](override val reverse :FitIndexedSeq[E]) //todo: IndexedSeq?
+class ReverseSeq[@specialized(ItemTypes) +E](override val reverse :FitIndexedSeq[E]) //todo: IndexedSeq?
 	extends IterableFoundation[E, FitIndexedSeq[E]] with FitIndexedSeq[E] //with SliceLike[E, FitSeq[E]]//with FitIndexedSeqLike[E, FitSeq[E]]
 {
 	@inline

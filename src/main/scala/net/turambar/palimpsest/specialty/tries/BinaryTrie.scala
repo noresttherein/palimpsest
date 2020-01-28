@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, Elements, Var}
+import net.turambar.palimpsest.specialty.{?, ItemTypes, Var}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun2}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementOf, EmptyElements, LeafElement}
@@ -1112,7 +1112,7 @@ object GenericBinaryTrie {
 
 
 
-		override def copyToArray[@specialized(Elements) E](elements :ElementOf[E, S])(array :Array[E], from :Int, max :Int) :Int =
+		override def copyToArray[@specialized(ItemTypes) E](elements :ElementOf[E, S])(array :Array[E], from :Int, max :Int) :Int =
 			if (from < 0)
 				throw new IndexOutOfBoundsException(s"BinaryTrieBranch.copyToArray([], $from, $max)")
 			else if (from >= array.length || max <= 0)
@@ -1132,10 +1132,10 @@ object GenericBinaryTrie {
 			}
 
 
-		override def iterator[@specialized(Elements) E](elements :ElementOf[E, S]) :FitIterator[E] =
+		override def iterator[@specialized(ItemTypes) E](elements :ElementOf[E, S]) :FitIterator[E] =
 			new LeafElementIterator[E, K, S](elements, this, maxDepth)
 
-		override def reverseIterator[@specialized(Elements) E](elements :ElementOf[E, S]) :FitIterator[E] =
+		override def reverseIterator[@specialized(ItemTypes) E](elements :ElementOf[E, S]) :FitIterator[E] =
 			new ReverseLeafElementIterator[E, K, S](elements, this, maxDepth)
 
 
@@ -1738,7 +1738,7 @@ object GenericBinaryTrie {
 	  * @tparam V enumerated value type stored in the leaves.             
 	  * @tparam T trie node type
 	  */
-	class LeafValueIterator[K, @specialized(Elements) +V, +T <: BinaryTrie[K, T] with ValueTrie[K, V, T]]
+	class LeafValueIterator[K, @specialized(ItemTypes) +V, +T <: BinaryTrie[K, T] with ValueTrie[K, V, T]]
 	                       (path :Array[BinaryTrie[K, T]], top :Int)
 		extends BinaryTrieIterator[V, K, T](path, top) with FitIterator[V]
 	{
@@ -1771,7 +1771,7 @@ object GenericBinaryTrie {
 	  * @tparam K trie key type
 	  * @tparam T trie node type
 	  */
-	class LeafElementIterator[@specialized(Elements) +E, K, +T <: BinaryTrie[K, T]]
+	class LeafElementIterator[@specialized(ItemTypes) +E, K, +T <: BinaryTrie[K, T]]
 	                         (getter :ElementOf[E, T], path :Array[BinaryTrie[K, T]], top :Int)
 		extends BinaryTrieIterator[E, K, T](path, top) with FitIterator[E]
 	{
@@ -1884,7 +1884,7 @@ object GenericBinaryTrie {
 	  * @tparam K trie key type
 	  * @tparam T trie node type
 	  */
-	class ReverseLeafElementIterator[@specialized(Elements) +E, K, +T <: BinaryTrie[K, T]]
+	class ReverseLeafElementIterator[@specialized(ItemTypes) +E, K, +T <: BinaryTrie[K, T]]
 	                                (getter :ElementOf[E, T], path :Array[BinaryTrie[K, T]], top :Int)
 		extends ReverseBinaryTrieIterator[E, K, T](path, top) with FitIterator[E]
 	{

@@ -24,7 +24,7 @@ import net.turambar.palimpsest.specialty.seqs.ListSlice.{ListSliceBuilder, ListS
   * @author Marcin Mościcki
   */
 @SerialVersionUID(SerializationVersion)
-class ListSlice[@specialized(Elements) +E] private[seqs] (start :LinkedList[E], end :LinkedList[E], override val length :Int)
+class ListSlice[@specialized(ItemTypes) +E] private[seqs] (start :LinkedList[E], end :LinkedList[E], override val length :Int)
 	extends SeqFoundation[E, ListSlice[E]] with LinearSeq[E] with LinearSeqLike[E, ListSlice[E]]
 	   with StableSeq[E] with IterableSpecialization[E, ListSlice[E]] with SliceLike[E, ListSlice[E]]
 	   with SpecializableIterable[E, ListSlice]
@@ -294,17 +294,17 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 		fit.cbf
 
 
-	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, ListSlice[E]] = 
+	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, ListSlice[E]] =
 		new ListSliceBuilder
 
 //	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ListSlice[E]] =
 //		new ListSliceBuilder(new NonEmpty(Specialized[E].Null))
 	
-	override def empty[@specialized(Elements) E] :ListSlice[E] =
+	override def empty[@specialized(ItemTypes) E] :ListSlice[E] =
 		new ListSlice[E](LinkedList.Empty, LinkedList.Empty, 0)
 
 
-	private[seqs] class ListSliceIterator[@specialized(Elements) +E](private[this] var hd :LinkedList[E], max :Int)
+	private[seqs] class ListSliceIterator[@specialized(ItemTypes) +E](private[this] var hd :LinkedList[E], max :Int)
 		extends CountdownIterator[E](max) with FitIterator[E] 
 	{
 		override def head: E = hd.head
@@ -320,7 +320,7 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 				hd.copyToArray(xs, start, Math.min(len, xs.length-start))
 	}
 	
-	private[seqs] class ListSliceBuilder[@specialized(Elements) E](
+	private[seqs] class ListSliceBuilder[@specialized(ItemTypes) E](
 			private var hat :NonEmpty[E], private var coccyx :NonEmpty[E])
 		extends FitBuilder[E, ListSlice[E]] 
 	{
@@ -388,7 +388,7 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 
 	}
 	
-	private[seqs] class ReverseListSliceBuilder[@specialized(Elements) E](
+	private[seqs] class ReverseListSliceBuilder[@specialized(ItemTypes) E](
 			private[this] var res :LinkedList[E]=LinkedList.Empty, 
 			private[this] var length :Int=0) 
 		extends FitBuilder[E, ListSlice[E]] 
@@ -417,7 +417,7 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 
 
 	@SerialVersionUID(100)
-	private[ListSlice] class SerializedListSlice[@specialized(Elements) E](@transient private var list :ListSlice[E]) extends Serializable {
+	private[ListSlice] class SerializedListSlice[@specialized(ItemTypes) E](@transient private var list :ListSlice[E]) extends Serializable {
 		import java.io.{ObjectOutputStream=>OS, ObjectInputStream=>IS}
 
 		private def writeObject(os :OS) :Unit = writeList(os, list)

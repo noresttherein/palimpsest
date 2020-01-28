@@ -3,22 +3,25 @@ package net.turambar.palimpsest.specialty.sets
 import java.io.{ObjectInputStream, ObjectOutputStream}
 
 import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.Elements
-import net.turambar.palimpsest.specialty.sets.MutableHashSet.{MinFillFactor, SerializedHashSet}
+import net.turambar.palimpsest.specialty.ItemTypes
+import net.turambar.palimpsest.specialty.sets.MutableHashSet.{FillFactorDenominator, MaxFillFactor, MinCapacity, MinFillFactor, MinSlots, SerializedHashSet}
 import net.turambar.palimpsest.specialty.{FitBuilder, RuntimeType}
 import net.turambar.palimpsest.specialty.iterables.{FitCompanion, SpecializableIterable, SpecializableIterableFactory}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer}
+import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer, IterableSerializer}
 
 import scala.collection.generic.CanBuildFrom
+import java.lang.Integer.{numberOfTrailingZeros, reverseBytes}
+
+import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 
 /** A specialized hash set backed by an array using open addressing. The collisions are resolved using the hopscotch
-  * algorithm leading to good locality and overall pessimistic performance even with high fill factors.
-  * This class is not thread safe.
+  * algorithm with a neighbourhood size of 16, leading to good locality and overall pessimistic performance even
+  * with high fill factors. This class is not thread safe.
   * @author Marcin Mościcki marcin@moscicki.net
   */
 class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
-		/** The array of length n * 15 where n is the number of buckets in this hash table. */
+		/** The array of length n + 15 where n is the number of buckets in this hash table. */
 		private[this] var slots :Array[E],
 		/** The array with bitmaps marking which slots are used by elements hashed to the given bucket.
 		  * The n-th bucket can store elements at slots &lt;n,n+15&gt;. An element's bucket is calculated modulo
@@ -28,30 +31,38 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 		/** The current number of elements in this set. */
 		private[this] var elems :Int)
 	extends MutableSet[E] with MutableSetSpecialization[E, MutableHashSet[E]]
-	   with SpecializableSet[E, MutableHashSet] with Serializable
+	   with SpecializableSet[E, MutableHashSet] with OfKnownSize with Serializable
 {
 
+	override def size :Int = elems
+
+	@inline
+	private[this] final def hash(item :E) :Int = {
+		var hc = item.## * 0x9e3775cd
+		hc = reverseBytes(hc)
+		hc * 0x9e3775cd
+	}
 
 	private[this] final def rehash(capacity :Int = buckets.length * 2) :Unit = {
 		val i = new HopscotchHashSetIterator[E](slots, buckets, elems)
-		slots = RuntimeType.arrayFor[E](capacity + 15)(specialization)
+		slots = RuntimeType.arrayOf[E](capacity + 15)(specialization)
 		buckets = new Array[Short](capacity)
 		elems = 0
 		while (i.hasNext)
-			this += i.next()
+			this add i.next()
 	}
 
 
 
 	override def contains(elem :E) :Boolean = {
 		val capacity = buckets.length
-		var slot = elem.hashCode % capacity
-		var hits = buckets(slot) & 0xffff
+		//caution: capacity must be a power of two: (then capacity - 1) masks log capacity - 1 lower bits.
+		val bucket = hash(elem) & (capacity - 1)
+		var hits = buckets(bucket) & 0xffff
 		while (hits != 0) {
-			if ((hits & 1) != 0 && slots(slot) == elem)
+			if (slots(bucket + numberOfTrailingZeros(hits)) == elem)
 				return true //caution: early method return: we found the element
-			hits >>= 1
-			slot += 1
+			hits &= ~(hits & -hits) //clear the lowest bit
 		}
 		false
 	}
@@ -61,20 +72,19 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 
 	override def remove(elem :E) :Boolean = {
 		val capacity = buckets.length
-		val bucket = elem.hashCode % capacity
+		//caution: capacity must be a power of two: (then capacity - 1) masks log capacity - 1 lower bits.
+		val bucket = hash(elem) & (capacity - 1)
 		val collisions = buckets(bucket) & 0xffff
-		var mask = collisions
-		var slot = bucket
-		while (mask != 0) {
-			if ((mask & 1) != 0 && slots(slot) == elem) {
+		var hits = collisions
+		while (hits != 0) {
+			if (slots(bucket + numberOfTrailingZeros(hits)) == elem) {
 				elems -= 1
-				buckets(bucket) = (collisions & ~(1 << (slot - bucket))).toShort
-				if (elems / capacity <= MinFillFactor && capacity > 8)
-					rehash(capacity / 2)
-				return true //caution: early method return - we found the element
+				buckets(bucket) = (collisions & ~(collisions & -collisions)).toShort
+				if (elems * FillFactorDenominator <= MinFillFactor * capacity && capacity > MinCapacity)
+					rehash(capacity >> 1)
+				return true //caution: early method return: we found the element
 			}
-			mask >>= 1
-			slot += 1
+			hits &= ~(hits & -hits) //clear the lowest bit
 		}
 		false
 	}
@@ -85,38 +95,44 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 
 	override def add(elem :E) :Boolean = {
 		val capacity = buckets.length
-		val bucket = elem.hashCode % capacity
+		//caution: we assume here capacity is a power of two and mask log capacity - 1 lower bits instead of costly modulo
+		val bucket = hash(elem) & (capacity - 1)
 		var slot = bucket
 		val collisions = buckets(slot) & 0xffff
-		var hits = collisions
-		while (hits != 0) {
-			if ((hits & 1) != 0 && slots(slot) == elem)
-				return false //caution: early method return - elem already present
-			hits >>= 1
-			slot += 1
-		}
 		if (collisions == 0xffff) { //the bucket is full
-			rehash(capacity * 2)
+			rehash(capacity << 1)
 			return this add elem //caution: early method return - the bucket is full
 		}
+
+		var hits = collisions
+		while (hits != 0) {
+			if (slots(bucket + numberOfTrailingZeros(hits)) == elem)
+				return false //caution: early method return - elem already present
+			hits &= ~(hits & -hits)
+		}
+		if ((elems + 1) * FillFactorDenominator >= MaxFillFactor * capacity) {
+			rehash(capacity << 1)
+			return this add elem //caution: early method return - needed to rehash based on the fill factor
+		}
+
 		slot = bucket - 15
 		if (slot < 0)
 			slot = 0
-		//find the first free slot at bucket or higher; we need first to go back and compose the occupation mask
+		//to find a following free slot we need first to go back and compose the occupation mask
 		hits = buckets(slot) & 0xffff
 		while (slot < bucket) {
 			slot += 1
-			hits >>= 1
+			hits >>>= 1
 			hits |= buckets(slot) & 0xffff
 		}
-		while ((hits & 1) != 0) { //find the free slot
+		while ((hits & 1) != 0) { //find a free slot at bucket or higher
 			slot += 1
-			hits >>= 1
+			hits >>>= 1
 			if (slot < capacity)
 				hits |= buckets(slot) & 0xffff
 		}
 		if (slot >= capacity + 15) {
-			rehash(capacity * 2)
+			rehash(capacity << 1)
 			return this add elem
 		}
 
@@ -134,14 +150,14 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 					displacedBit = hits & -hits //lowest set bit in hits
 					improveMask = displacedBit - 1 //mask for all bits lower than the displacedBit
 				}
-				improveMask >>= 1
+				improveMask >>>= 1
 				slot += 1
 			}
 			if (displacedBucket < 0) { //no element in <free-7, free) can be moved to free
-				rehash(capacity * 2)
+				rehash(capacity << 1)
 				return this add elem //caution: early method return
 			}
-			slot = displacedBucket + java.lang.Integer.numberOfTrailingZeros(displacedBit)
+			slot = displacedBucket + numberOfTrailingZeros(displacedBit)
 			slots(free) = slots(slot)
 			free = slot
 		}
@@ -149,7 +165,7 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 		//finally, store the elem in the free slot and update the usage mask
 		slots(free) = elem
 		elems += 1
-		buckets(bucket) = (buckets(bucket) | (1 << (free - bucket))).toShort
+		buckets(bucket) = (collisions | (1 << (free - bucket))).toShort
 		true
 	}
 
@@ -159,12 +175,29 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 		else !add(elem)
 
 
+	override def clear() :Unit = {
+		elems = 0
+		val capacity = buckets.length
+		if (capacity == MinCapacity) {
+			var i = 0
+			while (i < capacity) {
+				buckets(i) = 0
+				i += 1
+			}
+		} else {
+			slots = RuntimeType.arrayOf[E](MinSlots)(specialization)
+			buckets = new Array[Short](MinCapacity)
+		}
+	}
+
+
+
 	override def foreach[@specialized(Unit) U](f :E=>U) :Unit = {
 		var remaining = elems
 		var slot = 0
 		var mask = 0
 		while (remaining > 0) {
-			mask >>= 1
+			mask >>>= 1
 			mask |= buckets(slot) & 0xffff
 			if ((mask & 1) != 0) {
 				f(slots(slot))
@@ -194,7 +227,7 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 		else new HopscotchHashSetIterator[E](slots, buckets, elems)
 
 	override def empty :MutableHashSet[E] =
-		new MutableHashSet[E](RuntimeType.arrayFor[E](24)(specialization), new Array[Short](8), 0)
+		new MutableHashSet[E](RuntimeType.arrayOf[E](MinSlots)(specialization), new Array[Short](MinCapacity), 0)
 
 	override def companion :FitCompanion[MutableHashSet] = MutableHashSet
 
@@ -214,50 +247,30 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 object MutableHashSet extends SpecializableIterableFactory[MutableHashSet] {
 
 
-	override def empty[@specialized(Elements) E] :MutableHashSet[E] =
-		new MutableHashSet[E](RuntimeType.arrayFor[E](24), new Array[Short](16), 0)
+	override def empty[@specialized(ItemTypes) E] :MutableHashSet[E] =
+		new MutableHashSet[E](RuntimeType.arrayOf[E](MinSlots), new Array[Short](MinCapacity), 0)
 
 
-	override def newBuilder[@specialized(Elements) E] :FitBuilder[E, MutableHashSet[E]] = empty[E]
+	override def newBuilder[@specialized(ItemTypes) E] :FitBuilder[E, MutableHashSet[E]] = empty[E]
 
 
 	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[MutableHashSet[_], E, MutableHashSet[E]])
 			:CanBuildFrom[MutableHashSet[_], E, MutableHashSet[E]] = fit.cbf
 
 
-	private final val MinFillFactor = 0.33
+	private final val MinFillFactor = 33L
+	private final val MaxFillFactor = 80L
+	private final val FillFactorDenominator = 100L
+	private final val MinCapacity = 8
 	private final val Neighbourhood = 16
+	private final val MinSlots = MinCapacity + Neighbourhood - 1
 
-
-	private[MutableHashSet] class SerializedHashSet[@specialized(LargeSetElements) E](@transient private var set :MutableHashSet[E])
-		extends Serializable
+	//todo: Mutable Set should serialize itself.
+	private[MutableHashSet] class SerializedHashSet[@specialized(LargeSetElements) E]
+	                                               (@transient protected[this] override var self :MutableHashSet[E])
+		extends IterableSerializer[E, MutableHashSet[E]]
 	{
-		private def writeObject(os :ObjectOutputStream) :Unit = writeSet(os, set)
-
-		private def writeSet(os :ObjectOutputStream, set :MutableHashSet[E]) :Unit = {
-			os.defaultWriteObject()
-			val writer = ElementSerializer[E]()
-			os writeInt set.size
-			val it = set.iterator
-			while (it.hasNext)
-				writer(os, it.next())
-		}
-
-		private def readObject(is :ObjectInputStream) :Unit = set = readSet(is)
-
-		private def readSet(is :ObjectInputStream) :MutableHashSet[E] = {
-			is.defaultReadObject()
-			val reader = ElementDeserializer[E]()
-			var size = is.readInt
-			val res = MutableHashSet.empty[E]
-			while (size > 0) {
-				res add reader(is)
-				size -= 1
-			}
-			res
-		}
-
-		private def readResolve :AnyRef = set
+		protected[this] override def builder :FitBuilder[E, MutableHashSet[E]] = empty[E]
 	}
 }
 
@@ -285,7 +298,7 @@ private[sets] class HopscotchHashSetIterator[@specialized(LargeSetElements) E](
 		val res = hd
 		do {
 			slot += 1
-			mask >>= 1
+			mask >>>= 1
 			mask |= usage(slot) & 0xffff
 		} while ((mask & 1) == 0)
 		hd = slots(slot)

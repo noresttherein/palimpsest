@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.maps
 
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.maps.FitMap.{FilteredKeysView, FilteredMapKeys, KeySetView, MapKeySet, MappedMapValues, MappedValuesView, ValuesView}
+import net.turambar.palimpsest.specialty.maps.FitMap.{FilteredKeysView, FilteredMapKeys, KeySetView, MapKeySet, MappedMapValues, MappedValuesView, MapValues}
 
 import scala.collection.{GenTraversableOnce, MapLike}
 import net.turambar.palimpsest.specialty.sets.ValSet
@@ -16,8 +16,17 @@ import scala.annotation.unspecialized
 
 
 
+
+trait MapInterfaceLike[K, +V, +M[K, V]] {
+	def filterKeys(p :K => Boolean) :M[K, V @uncheckedVariance]
+
+	def mapValues[@specialized(ValueTypes) O](f :V => O) :M[K, O]
+}
+
+
+
 trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: FitMap[K, V] with MapKeySpecialization[K, V, M]]
-	extends MapLike[K, V, M] with IterableSpecialization[(K, V), M] with CloneableIterable[(K, V), M]
+	extends MapLike[K, V, M] with MapInterfaceLike[K, V, FitMap] with IterableSpecialization[(K, V), M] with CloneableIterable[(K, V), M]
 {
 
 	protected[this] override def specialization :RuntimeType[(K, V)] = RuntimeType.erased
@@ -41,7 +50,7 @@ trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: FitMap[K, V] with
 	override def isDefinedAt(key :K) :Boolean = contains(key)
 
 
-
+	//todo: not specialized on values
 	override def filterKeys(p :K => Boolean) :FitMap[K, V] = new FilteredMapKeys[K, V](repr, p)
 
 	//somewhat counterintuitively, we define it here to avoid mind-boggling specializing on K, V, O. This is enough
@@ -67,12 +76,11 @@ trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: FitMap[K, V] with
 
 
 
-
 /**
   * @author Marcin Mościcki marcin@moscicki.net
   */
 trait SpecializableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V, +M[X, Y] <: FitMap[X, Y] with SpecializableMap[X, Y, M]]
-	extends MapLike[K, V, M[K, V] @uncheckedVariance] with MapKeySpecialization[K, V, M[K, V] @uncheckedVariance] //IterableSpecialization[(K, V), M[K, V] @uncheckedVariance]
+	extends MapLike[K, V, M[K, V] @uncheckedVariance] with MapKeySpecialization[K, V, M[K, V] @uncheckedVariance]
 {
 
 	def valueType :RuntimeType[_ <: V] = valueSpecialization
@@ -98,7 +106,7 @@ trait SpecializableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V, +M
 		((this.asInstanceOf[M[K, U]]) /: xs.seq)(_.asInstanceOf[M[K, U]] + _)
 
 
-
+	override def filterKeys(p :K => Boolean) :FitMap[K, V] = new FilteredMapKeys[K, V](repr, p)
 
 
 	override protected[this] def mapEntryValue[@specialized(ValueTypes) O](f :V => O) :((Any, V)) => O = kv => f(kv._2)
@@ -108,15 +116,16 @@ trait SpecializableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V, +M
 	override def valuesIterator :FitIterator[V] = new MappedIterator[(K, V), V](FitMap.entryValue)(iterator)
 
 
-	override def values :FitIterable[V] = new ValuesView[V](repr)
+	override def values :FitIterable[V] = new MapValues[V](repr)
 
 
 
-	override def empty :M[K, V @uncheckedVariance] = factory.empty[K, V]
+//	override def empty :M[K, V @uncheckedVariance] = factory.empty[K, V]
 
 //	protected[this] override def newBuilder :FitBuilder[(K, V), M[K, V]] = new FitMapBuilder[K, V, M](empty)
 
-	protected[this] def factory :SpecializableMapFactory[M]
+	//no factory possible for ordered maps
+//	protected[this] def factory :SpecializableMapFactory[M]
 
 	//	override def toSeq :FitSeq
 }
@@ -143,7 +152,7 @@ abstract class SpecializableMapFactory[
 
 	def erased[K, V] :M[K, V] = Empty.asInstanceOf[M[K, V]]
 
-	def emptyOf[K :RuntimeType, V :RuntimeType] :M[K, V] = EmptyMap[K, V]()
+	def of[K :RuntimeType, V :RuntimeType] :M[K, V] = EmptyMap[K, V]()
 
 	private[this] final val Empty :M[Any, Any] = empty[Any, Any]
 
@@ -152,7 +161,7 @@ abstract class SpecializableMapFactory[
 		new FitMapBuilder[K, V, M[K, V]](empty[K, V])
 
 	def builder[K :RuntimeType, V :RuntimeType] :FitBuilder[(K, V), M[K, V]] =
-		new FitMapBuilder[K, V, M[K, V]](emptyOf[K, V])
+		new FitMapBuilder[K, V, M[K, V]](of[K, V])
 
 
 

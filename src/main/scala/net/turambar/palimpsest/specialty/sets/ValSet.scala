@@ -16,12 +16,13 @@ import scala.collection.{mutable, GenIterable, GenSet, GenTraversableOnce, SetLi
   * @tparam S type constructor accepting element type and giving a specialized set type specific to concrete implementing class.
   */
 //todo: is this needed at all?
-trait SpecializableSet[@specialized(Elements) E, +S[@specialized(Elements) X]<:SpecializableSet[X, S] with ValSet[X]]
+trait SpecializableSet[@specialized(ItemTypes) E, +S[@specialized(ItemTypes) X]<:SpecializableSet[X, S] with ValSet[X]]
 	extends GenericSetTemplate[E, S] with SetLike[E, S[E]]
 	   with SpecializableIterable[E, S] with SetSpecialization[E, S[E]]
 {
 //	override def newBuilder :FitBuilder[E, S[E]] = new StableSetBuilder[E, S[E]](empty)
-	override def empty :S[E] = companion.empty
+	@unspecialized
+	override def empty :S[E] = companion.of(specialization)
 }
 
 
@@ -30,7 +31,7 @@ trait SpecializableSet[@specialized(Elements) E, +S[@specialized(Elements) X]<:S
 /**
   * @author Marcin Mościcki
   */
-trait ValSet[@specialized(Elements) E]
+trait ValSet[@specialized(ItemTypes) E]
 	extends collection.Set[E] with FitIterable[E] with SpecializableSet[E, ValSet]
 {
 
@@ -54,7 +55,7 @@ trait ValSet[@specialized(Elements) E]
 
 object ValSet extends InterfaceIterableFactory[ValSet] {
 
-	override protected[this] type RealType[@specialized(Elements) E] = StableSet[E]
+	override protected[this] type RealType[@specialized(ItemTypes) E] = StableSet[E]
 	override protected[this] final def default :FitIterableFactory[StableSet] = StableSet
 
 
@@ -157,7 +158,7 @@ object ValSet extends InterfaceIterableFactory[ValSet] {
 	  * @param set initial empty set to which all methods delegate.
 	  * @param build a function mapping the mutable set to the final result used on the call to `result()`.
 	  */
-	class ValSetBuilder[@specialized(Elements) E, M <: MutableSet[E], +S](set :M, build :M => S)
+	class ValSetBuilder[@specialized(ItemTypes) E, M <: MutableSet[E], +S](set :M, build :M => S)
 		extends FitBuilder[E, S]
 	{
 		override def +=(elem :E) :this.type = {
@@ -186,7 +187,7 @@ object ValSet extends InterfaceIterableFactory[ValSet] {
 	  * @tparam E element type of the built set.
 	  * @tparam S built `To` set type.
 	  */
-	private[sets] class StableSetBuilder[@specialized(Elements) E, +S<:ValSet[E] with SetSpecialization[E, S]]
+	private[sets] class StableSetBuilder[@specialized(ItemTypes) E, +S<:ValSet[E] with SetSpecialization[E, S]]
 			(private[this] var set :S)
 		extends FitBuilder[E, S]
 	{
@@ -208,8 +209,24 @@ object ValSet extends InterfaceIterableFactory[ValSet] {
 
 
 
-//	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
-//		SetSpecialization.friendCopy(set, xs, start, total)
 
+	/** A trait providing implementation
+	  */
+	trait ConvertingSet[@specialized(ItemTypes) E, +S <: SetSpecialization[E, S] with ValSet[E]]
+		extends SetSpecialization[E, ValSet[E]]
+	{
+		override def empty :S
+
+		override def +(elem :E) :S = empty ++ this + elem //(build ++= this + elem).result()
+
+		override def -(elem :E) :S = empty ++ this - elem //((build ++= this).result() :SetSpecialization[E, S]) - elem
+
+		override def ^(elem :E) :S = empty ++ this ^ elem //((build ++= this).result() :SetSpecialization[E, S]) ^ elem
+
+		override def clone() :S = empty ++ this //(build ++= this).result()
+
+//		@unspecialized
+//		protected[this] def build :FitBuilder[E, S]
+	}
 
 }

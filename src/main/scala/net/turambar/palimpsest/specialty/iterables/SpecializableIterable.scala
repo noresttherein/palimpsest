@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, RuntimeType}
 
 import scala.collection.generic.GenericTraversableTemplate
 
@@ -9,7 +9,7 @@ import scala.collection.generic.GenericTraversableTemplate
   * which can be used to contain any element type.
   * @author Marcin Mościcki
   */
-trait SpecializableIterable[@specialized(Elements) +E, +S[@specialized(Elements) X] <: FitIterable[X] with GenericTraversableTemplate[X, S]]
+trait SpecializableIterable[@specialized(ItemTypes) +E, +S[@specialized(ItemTypes) X] <: FitIterable[X] with GenericTraversableTemplate[X, S]]
 	extends GenericTraversableTemplate[E, S]
 { //todo: rename to SpecializedIterable - shorter and in line with the the annotation and type class
 	override def companion: FitCompanion[S]
@@ -27,7 +27,7 @@ trait SpecializableIterable[@specialized(Elements) +E, +S[@specialized(Elements)
 	  * require an additional specialized method for the 'real' builder and be useful only in certain cases.
 	  * It is probably better to optimise in final implementation classes on a case-by-case basis.
 	  */
-	override def genericBuilder[@specialized(Elements) T]: FitBuilder[T, S[T]] = companion.newBuilder[T]
+	override def genericBuilder[@specialized(ItemTypes) T]: FitBuilder[T, S[T]] = companion.newBuilder[T]
 
 	/** An equivalent of [[net.turambar.palimpsest.specialty.iterables.SpecializableIterable#genericBuilder]] which
 	  * is not specialized, but relies on implicit type information instead. Similarly to `genericBuilder`, by default

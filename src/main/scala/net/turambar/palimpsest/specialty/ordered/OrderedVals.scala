@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.ordered
 
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitIterable, IterableSpecialization}
-import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder}
+import net.turambar.palimpsest.specialty.{?, ItemTypes, FitBuilder}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 import scala.collection.GenTraversableOnce
@@ -13,7 +13,7 @@ import scala.collection.GenTraversableOnce
   * @tparam K element type of `This`.
   * @tparam This produced collection type (not enforced here)
   */
-trait OrderedAs[@specialized(Elements) K, +This <: OrderedAs[K, This]]
+trait OrderedAs[@specialized(ItemTypes) K, +This <: OrderedAs[K, This]]
 	extends IterableSpecialization[K, This] with OrderedBy[This, K] with CloneableIterable[K, This]
 {
 
@@ -36,8 +36,10 @@ trait OrderedAs[@specialized(Elements) K, +This <: OrderedAs[K, This]]
 //		res
 //	}
 
+
 	def iteratorFrom(start :K) :FitIterator[K] = keysIteratorFrom(start)
 
+	override def keysIterator :FitIterator[K] = iterator
 //	override protected[this] def newBuilder :FitBuilder[K, This] =
 //		FitBuffer.newBuilder.mapResult { buffer :FitBuffer[K] => empty ++ buffer }
 }
@@ -72,7 +74,7 @@ object OrderedAs {
 /** Base trait for collections which elements follow a specific ordering.
   * @author Marcin Mościcki
   */
-trait OrderedVals[@specialized(Elements) E]
+trait OrderedVals[@specialized(ItemTypes) E]
 	extends FitIterable[E] with OrderedAs[E, OrderedVals[E]]
 {
 //	type This <: OrderedVals[E]
@@ -80,6 +82,7 @@ trait OrderedVals[@specialized(Elements) E]
 
 	override def firstKey: E = head
 	override def lastKey: E = last
+
 
 	def reverseIterator :FitIterator[E]
 //	override def reverseKeyIterator :FitIterator[E] = reverseIterator
@@ -89,5 +92,7 @@ trait OrderedVals[@specialized(Elements) E]
 //
 //	def ++(elems :GenTraversableOnce[E]) :Self
 	override protected[this] def newBuilder :FitBuilder[E, OrderedVals[E]] = OrderedSeq.newBuilder
+
+	override def stringPrefix :String = typeStringPrefix + "[" + specialization.classTag + "]"
 }
 

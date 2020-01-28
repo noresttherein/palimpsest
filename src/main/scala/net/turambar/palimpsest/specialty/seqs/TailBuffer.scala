@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, FitTraversableOnce, RuntimeType}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 
 
@@ -10,7 +10,7 @@ import net.turambar.palimpsest.specialty.iterators.FitIterator
  *
   * @author Marcin Mościcki
   */
-class TailBuffer[@specialized(Elements) E] private[seqs](buffer :FitBuffer[E], offset :Int)
+class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :FitBuffer[E], offset :Int)
 		extends IterableFoundation[E, FitBuffer[E]] with FitBuffer[E] with SliceLike[E, FitBuffer[E]]
 {
 

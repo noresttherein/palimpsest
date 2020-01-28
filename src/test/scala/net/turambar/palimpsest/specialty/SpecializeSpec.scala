@@ -118,6 +118,7 @@ object SpecializeSpec extends Properties("Specialize") {
 		override def forDouble: Array[Double] = new Array[Double](1)
 		override def forBoolean: Array[Boolean] = new Array[Boolean](1)
 		override def forUnit: Array[Unit] = new Array[Unit](1)
+		override def forNothing :Array[Nothing] = new Array[Nothing](1)
 		override def forRef[E: RuntimeType]: Array[E] = new Array[AnyRef](1).asInstanceOf[Array[E]]
 	}
 	

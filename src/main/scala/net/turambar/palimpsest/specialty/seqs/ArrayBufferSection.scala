@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.seqs
 
 
-import net.turambar.palimpsest.specialty.Elements
+import net.turambar.palimpsest.specialty.ItemTypes
 
 /**
   * @author Marcin Mościcki

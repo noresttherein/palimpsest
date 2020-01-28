@@ -1,25 +1,30 @@
 package net.turambar.palimpsest.specialty.aliases
 
-import net.turambar.palimpsest.specialty.Elements
-import net.turambar.palimpsest.specialty.maps.{KeyTypes, MutableMap, ValueTypes}
+import net.turambar.palimpsest.specialty.ItemTypes
+import net.turambar.palimpsest.specialty.maps.{KeyTypes, MutableMap, MutableOrderedMap, ValueTypes}
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, MutableSeq}
-import net.turambar.palimpsest.specialty.sets.MutableSet
+import net.turambar.palimpsest.specialty.sets.{MutableOrderedSet, MutableSet}
 
 
 /**
   * @author Marcin Mościcki marcin@moscicki.net
   */
 object mutable {
-	type Seq[@specialized(Elements) E] = MutableSeq[E]
+	type Seq[@specialized(ItemTypes) E] = MutableSeq[E]
 	final val Seq = MutableSeq
 
-	type Buffer[@specialized(Elements) E] = FitBuffer[E]
+	type Buffer[@specialized(ItemTypes) E] = FitBuffer[E]
 	final val Buffer = FitBuffer
 
-	type Set[@specialized(Elements) E] = MutableSet[E]
+	type Set[@specialized(ItemTypes) E] = MutableSet[E]
 	final val Set = MutableSet
+
+	type SortedSet[@specialized(ItemTypes) E] = MutableOrderedSet[E]
+	final val SortedSet = MutableOrderedSet
 
 	type Map[@specialized(KeyTypes) K, @specialized(ValueTypes) V] = MutableMap[K, V]
 	final val Map = MutableMap
 
+	type SortedMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V] = MutableOrderedMap[K, V]
+	final val SortedMap = MutableOrderedMap
 }

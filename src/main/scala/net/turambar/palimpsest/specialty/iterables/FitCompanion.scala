@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitTraversableOnce, RuntimeType, Specialize, SpecializedGeneric}
+import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, FitTraversableOnce, RuntimeType, Specialize, SpecializedGeneric}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
 
 import scala.collection.generic.{CanBuildFrom, GenericCompanion}
@@ -17,7 +17,7 @@ import scala.reflect.ClassTag
   *
   * @author Marcin Mościcki
   */
-trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
+trait FitCompanion[+S[@specialized(ItemTypes) X] <: FitIterable[X]]
 	extends GenericCompanion[S]
 { factory =>
 
@@ -34,12 +34,12 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	  * a given reference type is desired, as it takes an implicit parameter carrying type information and can create
 	  * a properly specialized instance in any context where one is available.
 	  */
-	override def empty[@specialized(Elements) E]: S[E] //= newBuilder[E].result()
+	override def empty[@specialized(ItemTypes) E]: S[E] //= newBuilder[E].result()
 
 	/** A single element collection. By default delegates to `newBuilder`, but specific companions may decide to
 	  * return a specialized singleton subclass.
 	  */
-	def one[@specialized(Elements) E](elem :E) :S[E] //= (newBuilder += elem).result()
+	def one[@specialized(ItemTypes) E](elem :E) :S[E] //= (newBuilder += elem).result()
 
 
 
@@ -49,7 +49,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	  *
 	  * @return a specialized subclass of `S[E]`
 	  */
-	override def apply[@specialized(Elements) E](elems: E*): S[E] //=
+	override def apply[@specialized(ItemTypes) E](elems: E*): S[E] //=
 //		if (elems.isEmpty) empty
 //		else (newBuilder[E] ++= elems).result()
 
@@ -63,7 +63,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 //		(builder(spec) ++= elems).result()
 //	}
 	
-	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] //= specializedBuilder[E]
+	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, S[E]] //= specializedBuilder[E]
 
 	/** Builder specialized on `E` if any information about type `E` is available (see [[RuntimeType]]). */
 	def builder[E :RuntimeType] :FitBuilder[E, S[E]]
@@ -75,7 +75,7 @@ trait FitCompanion[+S[@specialized(Elements) X] <: FitIterable[X]]
 	 *  let's leave the implementation to the subclass and keep this a pure interface.
 	 */
 
-	def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E]
+	def fill[@specialized(ItemTypes) E](n: Int)(elem: => E): S[E]
 
 	def tabulate[@specialized(Fun1Vals) E](n: Int)(f: Int => E): S[E]
 

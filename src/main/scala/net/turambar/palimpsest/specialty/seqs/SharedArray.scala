@@ -2,15 +2,17 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
+
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterable, IterableFoundation, MutableIterable, SpecializableIterable}
-import net.turambar.palimpsest.specialty.{arrayFill, ofKnownSize, Elements, FitTraversableOnce}
-
+import net.turambar.palimpsest.specialty.{arrayFill, ofKnownSize, ItemTypes, FitTraversableOnce, RuntimeType}
 import scala.collection.mutable
+
+import net.turambar.palimpsest.specialty.seqs.ArrayPlus.shared
 
 
 /** A view on a section of an array as a mutable, specialized sequence. */
-trait SharedArray[@specialized(Elements) E]
+trait SharedArray[@specialized(ItemTypes) E]
 //	extends mutable.IndexedSeq[E] with mutable.IndexedSeqLike[E, SharedArray[E]]
 //			with MutableSeq[E] with MutableSliceLike[E, SharedArray[E]] with ArrayView[E] with ArrayViewLike[E, SharedArray[E]]
 //			with SpecializedTraversableTemplate[E, SharedArray]
@@ -120,13 +122,22 @@ object SharedArray extends ArrayViewFactory[SharedArray] {
 			new MutableArrayView[E](array, 0, array.length)
 	}
 
+	/** Creates an empty sequence backed by an array of the specified size. The array component type and specialization
+	  * of created instance will be based solely on the implicit value of `RuntimeType[E]`. This is similar to creating
+	  * an empty array buffer with a predefined capacity: as appending to the new sequence will use the backing
+	  * array without copying, with precise information about the target size it is possible to avoid repeated reallocation.
+	  */
+	def ofCapacity[E :RuntimeType](capacity :Int) :SharedArray[E] =
+		shared(new ArrayBounds[E](RuntimeType.arrayOf[E](capacity), 0, 0))
+
+
 
 	@inline
-	final override protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): SharedArray[E] =
+	final override protected def using[@specialized(ItemTypes) E](array: Array[E], offset: Int, length: Int): SharedArray[E] =
 		new MutableArrayView[E](array, offset, length)
 
 
-	private[seqs] class MutableArrayView[@specialized(Elements) E](protected[this] final val array :Array[E], protected[palimpsest] final val headIdx :Int, final val length :Int)
+	private[seqs] class MutableArrayView[@specialized(ItemTypes) E](protected[this] final val array :Array[E], protected[palimpsest] final val headIdx :Int, final val length :Int)
 		extends IterableFoundation[E, SharedArray[E]] with SharedArray[E]
 	{
 		override protected def section(from: Int, until: Int): SharedArray[E] =

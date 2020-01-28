@@ -21,7 +21,7 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
   * from specialization and delegates even more of them directly to their iterator counterparts.
   * @author Marcin Mościcki
   */
-trait FitIterable[@specialized(Elements) +E]
+trait FitIterable[@specialized(ItemTypes) +E]
 	extends FitTraversableOnce[E] with Iterable[E] with SpecializableIterable[E, FitIterable]
 	   with IterableSpecialization[E, FitIterable[E]] with CloneableIterable[E, FitIterable[E]]
 {
@@ -34,7 +34,7 @@ trait FitIterable[@specialized(Elements) +E]
 
 
 object FitIterable extends InterfaceIterableFactory[FitIterable] {
-	override protected[this] type RealType[@specialized(Elements) X] = FitList[X]
+	override protected[this] type RealType[@specialized(ItemTypes) X] = FitList[X]
 
 	override protected[this] def default :FitIterableFactory[FitList] = FitList
 
@@ -45,7 +45,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		case _ => None
 	}
 
-	def from[@specialized(Elements) E](newIterator :() => FitIterator[E]) :FitIterable[E] = new FromIterator(newIterator)
+	def from[@specialized(ItemTypes) E](newIterator :() => FitIterator[E]) :FitIterable[E] = new FromIterator(newIterator)
 
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitIterable[_], E, FitIterable[E]]): CanBuildFrom[FitIterable[_], E, FitIterable[E]] =
@@ -82,7 +82,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	}
 
 
-	class SpecializedFilter[@specialized(Elements) +E, +Repr](
+	class SpecializedFilter[@specialized(ItemTypes) +E, +Repr](
 			 protected[this] val iterable :IterableSpecialization[E, Repr],
 			 protected[this] val predicate :E=>Boolean)
 		extends FilterIterable[E, Repr]
@@ -99,7 +99,7 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 
 
-	abstract class ElementSerializer[@specialized(Elements) E] {
+	abstract class ElementSerializer[@specialized(ItemTypes) -E] {
 		def apply(os :ObjectOutputStream, elem :E) :Unit
 	}
 
@@ -107,19 +107,20 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		type OOS = ObjectOutputStream
 		type S[E] = ElementSerializer[E]
 
-		override def forByte :S[Byte] = (os :OOS, elem :Byte) => os.writeByte(elem)
-		override def forShort :S[Short] = (os :OOS, elem :Short) => os.writeShort(elem)
-		override def forChar :S[Char] = (os :OOS, elem :Char) => os.writeChar(elem)
-		override def forInt :S[Int] = (os :OOS, elem :Int) => os.writeInt(elem)
-		override def forLong :S[Long] = (os :OOS, elem :Long) => os.writeLong(elem)
-		override def forFloat :S[Float] = (os :OOS, elem :Float) => os.writeFloat(elem)
-		override def forDouble :S[Double] = (os :OOS, elem :Double) => os.writeDouble(elem)
-		override def forBoolean :S[Boolean] = (os :OOS, elem :Boolean) => os.writeBoolean(elem)
-		override def forUnit :S[Unit] = (os :OOS, elem :Unit) => ()
+		override val forByte :S[Byte] = (os :OOS, elem :Byte) => os.writeByte(elem)
+		override val forShort :S[Short] = (os :OOS, elem :Short) => os.writeShort(elem)
+		override val forChar :S[Char] = (os :OOS, elem :Char) => os.writeChar(elem)
+		override val forInt :S[Int] = (os :OOS, elem :Int) => os.writeInt(elem)
+		override val forLong :S[Long] = (os :OOS, elem :Long) => os.writeLong(elem)
+		override val forFloat :S[Float] = (os :OOS, elem :Float) => os.writeFloat(elem)
+		override val forDouble :S[Double] = (os :OOS, elem :Double) => os.writeDouble(elem)
+		override val forBoolean :S[Boolean] = (os :OOS, elem :Boolean) => os.writeBoolean(elem)
+		override val forUnit :S[Unit] = (os :OOS, elem :Unit) => ()
+		override val forNothing :S[Nothing] = forUnit //(os :OOS, elem :Nothing) => ()
 		override def forRef[E: RuntimeType]: S[E] = (os :OOS, elem :E) => os.writeObject(elem)
 	}
 
-	abstract class ElementDeserializer[@specialized(Elements) E] {
+	abstract class ElementDeserializer[@specialized(ItemTypes) +E] {
 		def apply(is :ObjectInputStream) :E
 	}
 
@@ -127,15 +128,16 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 		type OIS = ObjectInputStream
 		type D[E] = ElementDeserializer[E]
 
-		override def forByte :D[Byte] = (is :OIS) => is.readByte
-		override def forShort :D[Short] = (is :OIS) => is.readShort
-		override def forChar :D[Char] = (is :OIS) => is.readChar
-		override def forInt :D[Int] = (is :OIS) => is.readInt
-		override def forLong :D[Long] = (is :OIS) => is.readLong
-		override def forFloat :D[Float] = (is :OIS) => is.readFloat
-		override def forDouble :D[Double] = (is :OIS) => is.readDouble
-		override def forBoolean :D[Boolean] = (is :OIS) => is.readBoolean
-		override def forUnit :D[Unit] = (is :OIS) => ()
+		override val forByte :D[Byte] = (is :OIS) => is.readByte
+		override val forShort :D[Short] = (is :OIS) => is.readShort
+		override val forChar :D[Char] = (is :OIS) => is.readChar
+		override val forInt :D[Int] = (is :OIS) => is.readInt
+		override val forLong :D[Long] = (is :OIS) => is.readLong
+		override val forFloat :D[Float] = (is :OIS) => is.readFloat
+		override val forDouble :D[Double] = (is :OIS) => is.readDouble
+		override val forBoolean :D[Boolean] = (is :OIS) => is.readBoolean
+		override val forUnit :D[Unit] = (is :OIS) => ()
+		override val forNothing :D[Nothing] = (is :OIS) => throw new NoSuchElementException("ElementDeserializer[Nothing](_)")
 		override def forRef[@specialized E: RuntimeType]: D[E] = (is :OIS) => is.readObject.asInstanceOf[E]
 	}
 
@@ -147,12 +149,13 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	  * of this serializer and returning it.
 	  * @tparam E element type of the serialized collection
 	  */
-	trait IterableSerializer[@specialized(Elements) E] extends Serializable {
+	trait IterableSerializer[@specialized(ItemTypes) E, This <: FitIterable[E]] extends Serializable {
 		import java.io.{ObjectInputStream => IS, ObjectOutputStream => OS}
-		protected[this] var iterable :FitIterable[E]
-		protected[this] def builder :FitBuilder[E, FitIterable[E]]
+		@transient
+		protected[this] var self :This
+		protected[this] def builder :FitBuilder[E, This]
 
-		private def writeObject(os :OS) :Unit = writeIterable(os, iterable)
+		private def writeObject(os :OS) :Unit = writeIterable(os, self)
 
 		protected[this] def writeIterable(os :OS, iterable :FitIterable[E]) :Unit = {
 			os.defaultWriteObject()
@@ -169,9 +172,10 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 			}
 		}
 
-		private def readObject(is :IS) :Unit = iterable = readIterable(is)
+		private def readObject(is :IS) :Unit = self = readIterable(is)
 
-		protected[this] def readIterable(is :IS) :FitIterable[E] = {
+		//todo: check if this gets specialized!
+		protected[this] def readIterable(is :IS) :This = {
 			is.defaultReadObject()
 			val deserializer = ElementDeserializer[E]()
 			val b = builder
@@ -184,14 +188,14 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 			b.result()
 		}
 
-		private def readResolve() :AnyRef = iterable
+		private def readResolve() :AnyRef = self
 	}
 
 
 
 
 
-	private[palimpsest] class FromIterator[@specialized(Elements) +E](newIterator :() => FitIterator[E]) extends FitIterable[E] {
+	private[palimpsest] class FromIterator[@specialized(ItemTypes) +E](newIterator :() => FitIterator[E]) extends FitIterable[E] {
 		@unspecialized
 		override protected def reverseForeach(f :E => Unit) :Unit = reversed.foreach(f)
 
@@ -251,7 +255,7 @@ trait StableIterable[+E]
 
 
 object StableIterable extends InterfaceIterableFactory[StableIterable] {
-	override protected[this] type RealType[@specialized(Elements) X] = ArrayPlus[X]
+	override protected[this] type RealType[@specialized(ItemTypes) X] = ArrayPlus[X]
 
 	override protected def default :FitIterableFactory[RealType] = ArrayPlus
 
@@ -290,7 +294,7 @@ trait MutableIterable[E]
 
 
 object MutableIterable extends InterfaceIterableFactory[MutableIterable] {
-	override protected[this] type RealType[@specialized(Elements) X] = SharedArray[X]
+	override protected[this] type RealType[@specialized(ItemTypes) X] = SharedArray[X]
 
 	override protected def default :FitIterableFactory[RealType] = SharedArray
 

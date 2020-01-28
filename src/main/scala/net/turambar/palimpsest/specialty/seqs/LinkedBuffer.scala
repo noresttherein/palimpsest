@@ -17,7 +17,7 @@ import scala.compat.Platform.ConcurrentModificationException
 /**
   * @author Marcin Mościcki
   */
-class LinkedBuffer[@specialized(Elements) E] private[seqs] (
+class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 		hat :NonEmpty[E],
 		private var coccyx :NonEmpty[E],
 		private[this] var len :Int)
@@ -297,7 +297,7 @@ object LinkedBuffer extends SpecializableIterableFactory[LinkedBuffer] {
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedBuffer[_], E, LinkedBuffer[E]]): CanBuildFrom[LinkedBuffer[_], E, LinkedBuffer[E]] =
 		fit.cbf
 
-	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, LinkedBuffer[E]] = ???
+	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, LinkedBuffer[E]] = ???
 
 //	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedBuffer[E]] = ???
 

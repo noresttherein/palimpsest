@@ -5,7 +5,7 @@ import scala.collection.generic.{CanBuildFrom, GenericTraversableTemplate}
 import scala.collection.{immutable, IndexedSeqLike, LinearSeq, LinearSeqLike}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables._
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, RuntimeType}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 
@@ -17,7 +17,7 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 /** An immutable indexed sequence specialized on its element type.
   * @author Marcin Mościcki
   */
-trait StableSeq[@specialized(Elements) +E]
+trait StableSeq[@specialized(ItemTypes) +E]
 	extends immutable.Seq[E] //with IsStable[E] with StableIterableTemplate[E, StableSeq[E]]
 	   with FitSeq[E] with SeqTemplate[E, StableSeq[E]] with IterableSpecialization[E, StableSeq[E]]
 	   with SpecializableIterable[E, StableSeq]
@@ -50,13 +50,13 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 	@inline def acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.of[E]
 
-	override def one[@specialized(Elements) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
+	override def one[@specialized(ItemTypes) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
 
-	def two[@specialized(Elements) E](first :E, second :E) :StableSeq[E] = new Seq2(first, second)
+	def two[@specialized(ItemTypes) E](first :E, second :E) :StableSeq[E] = new Seq2(first, second)
 
 
 
-	protected[this] type RealType[@specialized(Elements) X] = StableArray[X]
+	protected[this] type RealType[@specialized(ItemTypes) X] = StableArray[X]
 	protected[this] final def default :FitIterableFactory[StableArray] = StableArray
 
 
@@ -67,7 +67,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 
 
-	private[seqs] class EmptySeq[@specialized(Elements) +E]
+	private[seqs] class EmptySeq[@specialized(ItemTypes) +E]
 		extends SeqFoundation[E, StableIndexedSeq[E]]
 		   with FitIndexedSeq[E] with FitIndexedSeqTemplate[E, StableIndexedSeq[E]]
 		   with StableSeq[E] with StableIndexedSeq[E] with EmptySeqTemplate[E, StableIndexedSeq[E]]
@@ -80,7 +80,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 
 	/** Specialized singleton sequence (small wrapper over a single element). */
-	private[seqs] class Seq1[@specialized(Elements) +E](override val head :E)
+	private[seqs] class Seq1[@specialized(ItemTypes) +E](override val head :E)
 		extends SeqFoundation[E, StableIndexedSeq[E]]
 		   with FitIndexedSeq[E] with FitIndexedSeqTemplate[E, StableIndexedSeq[E]]
 		   with StableSeq[E] with StableIndexedSeq[E] with SingletonSpecialization[E, StableIndexedSeq[E]]
@@ -134,7 +134,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 
 	/** Specialized two-element sequence. */
-	private[seqs] class Seq2[@specialized(Elements) +E](override val head :E, override val last :E)
+	private[seqs] class Seq2[@specialized(ItemTypes) +E](override val head :E, override val last :E)
 		extends SeqFoundation[E, StableIndexedSeq[E]]
 			with FitIndexedSeq[E] with FitIndexedSeqTemplate[E, StableIndexedSeq[E]]
 			with StableSeq[E] with StableIndexedSeq[E] with DoubletonSpecialization[E, StableIndexedSeq[E]]

@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
@@ -127,7 +127,7 @@ trait SingletonTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnow
 /**
   * @author Marcin Mościcki
   */
-trait SingletonSpecialization[@specialized(Elements) +E, +Repr] extends IterableSpecialization[E, Repr] with SingletonTemplate[E, Repr] {
+trait SingletonSpecialization[@specialized(ItemTypes) +E, +Repr] extends IterableSpecialization[E, Repr] with SingletonTemplate[E, Repr] {
 
 	protected[this] override def forHead[@specialized(Boolean, Unit) T](f :E => T) :T = f(head)
 

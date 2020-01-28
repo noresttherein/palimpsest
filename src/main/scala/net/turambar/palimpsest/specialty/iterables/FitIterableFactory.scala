@@ -1,10 +1,10 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.{iterables, Elements, FitBuilder, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.{iterables, ItemTypes, FitBuilder, RuntimeType, Specialize}
 import net.turambar.palimpsest.specialty.FitBuilder.RetardedFitBuilder
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun0, Fun1, Fun1Vals}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.Specialize.SpecializeIndividually
+import net.turambar.palimpsest.specialty.Specialize.{SpecializedVals, SpecializeIndividually}
 
 import scala.collection.generic.{CanBuildFrom, GenTraversableFactory}
 
@@ -20,7 +20,7 @@ import scala.collection.generic.{CanBuildFrom, GenTraversableFactory}
   * @tparam S type constructor for specialized collections.
   * @author Marcin Mościcki
   */
-abstract class FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
+abstract class FitIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends GenTraversableFactory[S] with FitCompanion[S]
 { factory =>
 
@@ -29,17 +29,17 @@ abstract class FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIt
 
 	override def of[E :RuntimeType] :S[E] = NewEmpty()
 
-	override def empty[@specialized(Elements) E] :S[E] = newBuilder[E].result()
+	override def empty[@specialized(ItemTypes) E] :S[E] = newBuilder[E].result()
 
 	private[this] final val NewEmpty :Specialize[S] = new Specialize[S] {
 		override def specialized[@specialized E : RuntimeType]: S[E] = empty[E]
 	}
 
 
-	override def one[@specialized(Elements) E](singleton :E) :S[E] = (newBuilder[E] += singleton).result()
+	override def one[@specialized(ItemTypes) E](singleton :E) :S[E] = (newBuilder[E] += singleton).result()
 
 
-	override def apply[@specialized(Elements) E](elems: E*): S[E] =
+	override def apply[@specialized(ItemTypes) E](elems: E*): S[E] =
 		if (elems.isEmpty) empty
 		else (newBuilder[E] ++= elems).result()
 
@@ -59,7 +59,7 @@ abstract class FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIt
 
 
 
-	override def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E] = {
+	override def fill[@specialized(ItemTypes) E](n: Int)(elem: => E): S[E] = {
 		var i=0
 		val builder = newBuilder[E]
 		while (i<n) { builder += elem; i +=1 }
@@ -110,7 +110,7 @@ abstract class FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIt
 	  * build a specialized instance of `To =:= S[E]`.
       * @tparam E specialized element type of target collection.
 	  */
-	class CanBuildSpecialized[@specialized(Elements) E](implicit override final val specialization :RuntimeType[E])
+	class CanBuildSpecialized[@specialized(ItemTypes) E](implicit override final val specialization :RuntimeType[E])
 		extends GenericCanBuildFrom[E] with CanFitFrom[S[_], E, S[E]]
 	{ outer =>
 
@@ -161,17 +161,10 @@ abstract class FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIt
 
 
 
-	private[this] final val CBF = new SpecializeIndividually[CFF] {
-		override val forByte = new CanBuildSpecialized[Byte]
-		override val forShort = new CanBuildSpecialized[Short]
-		override val forChar = new CanBuildSpecialized[Char]
-		override val forInt = new CanBuildSpecialized[Int]
-		override val forLong = new CanBuildSpecialized[Long]
-		override val forFloat = new CanBuildSpecialized[Float]
-		override val forDouble = new CanBuildSpecialized[Double]
-		override val forBoolean = new CanBuildSpecialized[Boolean]
-		override val forUnit = new CanBuildSpecialized[Unit]
+	private[this] final val CBF = new SpecializedVals[CFF] {
 		override def forRef[E :RuntimeType] = canFitFromRef[E]
+
+		override def specialized[@specialized E :RuntimeType] = new CanBuildSpecialized[E]
 	}
 
 	/** Default `CanFitFrom` used for reference types and erased types. */
@@ -197,7 +190,7 @@ abstract class FitIterableFactory[S[@specialized(Elements) X] <: SpecializableIt
   * for all primitives which should take precedence over the generic implicit inherited from `FitIterableFactory`.
   * @tparam S type constructor for specialized collections.
   */
-abstract class SpecializableIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
+abstract class SpecializableIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends FitIterableFactory[S]
 {
 	/** This method needs to be implemented in each final companion object independently in order to take precedence
@@ -223,12 +216,12 @@ abstract class SpecializableIterableFactory[S[@specialized(Elements) X] <: Speci
 /** Base class for companion objects of specialized 'interface' traits which delegate all constructor (and builder)
   * methods eventually to the companion of the default implementation type.
   */
-abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: SpecializableIterable[X, S] with FitIterable[X]]
+abstract class InterfaceIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with FitIterable[X]]
 	extends SpecializableIterableFactory[S]
 {
 	
 	/** The type constructor for the generic collection class used as actual implementation for `S[X]`. */
-	protected[this] type RealType[@specialized(Elements) X] <: S[X] with SpecializableIterable[X, RealType]
+	protected[this] type RealType[@specialized(ItemTypes) X] <: S[X] with SpecializableIterable[X, RealType]
 
 	/** The generic companion object to the implementation collection. This method is used to initialize a field
 	  * of this instance, ergo implementations must remain a method (and not a `val`) and must return a constant
@@ -243,17 +236,17 @@ abstract class InterfaceIterableFactory[S[@specialized(Elements) X] <: Specializ
 
 	@inline final override def of[E :RuntimeType] :S[E] = Impl.of[E]
 	
-	@inline final override def empty[@specialized(Elements) E]: S[E] = Impl.empty[E]
+	@inline final override def empty[@specialized(ItemTypes) E]: S[E] = Impl.empty[E]
 
-	@inline final override def newBuilder[@specialized(Elements) E]: FitBuilder[E, S[E]] = Impl.newBuilder[E]
+	@inline final override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, S[E]] = Impl.newBuilder[E]
 
 	@inline final override def builder[E: RuntimeType]: FitBuilder[E, S[E]] = Impl.builder[E]
 
-	override def one[@specialized(Elements) E](elem :E) :S[E] = Impl.one(elem)
+	override def one[@specialized(ItemTypes) E](elem :E) :S[E] = Impl.one(elem)
 
-	@inline final override def apply[@specialized(Elements) E](elems :E*) :S[E] = Impl(elems : _*)
+	@inline final override def apply[@specialized(ItemTypes) E](elems :E*) :S[E] = Impl(elems : _*)
 
-	@inline final override def fill[@specialized(Elements) E](n: Int)(elem: => E): S[E] = Impl.fill(n)(elem)
+	@inline final override def fill[@specialized(ItemTypes) E](n: Int)(elem: => E): S[E] = Impl.fill(n)(elem)
 
 	@inline final override def tabulate[@specialized(Fun1Vals) E](n: Int)(f: Int => E): S[E] = Impl.tabulate(n)(f)
 

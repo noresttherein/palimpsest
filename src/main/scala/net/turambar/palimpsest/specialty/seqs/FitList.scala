@@ -21,7 +21,7 @@ import net.turambar.palimpsest.specialty.RuntimeType.Specialized
   *
   * @author Marcin Mościcki
   */
-class FitList[@specialized(Elements) +E] private[seqs] (
+class FitList[@specialized(ItemTypes) +E] private[seqs] (
 		override val length :Int,
 		start :Link[E]
 	) extends SeqFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
@@ -291,14 +291,14 @@ object FitList extends SpecializableIterableFactory[FitList] {
 
 	final val Empty = empty[Nothing]
 
-	override def empty[@specialized(Elements) E]: FitList[E] = new FitList(0, Terminus)
+	override def empty[@specialized(ItemTypes) E]: FitList[E] = new FitList(0, Terminus)
 	
 //	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, FitList[E]] =
 //		new FitListBuilder[E]
 	
-	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, FitList[E]] = new FitListBuilder[E]
+	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, FitList[E]] = new FitListBuilder[E]
 
-	def newReverseBuilder[@specialized(Elements) E] :FitBuilder[E, FitList[E]] = new ReverseFitListBuilder[E]
+	def newReverseBuilder[@specialized(ItemTypes) E] :FitBuilder[E, FitList[E]] = new ReverseFitListBuilder[E]
 	
 	def reverseBuilder[E :RuntimeType] :ReverseFitListBuilder[E] = ReverseBuilder()
 	
@@ -307,7 +307,7 @@ object FitList extends SpecializableIterableFactory[FitList] {
 	}
 	
 
-	private[seqs] sealed trait Link[@specialized(Elements) +E] {
+	private[seqs] sealed trait Link[@specialized(ItemTypes) +E] {
 		def head :E
 		def tail :Link[E]
 	}
@@ -317,12 +317,12 @@ object FitList extends SpecializableIterableFactory[FitList] {
 		override def tail: Link[Nothing] = throw new UnsupportedOperationException("FitList().tail")
 	}
 	
-	private[seqs] final class FullLink[@specialized(Elements) E](override val head :E, private[FitList] var t :Link[E]=Terminus) extends Link[E] {
+	private[seqs] final class FullLink[@specialized(ItemTypes) E](override val head :E, private[FitList] var t :Link[E]=Terminus) extends Link[E] {
 		override def tail = t
 	}
 	
 	
-	private[seqs] class FitListIterator[@specialized(Elements) E] private[seqs]
+	private[seqs] class FitListIterator[@specialized(ItemTypes) E] private[seqs]
 			(private[this] final var contents :Link[E], max :Int)
 		extends CountdownIterator[E](max) with FitIterator[E]
 	{
@@ -351,7 +351,7 @@ object FitList extends SpecializableIterableFactory[FitList] {
 	}
 	
 	
-	private[seqs] class FitListBuilder[@specialized(Elements) E] extends FitBuilder[E, FitList[E]] {
+	private[seqs] class FitListBuilder[@specialized(ItemTypes) E] extends FitBuilder[E, FitList[E]] {
 		private[this] var length :Int=0
 		private[this] var tail :FullLink[E] = new FullLink(RuntimeType[E].default)
 		private[this] var head :FullLink[E] = tail
@@ -386,7 +386,7 @@ object FitList extends SpecializableIterableFactory[FitList] {
 		}
 	}
 	
-	private[seqs] class ReverseFitListBuilder[@specialized(Elements) E] extends FitBuilder[E, FitList[E]] {
+	private[seqs] class ReverseFitListBuilder[@specialized(ItemTypes) E] extends FitBuilder[E, FitList[E]] {
 		private[this] var length :Int=0
 		private[this] var head :Link[E] = Terminus
 		

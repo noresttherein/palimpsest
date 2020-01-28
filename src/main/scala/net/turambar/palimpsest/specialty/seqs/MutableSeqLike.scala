@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.Subtractable
 import scala.collection.{GenTraversableOnce, mutable}
 
-import net.turambar.palimpsest.specialty.{Elements, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType}
 
 /**
   * @author Marcin Mościcki

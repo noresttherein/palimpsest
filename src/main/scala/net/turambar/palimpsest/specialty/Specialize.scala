@@ -158,6 +158,9 @@ object Specialize {
 		/** Invoked from `this[E]()` if `E` is specified to be `Unit` by the implicit argument to [[SpecializeIndividually#apply]]. */
 		def forUnit :R[Unit]
 
+		/** Invoked from `this[E]()` if `E` is specified to be `Nothing` by the implicit argument to [[SpecializeIndividually#apply]]. */
+		def forNothing :R[Nothing]
+
 		/** Invoked from `this[E]()` if `E` is either a reference type or is erased and boxed at the point of calling.
 		  * Implicit argument gives all available information about type `E`.
 		  */
@@ -199,6 +202,8 @@ object Specialize {
 
 		override def forUnit :R[Unit] = specialized
 
+		override def forNothing :R[Nothing] = specialized[Nothing]
+
 		override def forRef[E :RuntimeType] :R[E] = generic[E]
 
 		/** Default target for all `for`''T'' methods. Directly invokes non-specialized method `generic`. */
@@ -223,6 +228,8 @@ object Specialize {
 		override final val forChar = specialized[Char]
 		override final val forBoolean = specialized[Boolean]
 		override final val forUnit = specialized[Unit]
+		override final val forNothing = specialized[Nothing]
+		override def forRef[E :RuntimeType] :R[E] = specialized[E]
 	}
 	
 }

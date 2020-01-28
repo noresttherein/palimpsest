@@ -14,7 +14,7 @@ import scala.collection.generic.CanBuildFrom
 
 
 /** Specialized version of [[mutable.Builder]] (for any result type). */
-trait FitBuilder[@specialized(Elements) -E, +To] extends mutable.Builder[E, To] with SpecializedGeneric {
+trait FitBuilder[@specialized(ItemTypes) -E, +To] extends mutable.Builder[E, To] with SpecializedGeneric {
 //	protected[this] def specialization :Specialized[E] = Specialized[E]
 
 
@@ -377,7 +377,7 @@ object FitBuilder {
 	  * @tparam E declared element type of the built collection.
 	  * @tparam To built collection type.
 	  */
-	class OptimisticFitBuilder[@specialized(Elements) O <: E, E, To <: Traversable[E]](optimist :FitBuilder[O, To], pessimist :FitBuilder[E, To])
+	class OptimisticFitBuilder[@specialized(ItemTypes) O <: E, E, To <: Traversable[E]](optimist :FitBuilder[O, To], pessimist :FitBuilder[E, To])
 		extends FitBuilder[E, To]
 	{
 		private[this] var target :FitBuilder[E, To] = try {

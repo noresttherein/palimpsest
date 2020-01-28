@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, FitBuilder, Sure}
 import net.turambar.palimpsest.specialty.iterators.FitIterator.MappedIterator
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableFoundation
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun2}

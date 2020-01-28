@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.iterators
 
-import net.turambar.palimpsest.specialty.{?, iterators, Blank, Elements, FitTraversableOnce, FunctorLike, RuntimeType, Sure}
+import net.turambar.palimpsest.specialty.{?, iterators, Blank, ItemTypes, FitTraversableOnce, FunctorLike, RuntimeType, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableSpecialization}
 import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq, StableArray}
@@ -86,7 +86,7 @@ trait IteratorTemplate[+E] extends Iterator[E] with FitTraversableOnce[E] with F
 
 	override def map[@specialized(Fun1Vals) O](f :E => O) :FitIterator[O] = new MappedIterator[E, O](f)(this)
 
-	override def flatMap[@specialized(Elements) B](f :E => GenTraversableOnce[B]) :FitIterator[B] =
+	override def flatMap[@specialized(ItemTypes) B](f :E => GenTraversableOnce[B]) :FitIterator[B] =
 		if (!hasNext)
 			FitIterator.empty[B]
 		else //todo: will mapHead specialize on the argument if result type is a reference?
@@ -146,7 +146,7 @@ trait IteratorTemplate[+E] extends Iterator[E] with FitTraversableOnce[E] with F
   *
   * @author Marcin Mościcki
   */
-trait FitIterator[@specialized(Elements) +E]
+trait FitIterator[@specialized(ItemTypes) +E]
 	extends BufferedIterator[E] with FitTraversableOnce[E] with IteratorTemplate[E]//with FilterMonadic[E, FitIterator[E]]
 { self =>
 
@@ -357,7 +357,7 @@ trait FitIterator[@specialized(Elements) +E]
 
 
 /** An iterator allowing update of the iterated collection. */
-trait MutableIterator[@specialized(Elements) E] extends FitIterator[E] {
+trait MutableIterator[@specialized(ItemTypes) E] extends FitIterator[E] {
 
 	/** Changes the element that would be returned by the call to [[FitIterator.head]].
 	  * The iterator will remain at the same position. This will update the underlying collection and a subsequent call
@@ -389,25 +389,25 @@ object FitIterator {
 	/** An empty iterator, specialized for its declared element type.
 	  * @see [[FitIterator.Empty]] an empty iterator with erased element type.
 	  */
-	def empty[@specialized(Elements) E] :FitIterator[E] = new EmptyIterator[E] //Empty
+	def empty[@specialized(ItemTypes) E] :FitIterator[E] = new EmptyIterator[E] //Empty
 
 	/** An iterator over a single element. */
-	def one[@specialized(Elements) E](value :E) :FitIterator[E] = new SingletonIterator[E](value)
+	def one[@specialized(ItemTypes) E](value :E) :FitIterator[E] = new SingletonIterator[E](value)
 
 	/** An iterator over two values. */
-	def two[@specialized(Elements) E](first :E, second :E) :FitIterator[E] = new DoubletonIterator[E](first, second)
+	def two[@specialized(ItemTypes) E](first :E, second :E) :FitIterator[E] = new DoubletonIterator[E](first, second)
 
 
 	/** An iterator which returns the results of recursively applying the given function to its own result. */
 	def iterate[@specialized(Fun1) E](f :E => E)(head :E) :FitIterator[E] = new RecursiveIterator[E](head, f)
 
 	/** An iterator over `times` copies of `elem`. */
-	def repeated[@specialized(Elements) E](elem :E, times :Int) :FitIterator[E] = new ConstIterator[E](elem, times)
+	def repeated[@specialized(ItemTypes) E](elem :E, times :Int) :FitIterator[E] = new ConstIterator[E](elem, times)
 
 
 
 	/** Wraps the given iterator in an erased `FitIterator` unless it already is a `FitIterator`. */
-	def adapt[@specialized(Elements) E](iter :Iterator[E]) :FitIterator[E] = iter match {
+	def adapt[@specialized(ItemTypes) E](iter :Iterator[E]) :FitIterator[E] = iter match {
 		case spec :FitIterator[_] => spec.asInstanceOf[FitIterator[E]]
 		case _ => new ErasedIterator(iter.buffered)
 	}
@@ -434,7 +434,7 @@ object FitIterator {
 	/** Implicit conversion from `FitIterator[E]` which adds a concatenation operation `:++`. Note that standard
 	  * iterator's method `++` is generic with a lower bound for element type which makes it impossible to specialize.
 	  */
-	implicit class IteratorConcatenation[@specialized(Elements) E](first :FitIterator[E]) {
+	implicit class IteratorConcatenation[@specialized(ItemTypes) E](first :FitIterator[E]) {
 		def :++(andThen: =>GenTraversableOnce[E]) :FitIterator[E] = new ConcatIterator[E](first, andThen)
 	}
 
@@ -442,7 +442,7 @@ object FitIterator {
 
 
 
-	private class EmptyIterator[@specialized(Elements) E] extends FastSizeIterator[E] with FitIterator[E] {
+	private class EmptyIterator[@specialized(ItemTypes) E] extends FastSizeIterator[E] with FitIterator[E] {
 		override def size = 0
 		override def length = 0
 		override def ofAtLeast(items :Int) :Boolean = items <= 0
@@ -466,7 +466,7 @@ object FitIterator {
 		override def traverse(f :E => Unit) :Unit = ()
 
 		override def map[@specialized(Fun1Vals) O](f :E => O) :FitIterator[O] = FitIterator.empty[O]
-		override def flatMap[@specialized(Elements) O](f :E => GenTraversableOnce[O]) :FitIterator[O] = FitIterator.empty[O]
+		override def flatMap[@specialized(ItemTypes) O](f :E => GenTraversableOnce[O]) :FitIterator[O] = FitIterator.empty[O]
 
 		override def copyToArray[B >: E](xs: Array[B], start: Int, len: Int): Unit = ()
 
@@ -484,7 +484,7 @@ object FitIterator {
 
 
 
-	private class SingletonIterator[@specialized(Elements) +E](val head :E) extends FastSizeIterator[E] with FitIterator[E] {
+	private class SingletonIterator[@specialized(ItemTypes) +E](val head :E) extends FastSizeIterator[E] with FitIterator[E] {
 
 		private[this] var left = 1
 		override def skip() :Unit = left = 0
@@ -522,7 +522,7 @@ object FitIterator {
 
 
 
-	private final class DoubletonIterator[@specialized(Elements) +E](first :E, second :E) extends CountdownIterator[E](2) with FitIterator[E] {
+	private final class DoubletonIterator[@specialized(ItemTypes) +E](first :E, second :E) extends CountdownIterator[E](2) with FitIterator[E] {
 		override def head: E = limit match {
 			case 2 => first
 			case 1 => second
@@ -538,7 +538,7 @@ object FitIterator {
 
 
 
-	private class ConstIterator[@specialized(Elements) +E](override final val head :E, count :Int)
+	private class ConstIterator[@specialized(ItemTypes) +E](override final val head :E, count :Int)
 		extends CountdownIterator[E](count) with FitIterator[E]
 	{
 		override def next(): E = { limit-= 1; head }
@@ -592,7 +592,7 @@ object FitIterator {
 	/** Iterator implementing a `take` operation on another iterator. Returns elements of `source` for as long as
 	  * next element exists or a predefined element limit has been reached.
 	  */
-	private[iterators] class LimitedIterator[@specialized(Elements) +E](source :FitIterator[E], private[this] var limit :Int)
+	private[iterators] class LimitedIterator[@specialized(ItemTypes) +E](source :FitIterator[E], private[this] var limit :Int)
 		extends BaseIterator[E] with FitIterator[E]
 	{
 		override def head: E = source.head
@@ -770,7 +770,7 @@ object FitIterator {
 
 
 
-	private[iterators] final class ConcatIterator[@specialized(Elements) +E](first :FitIterator[E], andThen: =>GenTraversableOnce[E])
+	private[iterators] final class ConcatIterator[@specialized(ItemTypes) +E](first :FitIterator[E], andThen: =>GenTraversableOnce[E])
 		extends BaseIterator[E] with FitIterator[E]
 	{
 		private[this] var second :FitIterator[E] = _

@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, IndexedSeqLike}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{arrayFill, ItemTypes, FitTraversableOnce, RuntimeType}
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, SpecializableIterable}
 
 import scala.annotation.unspecialized
@@ -25,7 +25,7 @@ trait FitBufferLike[E, +Repr<:FitBufferLike[E, Repr]]
   *
   * @author Marcin Mościcki
   */
-trait FitBuffer[@specialized(Elements) E]
+trait FitBuffer[@specialized(ItemTypes) E]
 	extends mutable.Buffer[E] with mutable.BufferLike[E, FitBuffer[E]]
 	   with MutableSeq[E] with ValSeqLike[E, FitBuffer[E]] with CloneableIterable[E, FitBuffer[E]]
 	   with SpecializableIterable[E, FitBuffer]
@@ -112,13 +112,13 @@ trait FitBuffer[@specialized(Elements) E]
   */
 object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqFactory[FitBuffer] {
 
-	override protected[this] type RealType[@specialized(Elements) X] = SharedArrayBuffer[X]
+	override protected[this] type RealType[@specialized(ItemTypes) X] = SharedArrayBuffer[X]
 	override protected[this] def default: FitIterableFactory[SharedArrayBuffer] = SharedArrayBuffer
 
-	@inline def emptyOf[E :RuntimeType](sizeHint :Int) :FitBuffer[E] = SharedArrayBuffer.emptyOf[E](sizeHint)
+	@inline def emptyOf[E :RuntimeType](sizeHint :Int) :FitBuffer[E] = SharedArrayBuffer.ofCapacity[E](sizeHint)
 
 
-	@inline def sized[E <: AnyVal :RuntimeType](size :Int) :FitBuffer[E] = SharedArrayBuffer.sized(size)
+	@inline def sized[E <: AnyVal :RuntimeType](size :Int) :FitBuffer[E] = SharedArrayBuffer.ofSize(size)
 
 	@inline def fill[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :FitBuffer[E] =
 		SharedArrayBuffer.fill(size, value)

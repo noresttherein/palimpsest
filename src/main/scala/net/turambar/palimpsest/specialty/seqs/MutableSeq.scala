@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, Elements, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{arrayFill, ItemTypes, FitTraversableOnce, RuntimeType}
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, MutableIterable, SpecializableIterable}
 
 import scala.annotation.unspecialized
@@ -13,7 +13,7 @@ import scala.annotation.unspecialized
 /**
   * @author Marcin Mościcki
   */
-trait MutableSeq[@specialized(Elements) E]
+trait MutableSeq[@specialized(ItemTypes) E]
 	extends mutable.Seq[E] with mutable.SeqLike[E, MutableSeq[E]] //with IsMutable[E]
 	   with ValSeq[E] with ValSeqLike[E, MutableSeq[E]] with SpecializableIterable[E, MutableSeq]
 	   with MutableIterable[E] with CloneableIterable[E, MutableSeq[E]]
@@ -95,15 +95,15 @@ trait MutableSeq[@specialized(Elements) E]
 
 
 object MutableSeq extends InterfaceIterableFactory[MutableSeq] {
-	protected[this] type RealType[@specialized(Elements) X] = SharedArray[X]
+	protected[this] type RealType[@specialized(ItemTypes) X] = SharedArray[X]
 
 	override protected[this] final def default: FitIterableFactory[SharedArray] = SharedArray
 
 	def sized[E <: AnyVal :RuntimeType](size :Int) :MutableSeq[E] =
-		SharedArray(RuntimeType.arrayFor[E](size))
+		SharedArray(RuntimeType.arrayOf[E](size))
 
 	def fill[E :RuntimeType](size :Int, value :E) :MutableSeq[E] =
-		SharedArray(arrayFill(RuntimeType.arrayFor[E](size), value))
+		SharedArray(arrayFill(RuntimeType.arrayOf[E](size), value))
 	
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSeq[_], E, MutableSeq[E]]): CanBuildFrom[MutableSeq[_], E, MutableSeq[E]] =

@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.iterators
 
-import net.turambar.palimpsest.specialty.{?, Elements}
+import net.turambar.palimpsest.specialty.{?, ItemTypes}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 
 import scala.collection.AbstractIterator
@@ -40,7 +40,7 @@ abstract class FastSizeIterator[+E] extends BaseIterator[E] with OfKnownSize { t
   * returning an uncertain value. Having a single abstract method allows concrete subclasses to be defined
   * in-line using function syntax.
   */
-trait SAMIterator[@specialized(Elements) +E] extends FitIterator[E] {
+trait SAMIterator[@specialized(ItemTypes) +E] extends FitIterator[E] {
 	private[this] var future: ?[E] = _
 
 	/** If non-empty, returns the next element as a `Sure` value, immediately advancing over it.

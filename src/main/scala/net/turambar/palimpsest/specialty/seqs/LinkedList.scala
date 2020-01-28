@@ -26,7 +26,7 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
   * @author Marcin Mościcki
   */
 @SerialVersionUID(SerializationVersion)
-sealed trait LinkedList[@specialized(Elements) +E]
+sealed trait LinkedList[@specialized(ItemTypes) +E]
 	extends SeqFoundation[E, LinkedList[E]] with LinearSeq[E] with LinearSeqLike[E, LinkedList[E]]
 	   with FitSeq[E] with IterableSpecialization[E, LinkedList[E]] with SpecializableIterable[E, LinkedList]
 	   with CloneableIterable[E, LinkedList[E]] with Serializable
@@ -377,9 +377,9 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedList[_], E, LinkedList[E]]): CanBuildFrom[LinkedList[_], E, LinkedList[E]] =
 		fit.cbf
 
-	override def empty[@specialized(Elements) E] :LinkedList[E] = new Empty[E]
+	override def empty[@specialized(ItemTypes) E] :LinkedList[E] = new Empty[E]
 
-	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, LinkedList[E]] =
+	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, LinkedList[E]] =
 		new LinkedListBuilder[E]
 
 //	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedList[E]] =
@@ -407,7 +407,7 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 	}
 
 	@SerialVersionUID(SerializationVersion)
-	sealed class Empty[@specialized(Elements) +E] private[seqs]() extends LinkedList[E] {
+	sealed class Empty[@specialized(ItemTypes) +E] private[seqs]() extends LinkedList[E] {
 		override def ofAtLeast(size: Int): Boolean = size <= 0
 		override def head = throw new NoSuchElementException("LinkedList.Empty.head")
 		override def tail = throw new UnsupportedOperationException("LinkedList.Empty.tail")
@@ -435,7 +435,7 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 	  * for various other, higher level `Seq` implementations.
 	  */
 	@SerialVersionUID(SerializationVersion)
-	private[seqs] final class NonEmpty[@specialized(Elements) E] (private[seqs] var x :E, private[seqs] var t :LinkedList[E]=LinkedList.Empty)
+	private[seqs] final class NonEmpty[@specialized(ItemTypes) E] (private[seqs] var x :E, private[seqs] var t :LinkedList[E]=LinkedList.Empty)
 		extends LinkedList[E]
 	{
 		override def head = x
@@ -453,13 +453,13 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 
 	private[seqs] object Mutable {
-		@tailrec private[seqs] final def shiftLeft[@specialized(Elements) E](to :LinkedList[E], from :LinkedList[E], left :Int) : Unit =
+		@tailrec private[seqs] final def shiftLeft[@specialized(ItemTypes) E](to :LinkedList[E], from :LinkedList[E], left :Int) : Unit =
 			if (left>0) {
 				NonEmpty.shouldExist(to).x = NonEmpty.shouldExist(from).x
 				shiftLeft(to.tail, from.tail, left-1)
 			}
 
-		@tailrec private[seqs] final def shiftRight[@specialized(Elements) E](from :NonEmpty[E], left :Int) :LinkedList[E] =
+		@tailrec private[seqs] final def shiftRight[@specialized(ItemTypes) E](from :NonEmpty[E], left :Int) :LinkedList[E] =
 			if (left<=0) from
 			else {
 				val next = NonEmpty.shouldExist(from.tail); next.x = from.x
@@ -470,7 +470,7 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 
 
-	private[seqs] class LinkedListIterator[@specialized(Elements) E](private[this] var hd :LinkedList[E])
+	private[seqs] class LinkedListIterator[@specialized(ItemTypes) E](private[this] var hd :LinkedList[E])
 		extends BaseIterator[E] with FitIterator[E]
 	{
 		def head :E = hd.head
@@ -480,7 +480,7 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 	}
 
-	private[seqs] class LinkedListBuilder[@specialized(Elements) E] extends FitBuilder[E, LinkedList[E]] {
+	private[seqs] class LinkedListBuilder[@specialized(ItemTypes) E] extends FitBuilder[E, LinkedList[E]] {
 		private[LinkedList] val hat = new NonEmpty[Any](null)
 		private[this] var coccyx = hat.asInstanceOf[NonEmpty[E]]
 
@@ -505,7 +505,7 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 
 	@SerialVersionUID(100)
-	class SerializedLinkedList[@specialized(Elements) E](@transient private var hd :LinkedList[E]) extends Serializable {
+	class SerializedLinkedList[@specialized(ItemTypes) E](@transient private var hd :LinkedList[E]) extends Serializable {
 		import java.io.{ObjectOutputStream=>OS, ObjectInputStream=>IS}
 
 		private def writeObject(os :OS) :Unit = writeList(os, hd)

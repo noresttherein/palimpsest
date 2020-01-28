@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.iterators
 
-import net.turambar.palimpsest.specialty.Elements
+import net.turambar.palimpsest.specialty.ItemTypes
 
 
 /** A bidirectional iterator, declaring the methods for moving in the opposite direction in the iterated collection.
@@ -12,7 +12,7 @@ import net.turambar.palimpsest.specialty.Elements
   * number of elements in front of the cursor, but will generally advance to the 'forward' element of the collection while doing so.
   * @author Marcin Mościcki marcin@moscicki.net
   */
-trait Cursor[@specialized(Elements) +E] extends FitIterator[E] {
+trait Cursor[@specialized(ItemTypes) +E] extends FitIterator[E] {
 	/** The opposite of the standard `next()` method of iterators: moves the cursor back in the structure by one element
 	  * and returns it.
 	  * @return element preceding `this.head` in the iterated collection.

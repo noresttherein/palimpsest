@@ -6,7 +6,9 @@ import net.turambar.palimpsest.specialty.{arrayCopy, arrayString}
 import scala.reflect.ClassTag
 
 
-/** A simple wrapper over an array and validated index range, used as a common parameter for many factory methods of specialized collections. */
+/** A simple wrapper over an array and a validated index range, used as a common parameter for many factory methods
+  * of specialized collections.
+  */
 private[specialty] class ArrayBounds[E] private[specialty](val array :Array[E], val start :Int, val length :Int)
                                                           (implicit val specialization :RuntimeType[E])
 {
@@ -61,7 +63,7 @@ private[specialty] object ArrayBounds {
 		if (start<0)
 			throw new IndexOutOfBoundsException(s"ArrayBounds.copy(${arrayString(array)}, $start, $length")
 		else if (start >= array.length)
-			     new ArrayBounds(array, array.length, 0)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
+			new ArrayBounds(array, array.length, 0)(RuntimeType.ofClass(array.getClass.getComponentType.asInstanceOf[Class[E]]))
 		else {
 			val available = array.length-start
 			new ArrayBounds(array, start,

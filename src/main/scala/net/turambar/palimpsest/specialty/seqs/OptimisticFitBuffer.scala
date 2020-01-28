@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import net.turambar.palimpsest.specialty.{Elements, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{ItemTypes, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.iterables.IterableViewTemplate
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Res
 

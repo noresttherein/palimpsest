@@ -1,10 +1,11 @@
 package net.turambar.palimpsest.specialty.ordered
 
+import scala.annotation.unspecialized
+
 import net.turambar.palimpsest.specialty.sets.{OrderedSet, ValSet}
 import net.turambar.palimpsest.specialty.{?, some_?, Blank, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.MultiValue
 import net.turambar.palimpsest.specialty.iterators.FitIterator
-
 import scala.collection.generic.Sorted
 
 
@@ -48,13 +49,22 @@ trait OrderedBy[+T <: OrderedBy[T, K], @specialized(MultiValue) K] extends Sorte
 //	def reverseKeyIterator :FitIterator[K]
 	override def keysIteratorFrom(start :K) :FitIterator[K]
 
+	def keysIterator :FitIterator[K]
+
 	def empty :T
 
 	override def keySet :OrderedSet[K]
+
+	def stringPrefix :String
 }
 
 
+
+
+
+
 object OrderedBy {
+
 	trait OrderedEmpty[@specialized(MultiValue) K, +T <: T OrderedBy K] extends OrderedBy[T, K] {
 
 		override def empty :T = this.asInstanceOf[T]
@@ -78,6 +88,7 @@ object OrderedBy {
 
 		override def keySet: OrderedSet[K] = OrderedSet.empty
 	}
+
 
 
 	trait OrderedSingleton[@specialized(MultiValue) K, +T <: T OrderedBy K] extends OrderedBy[T, K] {
@@ -116,5 +127,27 @@ object OrderedBy {
 			else FitIterator.empty
 
 		override def keySet :OrderedSet[K] = OrderedSet.one(firstKey)
+	}
+
+
+
+	trait OrderedProxy[+T <: OrderedBy[T, K], @specialized(MultiValue) K] extends OrderedBy[T, K] {
+		protected[this] def source :OrderedBy[_, K]
+
+		@unspecialized
+		override implicit def ordering :ValOrdering[K] = source.ordering
+
+		override def firstKey :K = source.firstKey
+
+		override def lastKey :K = source.lastKey
+
+		override def keyAt(n :Int) :K = source.keyAt(n)
+
+//		override def contains(key :K) :Boolean = source.contains(key)
+
+		override def keysIteratorFrom(start :K) :FitIterator[K] = source.keysIteratorFrom(start)
+
+		@unspecialized
+		override def keySet :OrderedSet[K] = source.keySet
 	}
 }

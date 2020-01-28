@@ -25,7 +25,7 @@ import scala.compat.Platform
 /**
   * @author Marcin Mościcki
   */
-trait ArrayViewLike[@specialized(Elements) +E, +Repr]
+trait ArrayViewLike[@specialized(ItemTypes) +E, +Repr]
 	extends IndexedSeqOptimized[E, Repr] with SliceLike[E, Repr] with IterableSpecialization[E, Repr]
 	   with OfKnownSize with Serializable
 {

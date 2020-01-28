@@ -9,13 +9,14 @@ import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Primitives
 import scala.collection.immutable.ListSet
 
 
+
+
 /**
   * @author Marcin Mościcki
   */
 package object specialty {
 
-	final val Elements = Primitives
-	final val SetElements = Elements //we might want to exclude Boolean
+	final val ItemTypes = Primitives
 
 	/** A specialized version of `scala.Option`.
 	  * This is a type alias for [[Unsure]] used as a shorthand for passing uncertain values.
@@ -43,7 +44,7 @@ package object specialty {
 	}
 
 
-
+//todo: adapters/converters from scala classes
 //	/** Same as `scala.collection.breakOut`, but for [[CanFitFrom]] instances.
 //	  * Named differently to avoid conflicts when both are imported.
 //	  * Adapts a builder factory tied to a specific source type to be used for any input collection types.
@@ -199,10 +200,6 @@ package object specialty {
 		array.asInstanceOf[Array[E]]
 
 	}
-	
-	
-	
-	
 	
 	
 

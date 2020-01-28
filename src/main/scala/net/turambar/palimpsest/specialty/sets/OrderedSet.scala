@@ -1,15 +1,14 @@
 package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, RuntimeType, Specialize}
-import net.turambar.palimpsest.specialty.iterables.StableIterableTemplate
-
+import net.turambar.palimpsest.specialty.{FitBuilder, ItemTypes, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.iterables.{FitCompanion, StableIterableTemplate}
 import scala.collection.generic.CanBuildFrom
-import scala.collection.{mutable, GenTraversableOnce, SortedSet, SortedSetLike}
+import scala.collection.{immutable, mutable, GenTraversableOnce, SortedSet, SortedSetLike}
+
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals, ValOrdering}
 import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
-
 import scala.annotation.unspecialized
 
 /** A counterpart of `SortedSetLike`, it brings together the declarations from the latter and [[OrderedAs]]. As this
@@ -58,7 +57,7 @@ trait OrderedSetTemplate[E, +This<:OrderedSetTemplate[E, This] with OrderedSet[E
 /**
   * @author Marcin Mościcki
   */
-trait OrderedSet[@specialized(Elements) E] //todo: mix-in order of OrderedVals and ValSet
+trait OrderedSet[@specialized(ItemTypes) E] //todo: mix-in order of OrderedVals and ValSet
 	extends SortedSet[E] with OrderedVals[E] with ValSet[E]
 	   with SetSpecialization[E, OrderedSet[E]] with OrderedAs[E, OrderedSet[E]] with OrderedSetTemplate[E, OrderedSet[E]]
 {
@@ -68,10 +67,12 @@ trait OrderedSet[@specialized(Elements) E] //todo: mix-in order of OrderedVals a
 //	override def stable :StableOrderedSet[E] = (StableOrderedSet.newBuilder[E] ++= this).result
 //	override def mutable :MutableOrderedSet[E] = MutableOrderedSet.empty[E] ++= this
 
-	override def empty :OrderedSet[E] = OrderedSet.empty[E]
+	@unspecialized
+	override def empty :OrderedSet[E] = OrderedSet.of[E](ordering, specialization)
 
 	/** Overriden due to inheriting double declarations: from `SortedSetLike` and `OrderedAs`. */
 	@inline final override def iteratorFrom(start: E) :FitIterator[E] = keysIteratorFrom(start)
+
 
 
 	override def typeStringPrefix = "OrderedSet"
@@ -84,8 +85,9 @@ trait OrderedSet[@specialized(Elements) E] //todo: mix-in order of OrderedVals a
 
 
 //todo: possibly doesn't need specialization
-trait MutableOrderedSet[@specialized(Elements) E] extends OrderedSet[E] with MutableSet[E]
-	with MutableSetSpecialization[E, MutableOrderedSet[E]] with OrderedSetTemplate[E, MutableOrderedSet[E]]
+trait MutableOrderedSet[@specialized(ItemTypes) E]
+	extends mutable.SortedSet[E] with OrderedSet[E] with OrderedAs[E, MutableOrderedSet[E]] with MutableSet[E]
+	   with MutableSetSpecialization[E, MutableOrderedSet[E]] with OrderedSetTemplate[E, MutableOrderedSet[E]]
 {
 	override def mutable :MutableOrderedSet[E] = carbon
 	override def stable :StableOrderedSet[E] = (StableOrderedSet.newBuilder[E] ++= this).result()
@@ -96,19 +98,17 @@ trait MutableOrderedSet[@specialized(Elements) E] extends OrderedSet[E] with Mut
 
 
 
+
+
+
 //todo: possibly doesn't need specialization
-trait StableOrderedSet[@specialized(Elements) E]
-	extends OrderedSet[E] with StableSet[E] with SetSpecialization[E, StableOrderedSet[E]]
+trait StableOrderedSet[@specialized(ItemTypes) E]
+	extends immutable.SortedSet[E] with OrderedSet[E] with StableSet[E]
+	   with OrderedAs[E, StableOrderedSet[E]] with SetSpecialization[E, StableOrderedSet[E]]
 	   with OrderedSetTemplate[E, StableOrderedSet[E]] with StableIterableTemplate[E, StableOrderedSet[E]]
 {
-	override def empty :StableOrderedSet[E] = StableOrderedSet.empty
-
-//	@unspecialized
-//	override def carbon :StableOrderedSet[E] = this
-//
-//	@unspecialized
-//	override def stable :StableOrderedSet[E] = this
-
+	@unspecialized
+	override def empty :StableOrderedSet[E] = StableOrderedSet.of(ordering, specialization)
 
 }
 
@@ -119,17 +119,17 @@ trait StableOrderedSet[@specialized(Elements) E]
 
 abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E, S[E]]] {
 
-	def apply[@specialized(Elements) E :ValOrdering](elems :E*) :S[E] =
+	def apply[@specialized(ItemTypes) E :ValOrdering](elems :E*) :S[E] =
 		(newBuilder[E] ++= elems).result()
 
 
-	def empty[@specialized(Elements) E :ValOrdering] :S[E] //= newBuilder[E].result()
+	def empty[@specialized(ItemTypes) E :ValOrdering] :S[E] //= newBuilder[E].result()
 
 	def of[E :ValOrdering :RuntimeType] :S[E] = EmptySet(ValOrdering[E])
 
-	def one[@specialized(Elements) E :ValOrdering](singleton :E) :S[E] = (newBuilder[E] += singleton).result()
+	def one[@specialized(ItemTypes) E :ValOrdering](singleton :E) :S[E] = (newBuilder[E] += singleton).result()
 
-	def newBuilder[@specialized(Elements) E :ValOrdering] :FitBuilder[E, S[E]] = new StableSetBuilder[E, S[E]](empty)
+	def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, S[E]] = new StableSetBuilder[E, S[E]](empty)
 
 	def builder[E :ValOrdering :RuntimeType] :FitBuilder[E, S[E]] = Builder(ValOrdering[E])
 
@@ -153,7 +153,7 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
 //	type CFF[E] = CanFitFrom[S[_], E, S[E]]
 //	type CFF[E] = CanBuildFrom[S[_], E, S[E]]
 
-	protected[this] class CanBuildOrderedSet[@specialized(Elements) E :ValOrdering]
+	protected[this] class CanBuildOrderedSet[@specialized(ItemTypes) E :ValOrdering]
 		extends CanBuildFrom[S[_], E, S[E]] with CanFitFrom[S[_], E, S[E]]
 	{
 		override def specialization :RuntimeType[E] = RuntimeType.specialized[E]
@@ -177,7 +177,7 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
   */
 abstract class OrderedSetFactoryImplicits[S[E] <: OrderedSet[E] with SetSpecialization[E, S[E]]] extends OrderedSetFactory[S] {
 
-	implicit def canFitFrom[@specialized(Elements) E :ValOrdering] :CanFitFrom[S[_], E, S[E]] =
+	implicit def canFitFrom[@specialized(ItemTypes) E :ValOrdering] :CanFitFrom[S[_], E, S[E]] =
 		new CanBuildOrderedSet[E]
 }
 
@@ -194,7 +194,7 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 		fit.cbf
 
 
-	override def empty[@specialized(Elements) E :ValOrdering] :OrderedSet[E] = StableOrderedSet.empty[E]
+	override def empty[@specialized(ItemTypes) E :ValOrdering] :OrderedSet[E] = StableOrderedSet.empty[E]
 
 //	def one[@specialized(Elements) E](elem :E)(implicit ord :Ordering[E]) :OrderedSet[E] =
 //		(newBuilder[E] += elem).result()
@@ -211,7 +211,7 @@ object StableOrderedSet extends OrderedSetFactoryImplicits[StableOrderedSet] {
 			:CanBuildFrom[StableOrderedSet[_], E, StableOrderedSet[E]] =
 		fit.cbf
 
-	override def empty[@specialized(Elements) E :ValOrdering] :StableOrderedSet[E] = ???
+	override def empty[@specialized(ItemTypes) E :ValOrdering] :StableOrderedSet[E] = ???
 
 }
 
@@ -225,8 +225,10 @@ object MutableOrderedSet extends OrderedSetFactoryImplicits[MutableOrderedSet] {
 			:CanBuildFrom[MutableOrderedSet[_], E, MutableOrderedSet[E]] =
 		fit.cbf
 
-	override def empty[@specialized(Elements) E :ValOrdering] :MutableOrderedSet[E] = ???
+	override def empty[@specialized(ItemTypes) E :ValOrdering] :MutableOrderedSet[E] = ???
 
-	override def newBuilder[@specialized(Elements) E :ValOrdering] :FitBuilder[E, MutableOrderedSet[E]] = empty[E]
+	override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, MutableOrderedSet[E]] = empty[E]
+
+
 
 }

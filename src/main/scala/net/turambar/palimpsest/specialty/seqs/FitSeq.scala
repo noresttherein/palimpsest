@@ -5,7 +5,7 @@ import scala.collection.SeqLike
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables._
 import net.turambar.palimpsest.specialty.seqs.StableSeq.{Seq1, Seq2}
-import net.turambar.palimpsest.specialty.{Elements, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized
 
 /** A scala `Seq` (either mutable or immutable underneath) which is specialized on its element type.
@@ -27,7 +27,7 @@ import net.turambar.palimpsest.specialty.RuntimeType.Specialized
   * [[FitSeq#copy]] or [[FitSeq#immutable]] to drop references to any originating collection, which would prevent it from
   * being garbage collected (such as taking a short slice from a much longer sequence).
   */
-trait FitSeq[@specialized(Elements) +E]
+trait FitSeq[@specialized(ItemTypes) +E]
 	extends Seq[E] with SeqLike[E, FitSeq[E]]
 			with FitIterable[E] with SeqTemplate[E, FitSeq[E]] with IterableSpecialization[E, FitSeq[E]]
 			with SpecializableIterable[E, FitSeq] with CloneableIterable[E, FitSeq[E]]
@@ -63,15 +63,15 @@ trait FitSeq[@specialized(Elements) +E]
 object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	import Specialized.Fun1Vals
 
-	type Stable[@specialized(Elements) +E] = StableSeq[E]
-	type Mutable[@specialized(Elements) E] = MutableSeq[E]
-	type Indexed[@specialized(Elements) +E] = FitIndexedSeq[E]
+	type Stable[@specialized(ItemTypes) +E] = StableSeq[E]
+	type Mutable[@specialized(ItemTypes) E] = MutableSeq[E]
+	type Indexed[@specialized(ItemTypes) +E] = FitIndexedSeq[E]
 
 	final val Empty :FitSeq[Nothing] = ArrayPlus.Empty
 
 	@inline def Acc[E :RuntimeType] :StableSeq[E] = ArrayPlus.of[E]
 	
-	protected[this] type RealType[@specialized(Elements) X] = StableArray[X]
+	protected[this] type RealType[@specialized(ItemTypes) X] = StableArray[X]
 
 	override protected[this] final def default: FitIterableFactory[StableArray] = StableArray
 
@@ -85,9 +85,9 @@ object FitSeq extends InterfaceIterableFactory[FitSeq] {
 	
 	
 
-	override def one[@specialized(Elements) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
+	override def one[@specialized(ItemTypes) E](elem :E) :StableSeq[E] = new Seq1[E](elem)
 	
-	def two[@specialized(Elements) E](first :E, second :E) :StableSeq[E] = new Seq2(first, second)
+	def two[@specialized(ItemTypes) E](first :E, second :E) :StableSeq[E] = new Seq2(first, second)
 
 //	/** Adapt any sequence to a specialized interface. This is an unspecialized method creating
 //	  * an unspecialized (erased) instance.

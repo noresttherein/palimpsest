@@ -18,7 +18,7 @@ import scala.collection.generic.CanBuildFrom
 /**
   * @author Marcin Mościcki marcin@moscicki.net
   */
-sealed trait ValList[@specialized(Elements) E]
+sealed trait ValList[@specialized(ItemTypes) E]
 	extends LinearSeq[E] with LinearSeqLike[E, ValList[E]] with StableSeq[E] with StableIterableTemplate[E, ValList[E]]
 	   with ValSeq[E] with ValSeqLike[E, ValList[E]] with SpecializableIterable[E, ValList]
 {
@@ -138,16 +138,16 @@ object ValList extends SpecializableIterableFactory[ValList] {
 	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[ValList[_], E, ValList[E]]) :CanBuildFrom[ValList[_], E, ValList[E]] = fit.cbf
 
 
-	override def empty[@specialized(Elements) E] :ValList[E] = new EmptyList[E]
+	override def empty[@specialized(ItemTypes) E] :ValList[E] = new EmptyList[E]
 
 
-	override def newBuilder[@specialized(Elements) E] :FitBuilder[E, ValList[E]] = ListBuilder()
+	override def newBuilder[@specialized(ItemTypes) E] :FitBuilder[E, ValList[E]] = ListBuilder()
 
 
 
 
 
-	private final class Link[@specialized(Elements) E](override val head :E, private[this] var t :ValList[E]) extends ValList[E] {
+	private final class Link[@specialized(ItemTypes) E](override val head :E, private[this] var t :ValList[E]) extends ValList[E] {
 
 		@inline private[ValList] def tail_=(list :ValList[E]) :Unit = t = list
 
@@ -385,7 +385,7 @@ object ValList extends SpecializableIterableFactory[ValList] {
 
 
 
-	private class EmptyList[@specialized(Elements) E] extends EmptyIterableTemplate[E, ValList[E]] with ValList[E] {
+	private class EmptyList[@specialized(ItemTypes) E] extends EmptyIterableTemplate[E, ValList[E]] with ValList[E] {
 		override def length = 0
 
 //		/** Target of `apply` for internal use, assuming the index is valid (faster). */
@@ -402,7 +402,7 @@ object ValList extends SpecializableIterableFactory[ValList] {
 
 
 
-	private class ListIterator[@specialized(Elements) E](private[this] var list :ValList[E]) extends FitIterator[E] {
+	private class ListIterator[@specialized(ItemTypes) E](private[this] var list :ValList[E]) extends FitIterator[E] {
 		override def head :E = list.head
 
 		override def next() :E = { val res = list.head; list = list.tail; res }
@@ -416,7 +416,7 @@ object ValList extends SpecializableIterableFactory[ValList] {
 
 
 
-	private class ListBuilder[@specialized(Elements) E](dummy :E, nil :ValList[E] = empty[E]) extends FitBuilder[E, ValList[E]] {
+	private class ListBuilder[@specialized(ItemTypes) E](dummy :E, nil :ValList[E] = empty[E]) extends FitBuilder[E, ValList[E]] {
 		private[this] val hat :Link[E] = new Link(dummy, nil)
 		private[this] var last = hat
 

@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.ordered
 
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableAdapter, IterableSpecialization}
-import net.turambar.palimpsest.specialty.{?, Blank, Elements, FitBuilder, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, FitBuilder, Sure}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, SliceLike}
 import net.turambar.palimpsest.specialty.sets.OrderedSet
@@ -14,7 +14,7 @@ import scala.collection.GenTraversableOnce
 /** Ordered values stored in a sequence. Provides efficient `O(log n)` search, fast iteration, but adding or removing elements
   * is pessimistically (and realistically) `O(n)`.
   */
-class OrderedSeq[@specialized(Elements) E] private[ordered](override protected[this] val source :FitSeq[E])(implicit override val ordering :ValOrdering[E])
+class OrderedSeq[@specialized(ItemTypes) E] private[ordered](override protected[this] val source :FitSeq[E])(implicit override val ordering :ValOrdering[E])
 	extends IterableAdapter[FitSeq[E], E, OrderedSeq[E]] with OrderedVals[E] with OrderedAs[E, OrderedSeq[E]]
 	   with IterableSpecialization[E, OrderedSeq[E]]
 {
@@ -157,11 +157,11 @@ class OrderedSeq[@specialized(Elements) E] private[ordered](override protected[t
 
 object OrderedSeq {
 
-	def empty[@specialized(Elements) E :Ordering] :OrderedSeq[E] = new OrderedSeq(FitSeq.empty[E])
+	def empty[@specialized(ItemTypes) E :Ordering] :OrderedSeq[E] = new OrderedSeq(FitSeq.empty[E])
 
-	def apply[@specialized(Elements) E :Ordering](elems :E*) :OrderedSeq[E] =
+	def apply[@specialized(ItemTypes) E :Ordering](elems :E*) :OrderedSeq[E] =
 		new OrderedSeq(FitSeq(elems:_*).sorted)
 
-	def newBuilder[@specialized(Elements) E :Ordering] :FitBuilder[E, OrderedSeq[E]] =
+	def newBuilder[@specialized(ItemTypes) E :Ordering] :FitBuilder[E, OrderedSeq[E]] =
 		FitSeq.newBuilder[E].mapResult(elems => new OrderedSeq(elems.sorted))
 }

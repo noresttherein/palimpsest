@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.breakOut
 import scala.reflect.ClassTag
-import net.turambar.palimpsest.specialty.{Elements, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType}
 import net.turambar.palimpsest.specialty.iterables.{FitCompanion, SpecializableIterable}
 import net.turambar.palimpsest.testutil._
 import org.scalacheck.Prop._
@@ -13,7 +13,7 @@ import org.scalacheck.Properties
 /**
   * @author Marcin Mościcki
   */
-class FitSeqProps[+S[@specialized(Elements) X] <: FitSeq[X] with SpecializableIterable[X, S]]
+class FitSeqProps[+S[@specialized(ItemTypes) X] <: FitSeq[X] with SpecializableIterable[X, S]]
 		(companion :FitCompanion[S])
 //	extends Properties(companion.toString)
 {
@@ -81,7 +81,7 @@ object FitSeqProps extends App {
 		
 		property("copyToArray") = {
 //			val ints = new Array[Int](10); (0 until 10).foreach { i => ints(i) = -1 }
-			val buff = RuntimeType.arrayFor(10)
+			val buff = RuntimeType.arrayOf(10)
 			buff.indices foreach { buff(_) = dummy }
 			seq.copyToArray(buff, 1, 8)
 			val copied = seq.length min 8

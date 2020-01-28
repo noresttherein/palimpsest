@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.{ofKnownSize, ItemTypes, FitBuilder, RuntimeType}
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, ValSet}
 
@@ -17,7 +17,7 @@ import scala.collection.{mutable, GenTraversableOnce}
   *
   * @author Marcin Mościcki
   */
-trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
+trait ValSeqLike[@specialized(ItemTypes) E, +Repr <: ValSeqLike[E, Repr]]
 	extends IterableSpecialization[E, Repr] with SeqTemplate[E, Repr] with Subtractable[E, Repr] //with CloneableIterable[E, Repr]
 {
 
@@ -177,7 +177,7 @@ trait ValSeqLike[@specialized(Elements) E, +Repr <: ValSeqLike[E, Repr]]
 
 
 
-trait ValSeq[@specialized(Elements) E]
+trait ValSeq[@specialized(ItemTypes) E]
 	extends FitSeq[E] with ValSeqLike[E, ValSeq[E]] with SpecializableIterable[E, ValSeq] with CloneableIterable[E, ValSeq[E]]
 {
 	override def companion :FitCompanion[ValSeq] = ValSeq
@@ -186,7 +186,7 @@ trait ValSeq[@specialized(Elements) E]
 
 
 object ValSeq extends InterfaceIterableFactory[ValSeq] {
-	override protected[this] type RealType[@specialized(Elements) E] = SharedArray[E]
+	override protected[this] type RealType[@specialized(ItemTypes) E] = SharedArray[E]
 	override protected[this] def default: FitIterableFactory[SharedArray] = SharedArray
 
 	override implicit def canBuildFrom[E](implicit fit: CanFitFrom[ValSeq[_], E, ValSeq[E]]): CanBuildFrom[ValSeq[_], E, ValSeq[E]] =

@@ -1,14 +1,15 @@
 package net.turambar.palimpsest.specialty.sets
 
 
-import java.lang.Math
-
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableSpecialization, IterableTemplate}
 import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, FitTraversableOnce, RuntimeType}
 
 import scala.annotation.unspecialized
 import scala.collection.{mutable, GenSet, GenTraversableOnce, SetLike}
+
+
+
 
 /** A generic, non-specialized analogue of `SetLike` serving as the common base class for all sets in this package.
   * Provides declarations of common methods not needing public specialized variants. Subclasses may still
@@ -70,7 +71,7 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
   * It is a specialized analogue of `SetLike`.
   * @author Marcin Mościcki
   */
-trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, This] with ValSet[E]]
+trait SetSpecialization[@specialized(ItemTypes) E, +This <: SetSpecialization[E, This] with ValSet[E]]
 	extends SetTemplate[E, This] with IterableSpecialization[E, This] with CloneableIterable[E, This]
 {
 
@@ -160,9 +161,9 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 		if (isEmpty || elems.isEmpty)
 			empty
 		else if (elems.hasFastSize && hasFastSize && elems.size < size) {
-			SetSpecialization.intersection(elems, repr, newBuilder)
+			intersection(elems, repr, newBuilder)
 		} else {
-			SetSpecialization.intersection(repr, elems, newBuilder)
+			intersection(repr, elems, newBuilder)
 		}
 
 
@@ -181,15 +182,6 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 			true
 		}
 
-//	@unspecialized
-//	def copyToFitArray(xs: Array[E], start: Int=0, total: Int=Int.MaxValue): Unit =
-//		if (start<0)
-//			throw new IllegalArgumentException(s"$stringPrefix.copyToArray([], $start, $total)")
-//		else {
-//			val max = Math.min(xs.length-start, total)
-//			if (max > 0)
-//				trustedCopyTo(xs, start, max)
-//		}
 
 
 	protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int =
@@ -198,161 +190,13 @@ trait SetSpecialization[@specialized(Elements) E, +This <: SetSpecialization[E, 
 			iterator.copyToArray(xs, start, total); Math.min(total, size)
 		}
 
-//	override def clone() :This = repr //empty ++ this //this should be in StableSetSpecialization, but we don't have such a trait, so instead we override it in MutableSetSpecialization ...
-
-//	def stable :StableSet[E]
-//	def mutable :MutableSet[E]
-
- //= newBuilder.result()
 	/** Default set builder delegating to a wrapped set's `+` and `++` methods. Good for most immutable sets,
 	  * overriden by [[MutableSetSpecialization]] for mutable sets.
 	  */
 	override def newBuilder :FitBuilder[E, This] = new StableSetBuilder[E, This](empty)
 
 
-	//	override def sameElements[U >: E](that: GenIterable[U]) = super.sameElements(that)
-//	override def toSeq :Seq[E] = toFitSeq
 }
 
 
-
-
-object SetSpecialization {
-//	@inline final private[palimpsest] def friendCopy[E](set :ValSet[E], xs :Array[E], start :Int, total :Int) :Int =
-//		set.trustedCopyTo(xs, start, total)
-
-
-	private[sets] def intersection[@specialized(Elements) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :FitBuilder[E, R]) :R = {
-		val it = set1.iterator
-		while (it.hasNext) {
-			val e = it.next()
-			if (set2.contains(e))
-				builder += e
-		}
-		builder.result()
-	}
-
-
-	private[sets] def buildDifference[@specialized(Elements) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :FitBuilder[E, R]) :Unit = {
-		val it = set1.iterator
-		while (it.hasNext) {
-			val e = it.next()
-			if (!set2.contains(e))
-				builder += e
-		}
-	}
-
-
-}
-
-
-
-
-
-
-
-/*
-
-/**
-  * @author Marcin Mościcki
-  */
-trait EmptySetTemplate[E, +T<:ValSet[E] with SetSpecialization[E, T]] extends EmptyIterableTemplate[E, T] { this :T =>
-
-	override def empty :T = this
-
-	override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[T, B, That]) :That = super.++(that)
-
-	override def --(xs: GenTraversableOnce[E]) :T = this
-
-	override def --(elems: FitTraversableOnce[E]) :T = this
-
-	@unspecialized
-	override def copyToFitArray(xs: Array[E], start: Int, total: Int) :Unit = ()
-}
-
-
-
-@deprecated
-trait EmptySetSpecialization[@specialized(Elements) E, +This <: StableSet[E] with SetSpecialization[E, This]]
-	extends StableSet[E] with SetSpecialization[E, This] with EmptyIterableTemplate[E, This] //with OrderedAs[E, This] //with OrderedEmpty[E, This]
-{
-	@inline override final def repr :This = this.asInstanceOf[This]
-
-	/** Overriden to override back implementation from [[IterableSpecialization]] to forgo the iterator. */
-	override def head :E = throw new NoSuchElementException("empty " +typeStringPrefix)
-
-	/** Overrides implementation from `scala.SetLike` back to fixed `true`. */
-	override def isEmpty = true
-
-	override def empty: This = repr
-
-	override def clone() :This = repr
-
-
-	override def span(p: E => Boolean) :(This, This) = (repr, repr)
-
-	override def partition(p: E => Boolean) :(This, This) = (repr, repr)
-
-
-
-
-
-
-	override def contains(elem: E): Boolean = false
-
-
-	override def -(elem: E): This = repr
-
-	override def -(elem1: E, elem2: E, elems: E*) :This = repr
-
-	override def --(xs: GenTraversableOnce[E]) :This = repr
-
-	override def --(elems: FitTraversableOnce[E]) :This = repr
-
-	override def &(that :ValSet[E]) :This = repr
-
-	override def diff(that: GenSet[E]) :This = repr
-
-	override def subsets(len: Int) :Iterator[This] = if (len==0) Iterator.single(repr) else Iterator.empty
-
-	override def subsets() :Iterator[This] = Iterator.single(repr)
-
-	override def intersect(that: GenSet[E]) :This = repr
-
-
-
-	override def subsetOf(that: GenSet[E]) :Boolean = true
-
-	override def equals(that :Any) :Boolean = that match {
-		case set :GenSet[_] => set.isEmpty
-		case _ => false
-	}
-
-
-
-	@unspecialized
-	override def copyToFitArray(xs: Array[E], start: Int, total: Int) :Unit = ()
-
-	protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int = 0
-
-
-
-
-	/*
-		override def from(from: E) :This = repr
-		override def until(until: E) :This = repr
-		override def range(from: E, until: E) :This = repr
-		override def to(to: E) :This = repr
-		override def rangeImpl(from: Option[E], until: Option[E]): This = repr
-
-		override def keyAt(n: Int): E = throw new IndexOutOfBoundsException(s"empty $stringPrefix: rank($n)")
-
-		@unspecialized
-		override def reverseKeyIterator: FitIterator[E] = FitIterator.empty
-
-		@unspecialized
-		override def keysIteratorFrom(start: E): FitIterator[E] = FitIterator.empty
-	*/
-}
-*/
 

@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.iterables
 import java.lang.Math
 
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, ofKnownSize, Blank, Elements, Sure}
+import net.turambar.palimpsest.specialty.{?, ofKnownSize, Blank, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
@@ -188,7 +188,7 @@ trait DoubletonTemplate[+E, +This] extends IterableTemplate[E, This] with OfKnow
 /**
   * @author Marcin Mościcki
   */
-trait DoubletonSpecialization[@specialized(Elements) +E, +This]
+trait DoubletonSpecialization[@specialized(ItemTypes) +E, +This]
 	extends IterableSpecialization[E, This] with DoubletonTemplate[E, This]
 {
 

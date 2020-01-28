@@ -5,7 +5,7 @@ import java.util
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables._
-import net.turambar.palimpsest.specialty.{Elements, FitBuilder, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, FitTraversableOnce, RuntimeType}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun2, Fun2Res}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitSeq, SharedArray, SharedArrayBuffer}
@@ -16,7 +16,7 @@ import scala.collection.{GenIterable, GenSet, GenTraversableOnce, Set}
 import scala.collection.generic.CanBuildFrom
 import scala.compat.Platform
 
-trait MultiSetSpecialization[@specialized(Elements) E, +Repr<:MultiSetSpecialization[E, Repr]]
+trait MultiSetSpecialization[@specialized(ItemTypes) E, +Repr<:MultiSetSpecialization[E, Repr]]
 	extends IterableSpecialization[E, Repr] //with (E=>Boolean)
 {
 
@@ -197,7 +197,7 @@ trait MultiSetSpecialization[@specialized(Elements) E, +Repr<:MultiSetSpecializa
 /**
   * @author Marcin Mościcki
   */
-trait MultiSet[@specialized(Elements) E]
+trait MultiSet[@specialized(ItemTypes) E]
 	extends FitIterable[E] with SpecializableIterable[E, MultiSet] with MultiSetSpecialization[E, MultiSet[E]]
 	   with CloneableIterable[E, MultiSet[E]]
 {
@@ -213,21 +213,21 @@ trait MultiSet[@specialized(Elements) E]
 
 
 object MultiSet extends InterfaceIterableFactory[MultiSet] {
-	override protected[this] type RealType[@specialized(Elements) E] = StableMultiSet[E]
+	override protected[this] type RealType[@specialized(ItemTypes) E] = StableMultiSet[E]
 
 	override protected[this] def default: FitIterableFactory[RealType] = StableMultiSet
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MultiSet[_], E, MultiSet[E]]): CanBuildFrom[MultiSet[_], E, MultiSet[E]] =
 		fit.cbf
 
-	@inline final implicit def multiplicities[@specialized(Elements) E](item :E) :StableMultiSet.Singleton[E] =
+	@inline final implicit def multiplicities[@specialized(ItemTypes) E](item :E) :StableMultiSet.Singleton[E] =
 		new StableMultiSet.Singleton[E](item)
 }
 
 
 
 
-trait StableMultiSet[@specialized(Elements) E] 
+trait StableMultiSet[@specialized(ItemTypes) E]
 	extends MultiSet[E] with SpecializableIterable[E, StableMultiSet] with MultiSetSpecialization[E, StableMultiSet[E]]
 	   with StableIterable[E] with StableIterableTemplate[E, StableMultiSet[E]] with CloneableIterable[E, StableMultiSet[E]]
 {
@@ -242,16 +242,16 @@ trait StableMultiSet[@specialized(Elements) E]
 }
 
 object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
-	override protected[this] type RealType[@specialized(Elements) E] = StableMultiSet[E]
+	override protected[this] type RealType[@specialized(ItemTypes) E] = StableMultiSet[E]
 
 	override protected[this] def default: FitIterableFactory[StableMultiSet] = ???
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableMultiSet[_], E, StableMultiSet[E]]): CanBuildFrom[StableMultiSet[_], E, StableMultiSet[E]] =
 		fit.cbf
 
-	@inline final def single[@specialized(Elements) E](item :E) :Singleton[E] = new Singleton(item)
+	@inline final def single[@specialized(ItemTypes) E](item :E) :Singleton[E] = new Singleton(item)
 
-	class Singleton[@specialized(Elements) E](item :E)
+	class Singleton[@specialized(ItemTypes) E](item :E)
 		extends SingletonFoundation[E, StableMultiSet[E]] with StableMultiSet[E] with SingletonSpecialization[E, StableMultiSet[E]]
 	{
 		@inline final override def head :E = item
@@ -281,7 +281,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 
 
-	private class MultiSet1[@specialized(Elements) E](item :E, copies :Int) //extends IterableFoundation[E, StableMultiSet[E]] with StableMultiSet[E] {
+	private class MultiSet1[@specialized(ItemTypes) E](item :E, copies :Int) //extends IterableFoundation[E, StableMultiSet[E]] with StableMultiSet[E] {
 		extends SingletonFoundation[E, StableMultiSet[E]] with StableMultiSet[E] with SingletonSpecialization[E, StableMultiSet[E]]
 	{
 		override def head :E = item
@@ -489,7 +489,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 }
 
 
-trait MutableMultiSet[@specialized(Elements) E] 
+trait MutableMultiSet[@specialized(ItemTypes) E]
 	extends MultiSet[E] with SpecializableIterable[E, MutableMultiSet] with MultiSetSpecialization[E, MutableMultiSet[E]]
 	   with FitBuilder[E, MultiSet[E]] with MutableIterable[E] with CloneableIterable[E, MutableMultiSet[E]]
 {
@@ -501,7 +501,7 @@ trait MutableMultiSet[@specialized(Elements) E]
 }
 
 object MutableMultiSet extends InterfaceIterableFactory[MutableMultiSet] {
-	override protected[this] type RealType[@specialized(Elements) E] = MutableMultiSet[E]
+	override protected[this] type RealType[@specialized(ItemTypes) E] = MutableMultiSet[E]
 
 	override protected[this] def default: FitIterableFactory[MutableMultiSet] = ???
 

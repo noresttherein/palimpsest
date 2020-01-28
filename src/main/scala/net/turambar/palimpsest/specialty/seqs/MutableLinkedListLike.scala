@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.seqs
 
 
-import net.turambar.palimpsest.specialty.{ofKnownSize, Elements, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{ofKnownSize, ItemTypes, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, NonEmpty}
 
 import scala.annotation.{tailrec, unspecialized}
@@ -10,7 +10,7 @@ import scala.collection.{GenTraversableOnce, mutable}
 /**
   * @author Marcin Mościcki
   */
-trait MutableLinkedListLike[@specialized(Elements) E, +Repr<:MutableLinkedListLike[E, Repr] with MutableSeq[E]]
+trait MutableLinkedListLike[@specialized(ItemTypes) E, +Repr<:MutableLinkedListLike[E, Repr] with MutableSeq[E]]
 	extends mutable.SeqLike[E, Repr] with ValSeqLike[E, Repr]
 { //this :MutableSeq[E] =>
 

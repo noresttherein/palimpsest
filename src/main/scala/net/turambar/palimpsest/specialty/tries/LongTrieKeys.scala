@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, Elements, Sure}
+import net.turambar.palimpsest.specialty.{?, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.tries.BinaryTrie._
 import net.turambar.palimpsest.specialty.tries.EmptyTrie.EmptyTrieFoundation
@@ -127,7 +127,7 @@ trait LongTrieKeys[+S <: LongTrieKeys[S, S] with LongTrie, +This <: LongTrieKeys
 
 
 	/** Returns an iterator traversing all elements starting with the given key. */
-	def iteratorFrom[@specialized(Elements) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E]
+	def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E]
 
 
 
@@ -355,7 +355,7 @@ object LongTrieKeys {
 		override def keyRange(start: Long, end: Long): This = this
 		override def keyRangeImpl(from: ?[Long], until: ?[Long]): This = this
 
-		override def iteratorFrom[@specialized(Elements) E](elements :ElementOf[E, S])(key :Long) :FitIterator[E] =
+		override def iteratorFrom[@specialized(ItemTypes) E](elements :ElementOf[E, S])(key :Long) :FitIterator[E] =
 			FitIterator.empty[E]
 
 
@@ -405,7 +405,7 @@ object LongTrieKeys {
 			else emptyTrie
 		}
 
-		override def iteratorFrom[@specialized(Elements) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E] =
+		override def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E] =
 			if (flipSign(start) <= flipSign(key)) FitIterator.one(elems.elementOf(this))
 			else FitIterator.empty[E]
 
@@ -669,7 +669,7 @@ object LongTrieKeys {
 
 
 
-		def iteratorFrom[@specialized(Elements) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E] =
+		def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E] =
 			if (center >= 0 && (start < 0 || start > upperBound))
 				FitIterator.empty[E] //all our keys start with '0' while start falls after our range
 			else if (center < 0 && center != SignBit && (start >= 0 || start < lowerBound)) //all our keys start with `1` bit and `start` starts with `0`

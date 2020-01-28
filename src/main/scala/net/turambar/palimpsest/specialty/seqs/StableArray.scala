@@ -6,7 +6,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.{newArray, Elements}
+import net.turambar.palimpsest.specialty.{newArray, ItemTypes}
 
 import scala.annotation.unspecialized
 
@@ -14,7 +14,7 @@ import scala.annotation.unspecialized
 /** A view on a section of an array which contents - at least within this section -
   * can be changed by neither this instance nor any other source.
   */
-class StableArray[@specialized(Elements) +E] protected[seqs]
+class StableArray[@specialized(ItemTypes) +E] protected[seqs]
 		(final protected[this] val array :Array[E], final protected[palimpsest] val headIdx :Int, final val length :Int)
 	extends IterableFoundation[E, StableArray[E]] with CloneableIterable[E, StableArray[E]] //with FitIndexedSeq[E] //enforce the desired linearization
 //	   with StableSeq[E] with StableIndexedOverrides[E] with StableIterableTemplate[E, StableArray[E]]
@@ -71,7 +71,7 @@ object StableArray extends ArrayViewFactory[StableArray] { factory =>
 	protected[seqs] override def apply[E](contents: ArrayBounds[E]): StableArray[E] = shared(contents.copy)
 
 
-	protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): StableArray[E] =
+	protected def using[@specialized(ItemTypes) E](array: Array[E], offset: Int, length: Int): StableArray[E] =
 		new StableArray[E](array, offset, length)
 	
 }

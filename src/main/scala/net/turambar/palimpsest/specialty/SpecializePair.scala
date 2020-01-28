@@ -46,11 +46,6 @@ object SpecializePair {
 
 	type SpecializeFirst[R[X, Y]] = { type T[X] = Specialize[Curry[R]#T1[X]#T2] }
 
-//	private class SpecializeSecond[R[X, Y], @specialized T :RuntimeType](two :SpecializePair[R])
-//		extends Specialize[Curry[R]#T1[T]#T2]
-//	{
-//		override def specialized[@specialized Y :RuntimeType] :R[T, Y] = two.specialized[T, Y]
-//	}
 
 
 	/** An equivalent of [[net.turambar.palimpsest.specialty.Specialize.SpecializeSome]], it allows extending classes
@@ -72,6 +67,8 @@ object SpecializePair {
 		override val forDouble :First[Double] = second
 		override val forBoolean :First[Boolean] = second
 		override val forUnit :First[Unit] = second[Unit]
+		override val forNothing :First[Nothing] = second[Nothing]
+
 		override def forRef[T :RuntimeType] :First[T] = second[T]
 
 		/** Method invoked to initialize individual `forT` fields, having the specialization of the first type parameter.

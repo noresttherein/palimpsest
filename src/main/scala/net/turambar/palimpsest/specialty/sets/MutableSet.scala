@@ -14,7 +14,7 @@ import scala.collection.{mutable, GenSet, GenTraversableOnce}
 
 
 
-trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] with MutableSetSpecialization[E, This]]
+trait MutableSetSpecialization[@specialized(ItemTypes) E, +This <: MutableSet[E] with MutableSetSpecialization[E, This]]
 	extends mutable.SetLike[E, This] with FitBuilder[E, This] with SetSpecialization[E, This] //with IsMutable[E]
 {
 
@@ -160,7 +160,7 @@ trait MutableSetSpecialization[@specialized(Elements) E, +This <: MutableSet[E] 
 /**
   * @author Marcin Mościcki
   */
-trait MutableSet[@specialized(Elements) E]
+trait MutableSet[@specialized(ItemTypes) E]
 	extends mutable.Set[E] with mutable.SetLike[E, MutableSet[E]] //with IsMutable[E]
 	   with ValSet[E] with MutableSetSpecialization[E, MutableSet[E]] with SpecializableSet[E, MutableSet]
 	   with MutableIterable[E]
@@ -182,7 +182,6 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 		fit.cbf
 
 
-//	@inline def of[E :RuntimeType] :MutableSet[E] = of[E]
 
 	/** Creates a mutable wrapper over another specialized set. This is especially useful if {{immutable}} is
 	  * an immutable set, but it isn't required. Result of concurrent modifications done to the argument and
@@ -194,16 +193,16 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 	  *         and 'immutable' API provided by the wrapped instance
 	  *
 	  */
-	def from[@specialized(Elements) E](immutable :ValSet[E]) :MutableSet[E] =
+	def from[@specialized(ItemTypes) E](immutable :ValSet[E]) :MutableSet[E] =
 		new MutableSetAdapter(immutable)
 
-	def from[@specialized(Elements) E](immutable :OrderedSet[E]) :MutableOrderedSet[E] =
+	def from[@specialized(ItemTypes) E](immutable :OrderedSet[E]) :MutableOrderedSet[E] =
 		new MutableOrderedSetAdapter(immutable)
 
 
-	override def empty[@specialized(Elements) E] :MutableSet[E] = from(ValSet.empty[E])
+	override def empty[@specialized(ItemTypes) E] :MutableSet[E] = from(ValSet.empty[E])
 
-	override def newBuilder[@specialized(Elements) E]: FitBuilder[E, MutableSet[E]] = from(ValSet.empty[E])
+	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, MutableSet[E]] = from(ValSet.empty[E])
 
 
 
@@ -214,7 +213,7 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 
 	private[sets] trait MutableSetAdapterTemplate[
 				+Source <: ValSet[E] with SetSpecialization[E, Source],
-				@specialized(Elements) E,
+				@specialized(ItemTypes) E,
 				+This <: MutableSet[E] with SetSpecialization[E, This] with MutableSetSpecialization[E, This] with FitBuilder[E, This]
 			]
 		extends SetAdapter[Source, E, This] with MutableSetSpecialization[E, This] //with MutableSet[E] with SetSpecialization[E, This]
@@ -273,7 +272,7 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 
 
 
-	private class MutableSetAdapter[@specialized(Elements) E](src :ValSet[E])
+	private class MutableSetAdapter[@specialized(ItemTypes) E](src :ValSet[E])
 		extends SetAdapter[ValSet[E], E, MutableSet[E]](src)
 		   with MutableSet[E] with MutableSetAdapterTemplate[ValSet[E], E, MutableSet[E]]
 	{
@@ -282,7 +281,7 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 
 
 
-	private class MutableOrderedSetAdapter[@specialized(Elements) E](src :OrderedSet[E])
+	private class MutableOrderedSetAdapter[@specialized(ItemTypes) E](src :OrderedSet[E])
 		extends SetAdapter[OrderedSet[E], E, MutableOrderedSet[E]](src)
 		   with MutableOrderedSet[E] with MutableSetAdapterTemplate[OrderedSet[E], E, MutableOrderedSet[E]]
 	{

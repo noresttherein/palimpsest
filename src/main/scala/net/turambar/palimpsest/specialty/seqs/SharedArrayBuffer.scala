@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable}
-import net.turambar.palimpsest.specialty.{arrayFill, newArray, ofKnownSize, Elements, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{arrayFill, newArray, ofKnownSize, ItemTypes, FitTraversableOnce, RuntimeType}
 import net.turambar.palimpsest.specialty.seqs.SharedArrayBuffer.nextCapacity
 
 
@@ -28,7 +28,7 @@ import net.turambar.palimpsest.specialty.seqs.SharedArrayBuffer.nextCapacity
   *
   * @tparam E element type before erasure
   */
-trait SharedArrayBuffer[@specialized(Elements) E]
+trait SharedArrayBuffer[@specialized(ItemTypes) E]
 //	extends ArrayBufferFoundation[E]
 	extends FitBuffer[E] with mutable.BufferLike[E, SharedArrayBuffer[E]]
 	   with SharedArray[E] with ArrayViewLike[E, SharedArrayBuffer[E]] with SpecializableIterable[E, SharedArrayBuffer]//SharedArrayLike[E, SharedArrayBuffer] //with ArrayBufferLike[E, SharedArrayBuffer]
@@ -475,7 +475,7 @@ trait SharedArrayBuffer[@specialized(Elements) E]
   *
   * @tparam E element type before erasure (and specialization)
   */
-trait DefaultArrayBuffer[@specialized(Elements) E]
+trait DefaultArrayBuffer[@specialized(ItemTypes) E]
 	extends SharedArrayBuffer[E]
 {
 	
@@ -699,7 +699,8 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
 
 
 /** A specialized buffer implementation which will swap the underlying array for a larger instance once its capacity
-  * is exceeded.
+  * is exceeded. This class does not alter or add any functions of its base class `DefaultArrayBuffer` and relies on it
+  * fully for implementation.
   *
   * @param array initial underlying buffer, for erased type `E` may be any of its super types.
   * @param headIdx offset at which actual data starts in the array
@@ -707,7 +708,7 @@ trait DefaultArrayBuffer[@specialized(Elements) E]
   * @param immutable can this buffer modify the given array, or is it shared in read-only mode.
   * @tparam E element type before erasure.
   */
-class GrowingArrayBuffer[@specialized(Elements) E](
+class GrowingArrayBuffer[@specialized(ItemTypes) E](
 		protected[this] override final var array :Array[E],
 		protected[palimpsest] override final var headIdx :Int,
 		protected[this] override final var len :Int,
@@ -719,7 +720,7 @@ class GrowingArrayBuffer[@specialized(Elements) E](
 
 	def this(storageType :Class[E]) = this(Array.empty[E](ClassTag(storageType)))
 
-	def this() = this(RuntimeType.arrayFor[E])
+	def this() = this(RuntimeType.arrayOf[E])
 	
 }
 
@@ -742,8 +743,8 @@ object SharedArrayBuffer extends ArrayViewFactory[SharedArrayBuffer] {
 	  * @tparam E element type
 	  * @return an empty buffer specialized accordingly to the given class tag.
 	  */
-	def emptyOf[E :RuntimeType](sizeHint :Int) :SharedArrayBuffer[E] =
-		shared(new ArrayBounds(RuntimeType.arrayFor[E](sizeHint), 0, 0))
+	def ofCapacity[E :RuntimeType](sizeHint :Int) :SharedArrayBuffer[E] =
+		shared(new ArrayBounds(RuntimeType.arrayOf[E](sizeHint), 0, 0))
 	
 	/** Create an empty buffer reusing the given array.
 	  * Created buffer will start appending from index `0` in the array, but reallocate it when its capacity is exceeded.
@@ -765,7 +766,7 @@ object SharedArrayBuffer extends ArrayViewFactory[SharedArrayBuffer] {
 		shared(ArrayBounds.share(array, offset, 0))
 
 
-	override protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): SharedArrayBuffer[E] =
+	override protected def using[@specialized(ItemTypes) E](array: Array[E], offset: Int, length: Int): SharedArrayBuffer[E] =
 		new GrowingArrayBuffer[E](array, offset, length)
 
 	final val DefaultSize = 8

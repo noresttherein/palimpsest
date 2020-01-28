@@ -6,7 +6,7 @@ import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable}
 import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
-import net.turambar.palimpsest.specialty.{Elements, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType}
 
 import scala.annotation.unspecialized
 
@@ -22,7 +22,7 @@ import scala.annotation.unspecialized
   * @param higherBound maximum index in the array which can't be exceeded by appending elements to this buffer.
   * @tparam E element type before erasure
   */
-class LentArrayBuffer[@specialized(Elements) E] private[seqs]
+class LentArrayBuffer[@specialized(ItemTypes) E] private[seqs]
 		(protected[this] final var array :Array[E], protected[palimpsest] final var headIdx :Int, protected[this] final var len :Int, lowerBound :Int, higherBound :Int)
 	extends SeqFoundation[E, LentArrayBuffer[E]] with mutable.BufferLike[E, LentArrayBuffer[E]]
 	   with SharedArrayBuffer[E] with ArrayViewLike[E, LentArrayBuffer[E]] with SpecializableIterable[E, LentArrayBuffer]//with ArrayBufferLike[E, LentArrayBuffer[E]]
@@ -75,12 +75,16 @@ class LentArrayBuffer[@specialized(Elements) E] private[seqs]
 }
 
 
+
+
+
+
 object LentArrayBuffer extends ArrayViewFactory[LentArrayBuffer] {
 
 
-	/** Creates an empty buffer of the given capacity, using an array of the type specified by implicit `ClassTag[E]`. */
-	def emptyOf[E :RuntimeType](capacity :Int) :LentArrayBuffer[E] =
-		shared(new ArrayBounds(RuntimeType.arrayFor[E](capacity), 0, 0)).cleared()
+	/** Creates an empty buffer of the given capacity, using an array of the type specified by implicit `RuntimeType[E]`. */
+	def ofCapacity[E :RuntimeType](capacity :Int) :LentArrayBuffer[E] =
+		shared(new ArrayBounds(RuntimeType.arrayOf[E](capacity), 0, capacity)).cleared()
 
 	/** Creates an empty buffer writing to the given array, starting from the first index. */
 	def upon[E](buffer :Array[E]) :LentArrayBuffer[E] =
@@ -92,7 +96,7 @@ object LentArrayBuffer extends ArrayViewFactory[LentArrayBuffer] {
 	def upon[E](buffer :Array[E], lowerBound :Int, upperBound :Int=Int.MaxValue) :LentArrayBuffer[E] =
 		shared(ArrayBounds.share(buffer, lowerBound, upperBound)).cleared()
 
-	/** Creates a `FixedArrayBuffer` using the given array, with content spanning `length` bytes from byte `offset`, which will not grow past the given bounds. */
+	/** Creates a `LentArrayBuffer` using the given array, with content spanning `length` bytes from byte `offset`, which will not grow past the given bounds. */
 	def apply[E](buffer :Array[E], offset :Int, length :Int, lowerBound :Int, upperBound :Int) :LentArrayBuffer[E] = {
 		val slice = ArrayBounds.share(lowerBound, buffer, upperBound)
 		val start = offset max slice.start min slice.end
@@ -106,10 +110,11 @@ object LentArrayBuffer extends ArrayViewFactory[LentArrayBuffer] {
 
 
 	/** Create an instance with lower bound and upper bounds defined by initial offset and size; must be adjusted to required size later. */
-	override protected def using[@specialized(Elements) E](array: Array[E], offset: Int, length: Int): LentArrayBuffer[E] =
+	override protected def using[@specialized(ItemTypes) E](array: Array[E], offset: Int, length: Int): LentArrayBuffer[E] =
 		new LentArrayBuffer[E](array, offset, length, offset, length)
 	
 	
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LentArrayBuffer[_], E, LentArrayBuffer[E]]): CanBuildFrom[LentArrayBuffer[_], E, LentArrayBuffer[E]] =
 		fit.cbf
+
 }
