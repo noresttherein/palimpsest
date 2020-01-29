@@ -13,7 +13,7 @@ class MutableBSTNode<T extends MutableBSTNode<T>> {
         this.left = left;
         this.right = right;
     }
-
+/*
     T rotateRight() {
         T root = left;
         left = root.right;
@@ -45,5 +45,5 @@ class MutableBSTNode<T extends MutableBSTNode<T>> {
         root.left = (T) this;
         return root;
     }
-
+*/
 }

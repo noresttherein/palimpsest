@@ -5,11 +5,12 @@ import java.lang.Float.{floatToIntBits, intBitsToFloat}
 
 import scala.annotation.tailrec
 
-import net.turambar.palimpsest.specialty.{?, Blank, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.maps.RedBlackTree.{KeysIterator, Negative, Node, Positive}
+import net.turambar.palimpsest.specialty.maps.RedBlackTree.{Negative, Node, Positive, RedBlackIterator, RedBlackTreeIterators}
 import net.turambar.palimpsest.specialty.ordered.{OrderedBy, ValOrdering}
 import scala.collection.mutable.ArrayBuffer
+
 
 
 /** A mutable Red-Black Tree implementation trait extended by collection classes optimized for value type keys
@@ -32,7 +33,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   * @author Marcin Mościcki
   */
-trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V, This] /*extends (This OrderedBy K)*/ {
+trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V, +This] extends RedBlackTreeIterators[K, V, This] {
 	root :Node[K, V] =>
 
 //	protected implicit def ordering :ValOrdering[K]
@@ -125,71 +126,9 @@ trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V, T
 
 
 
-	protected def rawKeysIterator :FitIterator[K] = {
-		//the stack will contain all the nodes on the path to the smallest key
-		val stack = new ArrayBuffer[Node[K, _]]
-		val sign =
-			if (left != null) {
-				stack += this
-				var top = left
-				while (top.left != null) {
-					top = top.left
-					stack += top
-				}
-				Negative
-			} else if (color != 0) { //zero (this.key) is in the tree and no negative elements.
-				stack += this
-				Positive
-			} else if (right != null) { //only positive elements present in the tree.
-				var top = right
-				stack += top
-				while (top.left != null) {
-					top = top.left
-					stack += top
-				}
-				Positive
-			} else //no keys in the tree => empty stack
-				Positive
-		new KeysIterator(stack, sign)
-	}
+	def rawKeysIterator :FitIterator[K] = iterator(keys)
 
-
-
-	def rawKeysIteratorFrom(start :K) :FitIterator[K] = {
-		//the stack will contain all nodes on the path to the smallest key larger than start from which we descended left.
-		val stack = new ArrayBuffer[Node[K, _]]
-		var k = key(0)
-		var cmp = compareRaw(start, k)
-
-		/** Recursively go down the tree searching for the first key larger than start. */
-		def descend(node :Node[K, V], sign :Int, stack :ArrayBuffer[Node[K, _]]) :FitIterator[K] = {
-			var top = node
-			while (top != null) {
-				k = top.key(sign)
-				cmp = compareRaw(start, k)
-				if (cmp < 0) {
-					stack += top
-					top = top.left
-				} else if (cmp > 0)
-					top = top.right
-				else {
-					stack += top
-					top = null
-				}
-			}
-			new KeysIterator[K](stack, sign)
-		}
-
-		if (cmp < 0 && left != null) { //first iterator key is in the left subtree
-			stack += this
-			descend(left, Negative, stack)
-		} else if (cmp <= 0 && color != 0) { //start <= 0 and zero key is present, hence we are the first node.
-			stack += this
-			new KeysIterator[K](stack, Positive)
-		} else { //start > 0 || start >= 0 && !contains(0) ==> the first iterator node is in the right subtree
-			descend(right, Positive, stack)
-		}
-	}
+	def rawKeysIteratorFrom(start :K) :FitIterator[K] = iteratorFrom(keys)(start)
 
 
 
@@ -305,13 +244,9 @@ trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V, T
 				removeRight(key, sign)(node)
 			else { //the key is present in the tree, remove the current node
 				root.size_--()
-				val l = node.left; var r = node.right
+				var l = node.left; val r = node.right
 				if (l == null) {
-					if (r == null) {
-						parent.left = null
-					} else {
-						parent.left = r
-					}
+					parent.left = r
 					//todo: rebalance
 					Sure(node.value)
 				} else if (r == null) {
@@ -320,11 +255,15 @@ trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V, T
 					Sure(node.value)
 				} else { //node has both children, swap the key with its predecessor
 					val res = Sure(node.value)
-					while (r.left != null) {
-						r = r.left
+					var p = node
+					var n = l.right
+					while (n != null) {
+						p = l; l = n; n = n.right
 					}
-					node.key_=(r.key(sign))
-					node.value = r.value
+					p.left = l.right
+					//todo: rebalance p
+					node.key_=(l.key(sign))
+					node.value = l.value
 					res
 				}
 			} 
@@ -399,100 +338,93 @@ object RedBlackTree {
 
 
 
-	trait Node[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V]
-		extends MutableBSTNode[Node[K, V]] //with ValOrdering[K]
+	/** Base trait for RedBlackTree extracted to avoid specialization of defined methods. */
+	sealed trait RedBlackTreeIterators[K, V, +This] { self :RedBlackTree[K, V, This] with Node[K, V] =>
+
+		def iterator[@specialized(ItemTypes) T](value :(Node[K, V], Int) => T) :FitIterator[T] = {
+			//the stack will contain all the nodes on the path to the smallest key
+			val stack = new ArrayBuffer[Node[K, V]]
+			val sign =
+				if (left != null) {
+					stack += this
+					var top = left
+					while (top.left != null) {
+						top = top.left
+						stack += top
+					}
+					Negative
+				} else if (color != 0) { //zero (this.key) is in the tree and no negative elements.
+					stack += this
+					Positive
+				} else if (right != null) { //only positive elements present in the tree.
+					var top = right
+					stack += top
+					while (top.left != null) {
+						top = top.left
+						stack += top
+					}
+					Positive
+				} else //no keys in the tree => empty stack
+					  Positive
+
+			new RedBlackIterator[K, V, T](stack, sign)(value)
+		}
+
+
+
+		def iteratorFrom[@specialized(ItemTypes) T](value :(Node[K, V], Int) => T)(start :K) :FitIterator[T] = {
+			//the stack will contain all nodes on the path to the smallest key larger than start from which we descended left.
+			val stack = new ArrayBuffer[Node[K, V]]
+			var k = key(0)
+			var cmp = compareRaw(start, k)
+
+			/** Recursively go down the tree searching for the first key larger than start. */
+			def descend(node :Node[K, V], sign :Int, stack :ArrayBuffer[Node[K, V]]) :FitIterator[T] = {
+				var top = node
+				while (top != null) {
+					k = top.key(sign)
+					cmp = compareRaw(start, k)
+					if (cmp < 0) {
+						stack += top
+						top = top.left
+					} else if (cmp > 0)
+						top = top.right
+					else {
+						stack += top
+						top = null
+					}
+				}
+				new RedBlackIterator[K, V, T](stack, sign)(value)
+			}
+
+			if (cmp < 0 && left != null) { //first iterator key is in the left subtree
+				stack += this
+				descend(left, Negative, stack)
+			} else if (cmp <= 0 && color != 0) { //start <= 0 and zero key is present, hence we are the first node.
+				stack += this
+				new RedBlackIterator[K, V, T](stack, Positive)(value)
+			} else { //start > 0 || start >= 0 && !contains(0) ==> the first iterator node is in the right subtree
+				descend(right, Positive, stack)
+			}
+		}
+
+	}
+
+
+	private class RedBlackIterator[K, V, @specialized(ItemTypes) +T](stack :ArrayBuffer[Node[K, V]], private[this] var sign :Int)
+		                                                            (value :(Node[K, V], Int) => T)
+		extends FitIterator[T]
 	{
-		def key(sign :Int)  :K
-		def key_=(k :K) :Unit
-		var value :V
-		var color :Color
-	}
-	
-	trait SetNode[K] extends Node[K, Unit] {
-		override def value :Unit = ()
-		override def value_=(ignored :Unit) :Unit = ()
-	}
-
-
-	abstract class IntKeyNode[V](private[this] var k :Int, l :Node[Int, V], r :Node[Int, V]) extends Node[Int, V] {
-		left = l
-		right = r 
-		
-		override def key(sign :Int) :Int = k & 0x7fffffff | sign
-		override def key_=(key :Int) :Unit = k = k & 0x80000000 | key & 0x7fffffff
-
-		override def color :Color = k & 0x80000000
-		override def color_=(color :Color) :Unit = k = (k & 0x7fffffff) | color
-	}
-	
-	class IntSetNode(k :Int, l :Node[Int, Unit] = null, r :Node[Int, Unit] = null) 
-		extends IntKeyNode[Unit](k, l, r) with SetNode[Int]
-
-	class IntIntMapNode(k :Int, override final var value :Int, l :Node[Int, Int] = null, r :Node[Int, Int] = null) 
-		extends IntKeyNode[Int](k, l, r) with Node[Int, Int]
-
-	class IntLongMapNode(k :Int, override final var value :Long, l :Node[Int, Long] = null, r :Node[Int, Long] = null)
-		extends IntKeyNode[Long](k, l, r) with Node[Int, Long]
-
-	class IntAnyMapNode[V](k :Int, override final var value :V, l :Node[Int, V] = null, r :Node[Int, V] = null)
-		extends IntKeyNode[V](k, l, r) with Node[Int, V]
-
-
-	abstract class LongKeyNode[V](private[this] var k :Long, l :Node[Long, V], r :Node[Long, V]) extends Node[Long, V] {
-		left = l
-		right = r
-
-		override def key(sign :Int) :Long = k & LongKeyMask | (sign.toLong << 32)
-		override def key_=(key :Long) :Unit = k = k & LongSignBit | key & LongKeyMask
-
-		override def color :Color = ((k & LongSignBit) >> 32).toInt
-		override def color_=(color :Color) :Unit = k = (k & LongKeyMask) | (color.toLong << 32)
-	}
-
-	class LongSetNode(k :Long, l :Node[Long, Unit] = null, r :Node[Long, Unit] = null)
-		extends LongKeyNode[Unit](k, l, r) with SetNode[Long]
-
-	class LongIntMapNode(k :Long, override final var value :Int, l :Node[Long, Int] = null, r :Node[Long, Int] = null)
-		extends LongKeyNode[Int](k, l, r) with Node[Long, Int]
-
-	class LongLongMapNode(k :Long, override final var value :Long, l :Node[Long, Long] = null, r :Node[Long, Long] = null)
-		extends LongKeyNode[Long](k, l, r) with Node[Long, Long]
-
-	class LongAnyMapNode[V](k :Long, override final var value :V, l :Node[Long, V] = null, r :Node[Long, V] = null)
-		extends LongKeyNode[V](k, l, r) with Node[Long, V]
-	
-
-
-	abstract class AnyKeyNode[K, V](final var key :K, override final var color :Color, l :Node[K, V] = null, r :Node[K, V] = null)
-		extends Node[K, V]
-	{
-		left = l
-		right = r
-
-		override def key(sign :Int) :K = key
-	}
-
-	class AnySetNode[K](k :K, color :Color, l :Node[K, Unit] = null, r :Node[K, Unit] = null)
-		extends AnyKeyNode[K, Unit](k, color, l, r) with SetNode[K]
-
-	class AnyAnyMapNode[K, V](k :K, override final var value :V, color :Color, l :Node[K, V] = null, r :Node[K, V] = null)
-		extends AnyKeyNode[K, V](k, color, l, r)
-
-
-
-
-
-
-	private class KeysIterator[K](stack :ArrayBuffer[Node[K, _]], private[this] var sign :Int) extends FitIterator[K] {
 
 		override def hasNext :Boolean = stack.nonEmpty
 
-		override def head :K = stack(stack.length - 1).key(sign)
+		override def head :T = value(stack(stack.length - 1), sign)
 
-		override def next() :K = {
+		override def next() :T = {
 			val depth = stack.length - 1
 			var top = stack(depth)
-			val res = top.key(sign)
+			val res = value(top, sign)
+
 			if (top.right == null) {
 				stack.remove(depth)
 				if (depth == 1 && sign != 0 && stack(0).color == 0) {
@@ -501,7 +433,7 @@ object RedBlackTree {
 				}
 			} else {
 				top = top.right
-				stack(depth) = top.right
+				stack(depth) = top
 				while (top.left != null) {
 					top = top.left
 					stack += top
@@ -514,4 +446,131 @@ object RedBlackTree {
 
 	}
 
+
+
+	trait Node[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V]
+		extends MutableBSTNode[Node[K, V]]
+	{
+		def key(sign :Int)  :K
+		def key_=(k :K) :Unit
+		var value :V
+		var color :Color
+
+		def keys :(Node[K, V], Int) => K
+		def vals :Node[K, V] => V
+//		def pairs :(Node[K, V], Int) => (K, V)
+	}
+
+
+
+	object Node {
+
+
+		private final val SetValues = { node :Node[_, Unit] => () }
+		private final val IntValues = { node :Node[_, Int] => node.value }
+		private final val LongValues = { node :Node[_, Long] => node.value }
+		private final val AnyValues = { node :Node[_, _] => node.value }
+
+		trait SetNode[K] extends Node[K, Unit] {
+			override def value :Unit = ()
+			override def value_=(ignored :Unit) :Unit = ()
+
+			override def vals :Node[K, Unit] => Unit = SetValues
+		}
+
+		trait IntValueNode[K] extends Node[K, Int] {
+			override def vals = IntValues
+		}
+
+		trait LongValueNode[K] extends Node[K, Long] {
+			override def vals = LongValues
+		}
+
+		trait AnyValueNode[K, V] extends Node[K, V] {
+			override def vals = AnyValues.asInstanceOf[Node[K, V] => V]
+		}
+
+
+
+		private final val IntKeys = { (node :Node[Int, _], sign :Int) => node.key(sign) }
+
+		abstract class IntKeyNode[@specialized(RawValueTypes) V]
+				(private[this] var k :Int, l :Node[Int, V], r :Node[Int, V])
+			extends MutableBSTNode(l, r) with Node[Int, V]
+		{
+
+			override def key(sign :Int) :Int = k & 0x7fffffff | sign
+
+			override def key_=(key :Int) :Unit = k = k & 0x80000000 | key & 0x7fffffff
+
+			override def color :Color = k & 0x80000000
+
+			override def color_=(color :Color) :Unit = k = (k & 0x7fffffff) | color
+
+			override def keys :(Node[Int, V], Int) => Int = IntKeys
+		}
+
+		class IntSetNode(k :Int, l :Node[Int, Unit] = null, r :Node[Int, Unit] = null)
+			extends IntKeyNode[Unit](k, l, r) with SetNode[Int]
+
+		class IntIntMapNode(k :Int, override final var value :Int, l :Node[Int, Int] = null, r :Node[Int, Int] = null)
+			extends IntKeyNode[Int](k, l, r) with IntValueNode[Int]
+
+		class IntLongMapNode(k :Int, override final var value :Long, l :Node[Int, Long] = null, r :Node[Int, Long] = null)
+			extends IntKeyNode[Long](k, l, r) with LongValueNode[Int]
+
+		class IntAnyMapNode[V](k :Int, override final var value :V, l :Node[Int, V] = null, r :Node[Int, V] = null)
+			extends IntKeyNode[V](k, l, r) with AnyValueNode[Int, V]
+
+
+
+		private final val LongKeys = { (node :Node[Long, _], sign :Int) => node.key(sign) }
+
+		abstract class LongKeyNode[@specialized(RawValueTypes) V](private[this] var k :Long, l :Node[Long, V], r :Node[Long, V])
+			extends MutableBSTNode(l, r) with Node[Long, V]
+		{
+
+			override def key(sign :Int) :Long = k & LongKeyMask | (sign.toLong << 32)
+
+			override def key_=(key :Long) :Unit = k = k & LongSignBit | key & LongKeyMask
+
+			override def color :Color = ((k & LongSignBit) >> 32).toInt
+
+			override def color_=(color :Color) :Unit = k = (k & LongKeyMask) | (color.toLong << 32)
+
+			override def keys :(Node[Long, V], Int) => Long = LongKeys
+		}
+
+		class LongSetNode(k :Long, l :Node[Long, Unit] = null, r :Node[Long, Unit] = null)
+			extends LongKeyNode[Unit](k, l, r) with SetNode[Long]
+
+		class LongIntMapNode(k :Long, override final var value :Int, l :Node[Long, Int] = null, r :Node[Long, Int] = null)
+			extends LongKeyNode[Int](k, l, r) with IntValueNode[Long]
+
+		class LongLongMapNode(k :Long, override final var value :Long, l :Node[Long, Long] = null, r :Node[Long, Long] = null)
+			extends LongKeyNode[Long](k, l, r) with LongValueNode[Long]
+
+		class LongAnyMapNode[V](k :Long, override final var value :V, l :Node[Long, V] = null, r :Node[Long, V] = null)
+			extends LongKeyNode[V](k, l, r) with AnyValueNode[Long, V]
+
+
+
+		private final val AnyKeys = { (node :Node[_, _], sign :Int) => node.key(sign) }
+
+		abstract class AnyKeyNode[K, @specialized(RawValueTypes) V]
+				(final var key :K, override final var color :Color, l :Node[K, V] = null, r :Node[K, V] = null)
+			extends MutableBSTNode(l, r) with Node[K, V]
+		{
+			override def key(sign :Int) :K = key
+
+			override def keys :(Node[K, V], Int) => K = AnyKeys.asInstanceOf[(Node[K, V], Int) => K]
+		}
+
+		class AnySetNode[K](k :K, color :Color, l :Node[K, Unit] = null, r :Node[K, Unit] = null)
+			extends AnyKeyNode[K, Unit](k, color, l, r) with SetNode[K]
+
+		class AnyAnyMapNode[K, V](k :K, override final var value :V, color :Color, l :Node[K, V] = null, r :Node[K, V] = null)
+			extends AnyKeyNode[K, V](k, color, l, r) with AnyValueNode[K, V]
+
+	}
 }

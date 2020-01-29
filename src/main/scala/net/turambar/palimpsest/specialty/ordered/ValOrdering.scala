@@ -18,6 +18,8 @@ trait ValOrdering[@specialized(ItemTypes) K] extends Ordering[K] { ord =>
 
 	def specialization :RuntimeType[K] = RuntimeType.specialized[K]
 
+	override def compare(x :K, y :K) :Int
+
 	override def lteq(x: K, y: K): Boolean = compare(x, y) <= 0
 	override def gteq(x: K, y: K): Boolean = compare(x, y) >= 0
 	override def lt(x: K, y: K): Boolean = compare(x, y) < 0

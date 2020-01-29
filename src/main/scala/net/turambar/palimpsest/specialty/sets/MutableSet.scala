@@ -78,7 +78,13 @@ trait MutableSetSpecialization[@specialized(ItemTypes) E, +This <: MutableSet[E]
 		if (included) this += elem else this -= elem
 
 
-	def flip(elem :E) :Boolean
+	def flip(elem :E) :Boolean = {
+		if (contains(elem)) {
+			this -= elem; false
+		} else {
+			this += elem; true
+		}
+	}
 
 	override def --=(xs :TraversableOnce[E]) :this.type = xs match {
 		case vals :FitTraversableOnce[E] => this --= vals

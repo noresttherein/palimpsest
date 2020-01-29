@@ -6,7 +6,7 @@ package net.turambar.palimpsest.specialty.maps;
 class ImmutableBSTNode<T extends ImmutableBSTNode<T>> {
     T left;
     T right;
-    int size = 1;
+//    int size = 1;
 
     ImmutableBSTNode() {}
 
@@ -14,39 +14,4 @@ class ImmutableBSTNode<T extends ImmutableBSTNode<T>> {
         this.left = left;
         this.right = right;
     }
-
-/*
-    T rotateRight() {
-        T root = left;
-        left = root.right;
-        root.right = (T) this;
-        return root;
-    }
-
-    T rotateLeft() {
-        T root = right;
-        right = root.left;
-        root.left = (T) this;
-        return root;
-    }
-
-    T rotateLeftRight() {
-        T root = left.right;
-        left.right = root.left;
-        root.left = left;
-        left = root.right;
-        root.right = (T) this;
-        return root;
-    }
-
-    T rotateRightLeft() {
-        T root = right.left;
-        right.left = root.right;
-        root.right = right;
-        right = root.left;
-        root.left = (T) this;
-        return root;
-    }
-*/
-
 }
