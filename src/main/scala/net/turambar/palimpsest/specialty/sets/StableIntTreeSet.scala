@@ -2,43 +2,64 @@ package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.maps.AVLTree
+import net.turambar.palimpsest.specialty.maps.AVLTree.EntryLens
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.sets.StableIntTreeSet.NodeKeys
+import net.turambar.palimpsest.specialty.sets
 
 /**
   * @author Marcin Mościcki
   */
-class StableIntTreeSet(protected val root :AVLTree.Node[Int, Unit])(implicit val ordering :ValOrdering[Int])
-	extends StableOrderedSet[Int] with AVLTree[Int, Unit]
+private[sets] class StableIntTreeSet(protected val root :AVLTree[Int, Unit], elems :Int = -1)
+	                                (implicit override val ordering :ValOrdering[Int])
+	extends AbstractStableTreeSet[Int](elems) with StableTreeSet[Int] with EntryLens[Int, Unit, Int]
 {
-	override protected def leaf(key :Int, value :Unit) :AVLTree.Node[Int, Unit] =
-		new AVLTree.Node.BalancedIntSet(key, null, null)
+	protected type Key = Int
+	protected override def lens :EntryLens[Int, Unit, Int] = this
+
+	override def element(entry :AVLTree.Entry[Int, Unit]) :Int = entry.key
+
+	override def empty :StableIntTreeSet = new StableIntTreeSet(null, 0)
 
 
-	override protected def compareRaw(k1 :Int, k2 :Int) :Int = ordering.compare(k1, k2)
 
-	override def +(elem :Int) :StableOrderedSet[Int] = {
-		val tree = insertRaw(elem, ())
-		if (tree eq root) this
-		else new StableIntTreeSet(tree)
+	override def +(elem :Int) :StableIntTreeSet = {
+		val tree = root
+		if (tree == null)
+			new StableIntTreeSet(AVLTree.IntSet(elem), 1)
+		else {
+			val res = tree.insertRaw(elem, ())
+			if (res eq tree) this
+			else new StableIntTreeSet(res, if (hasFastSize) size + 1 else -1)
+		}
 	}
 
-	override def -(elem :Int) :StableOrderedSet[Int] = {
-		val tree = deleteRaw(elem)
-		if (tree eq root) this
-		else new StableIntTreeSet(tree)
+	override def -(elem :Int) :StableIntTreeSet = {
+		val tree = root
+		if (tree == null)
+			this
+		else {
+			val res = tree.deleteRaw(elem)
+			if (res eq tree) this
+			else new StableIntTreeSet(res, if (hasFastSize) size - 1 else -1)
+		}
 	}
 
-	override def contains(key :Int) :Boolean = getNode(key) != null
+	override def contains(key :Int) :Boolean = {
+		val tree = root
+		if (tree == null) false
+		else tree.entryFor(key) != null
+	}
 
-	override protected def reverseForeach(f :Int => Unit) :Unit = ???
 
-	override def iterator :FitIterator[Int] = iterator(NodeKeys)
 
-	override def keysIteratorFrom(start :Int) :FitIterator[Int] = iteratorFrom(NodeKeys)(start)
+	override def keysIteratorFrom(start :Int) :FitIterator[Int] = {
+		val tree = root
+		if (tree == null) FitIterator.Empty
+		else tree.iteratorFrom(this)(start)
+	}
 
+	protected override def debugString = "StableIntTreeSet"
 }
 
-object StableIntTreeSet {
-	private final val NodeKeys = { node :AVLTree.Node[Int, Unit] => node.key }
-}
+
+

@@ -69,7 +69,7 @@ trait TrieFriends[/*@specialized(KeyTypes) */K, Friend <: Trie[K, Friend], +This
 
 }
 
-trait Op[-T, F, O]
+
 
 
 object TrieFriends {

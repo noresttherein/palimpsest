@@ -59,7 +59,7 @@ trait OrderedBy[+T <: OrderedBy[T, K], @specialized(MultiValue) K] extends Sorte
 
 	override def keySet :OrderedSet[K]
 
-	def stringPrefix :String
+//	def stringPrefix :String
 }
 
 

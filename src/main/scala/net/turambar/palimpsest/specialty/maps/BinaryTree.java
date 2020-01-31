@@ -3,18 +3,18 @@ package net.turambar.palimpsest.specialty.maps;
 /** Base class for binary search tree nodes. Implemented in Java to have the left and right nodes exposed as fields
  *  rather than getters.
  */
-class BSTNode<T extends BSTNode<T>> {
+class BinaryTree<T extends BinaryTree<T>> {
     T left;
     T right;
 
-    BSTNode() {}
+    BinaryTree() {}
 
-    BSTNode(T left, T right) {
+    BinaryTree(T left, T right) {
         this.left = left;
         this.right = right;
     }
 
-
+/*
     int size() {
         int size = 1;
         if (left != null)
@@ -23,6 +23,7 @@ class BSTNode<T extends BSTNode<T>> {
             size += right.size();
         return size;
     }
+*/
 
     int depth() {
         int depth = 0;
@@ -37,12 +38,19 @@ class BSTNode<T extends BSTNode<T>> {
     }
 
 
-    static<T extends BSTNode<T>> T node(T tree, int index) {
+
+    static<T extends BinaryTree<T>> int size(T tree) {
+        if (tree == null)
+            return 0;
+        return size(tree.left) + 1 + size(tree.right);
+    }
+
+    static<T extends BinaryTree<T>> T node(T tree, int index) {
         while (tree != null) {
             T left = tree.left;
             int lsize = 0;
             if (left != null)
-                lsize = left.size();
+                lsize = size(left); //.size();
             if (index < lsize)
                 tree = left;
             else if (index > lsize) {
@@ -54,7 +62,7 @@ class BSTNode<T extends BSTNode<T>> {
         return null;
     }
 
-    static<T extends BSTNode<T>> T min(T tree) {
+    static<T extends BinaryTree<T>> T min(T tree) {
         if (tree == null)
             return null;
         T left = tree.left;
@@ -65,7 +73,7 @@ class BSTNode<T extends BSTNode<T>> {
         return tree;
     }
 
-    static<T extends BSTNode<T>> T max(T tree) {
+    static<T extends BinaryTree<T>> T max(T tree) {
         if (tree == null)
             return null;
         T right = tree.right;

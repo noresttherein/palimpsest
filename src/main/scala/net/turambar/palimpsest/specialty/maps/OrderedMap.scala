@@ -103,7 +103,7 @@ object OrderedMap extends OrderedMapFactory[OrderedMap] {
 			new StableOrderedMapKeySet(source.rangeImpl(from, until))
 
 		@unspecialized
-		override def empty :StableOrderedSet[K] = StableOrderedSet.of(ordering, specialization)
+		override def empty :StableOrderedSet[K] = StableOrderedSet.of(ordering)
 	}
 
 

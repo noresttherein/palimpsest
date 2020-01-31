@@ -15,6 +15,9 @@ import net.turambar.palimpsest.specialty.ordered.OrderedBy.OrderedProxy
 import net.turambar.palimpsest.specialty.sets.MutableOrderedSet.MutableOrderedSetRange
 import net.turambar.palimpsest.specialty.sets.OrderedSet.{OrderedSetRange, OrderedSetRangeSpecialization}
 import net.turambar.palimpsest.specialty.sets.StableOrderedSet.StableOrderedSetRange
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized
+
+
 
 /** A counterpart of `SortedSetLike`, it brings together the declarations from the latter and [[OrderedAs]]. As this
   * trait lacks specialization, its sole purpose is  to resolve conflicts from inheriting identical method declarations
@@ -46,15 +49,32 @@ trait OrderedSetTemplate[E, +This<:OrderedSetTemplate[E, This] with OrderedSet[E
 
 	override def contains(key :E) :Boolean
 
-//	override def empty =
 
-//	protected[this] def factory
 
 	override def stable :StableOrderedSet[E] = (StableOrderedSet.builder[E] ++= this).result()
 
 	override def mutable :MutableOrderedSet[E] = MutableOrderedSet.of[E] ++= this
 
 }
+
+
+
+
+
+
+trait SpecializableOrderedSet[E, +S[@specialized(ItemTypes) X] <: SpecializableOrderedSet[X, S] with OrderedSet[X]]
+	extends SpecializableSet[E, ValSet] with OrderedSetTemplate[E, S[E]]
+{
+	def factory :OrderedSetFactory[S]
+
+	@unspecialized
+	override def empty :S[E] = factory.of(ordering)
+
+	@unspecialized
+	override def inverse :S[E] = factory.of(ordering.reverse) ++ this
+}
+
+
 
 
 //todo: make this not specialized. Needs not implement specialized methods and as long as specialized OrderedVals and ValSet
@@ -64,16 +84,17 @@ trait OrderedSetTemplate[E, +This<:OrderedSetTemplate[E, This] with OrderedSet[E
   */
 trait OrderedSet[@specialized(ItemTypes) E] //todo: mix-in order of OrderedVals and ValSet
 	extends SortedSet[E] with OrderedVals[E] with ValSet[E]
-	   with SetSpecialization[E, OrderedSet[E]] with OrderedAs[E, OrderedSet[E]] with OrderedSetTemplate[E, OrderedSet[E]]
+	   with SetSpecialization[E, OrderedSet[E]] with OrderedAs[E, OrderedSet[E]] //with OrderedSetTemplate[E, OrderedSet[E]]
+	   with SpecializableOrderedSet[E, OrderedSet]
 {
+
+	override def factory :OrderedSetFactory[OrderedSet] = OrderedSet
 
 	override def reverseIterator: FitIterator[E] = inverse.iterator
 
-//	override def stable :StableOrderedSet[E] = (StableOrderedSet.newBuilder[E] ++= this).result
-//	override def mutable :MutableOrderedSet[E] = MutableOrderedSet.empty[E] ++= this
 
-	@unspecialized
-	override def empty :OrderedSet[E] = OrderedSet.of[E](ordering, specialization)
+//	@unspecialized
+//	override def empty :OrderedSet[E] = OrderedSet.of[E](ordering)
 
 	override def rangeImpl(from: ?[E], until: ?[E]) :OrderedSet[E] =
 		if (from.isEmpty && until.isEmpty) this
@@ -86,7 +107,7 @@ trait OrderedSet[@specialized(ItemTypes) E] //todo: mix-in order of OrderedVals 
 
 	override def typeStringPrefix = "OrderedSet"
 
-	protected[this] override def debugPrefix = "OrderedSet"
+//	protected[this] override def debugPrefix = "OrderedSet"
 }
 
 
@@ -96,12 +117,14 @@ trait OrderedSet[@specialized(ItemTypes) E] //todo: mix-in order of OrderedVals 
 //todo: possibly doesn't need specialization
 trait MutableOrderedSet[@specialized(ItemTypes) E]
 	extends mutable.SortedSet[E] with OrderedSet[E] with OrderedAs[E, MutableOrderedSet[E]] with MutableSet[E]
-	   with MutableSetSpecialization[E, MutableOrderedSet[E]] with OrderedSetTemplate[E, MutableOrderedSet[E]]
+	   with MutableSetSpecialization[E, MutableOrderedSet[E]] with SpecializableOrderedSet[E, MutableOrderedSet] //with OrderedSetTemplate[E, MutableOrderedSet[E]]
 {
+	override def factory :OrderedSetFactory[MutableOrderedSet] = MutableOrderedSet
+
 	override def mutable :MutableOrderedSet[E] = carbon
 	override def stable :StableOrderedSet[E] = (StableOrderedSet.newBuilder[E] ++= this).result()
 
-	override def empty :MutableOrderedSet[E] = MutableOrderedSet.empty[E]
+//	override def empty :MutableOrderedSet[E] = MutableOrderedSet.empty[E]
 
 	override def rangeImpl(from: ?[E], until: ?[E]) :MutableOrderedSet[E] =
 		if (from.isEmpty && until.isEmpty) this
@@ -119,10 +142,15 @@ trait MutableOrderedSet[@specialized(ItemTypes) E]
 trait StableOrderedSet[@specialized(ItemTypes) E]
 	extends immutable.SortedSet[E] with OrderedSet[E] with StableSet[E]
 	   with OrderedAs[E, StableOrderedSet[E]] with SetSpecialization[E, StableOrderedSet[E]]
-	   with OrderedSetTemplate[E, StableOrderedSet[E]] with StableIterableTemplate[E, StableOrderedSet[E]]
+	   with SpecializableOrderedSet[E, StableOrderedSet] with StableIterableTemplate[E, StableOrderedSet[E]]
 {
-	@unspecialized
-	override def empty :StableOrderedSet[E] = StableOrderedSet.of(ordering, specialization)
+	override def factory :OrderedSetFactory[StableOrderedSet] = StableOrderedSet
+
+//	@unspecialized
+//	override def empty :StableOrderedSet[E] = StableOrderedSet.of(ordering)
+
+//	@unspecialized
+//	override def inverse :StableOrderedSet[E] = StableOrderedSet.of(ordering.reverse) ++ this
 
 	override def rangeImpl(from: ?[E], until: ?[E]) :StableOrderedSet[E] =
 		if (from.isEmpty && until.isEmpty) this
@@ -142,7 +170,10 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
 
 	def empty[@specialized(ItemTypes) E :ValOrdering] :S[E] //= newBuilder[E].result()
 
-	def of[E :ValOrdering :RuntimeType] :S[E] = EmptySet(ValOrdering[E])
+	def of[E](implicit ordering :ValOrdering[E]) :S[E] = EmptySet(ordering)(ordering.runtime)
+
+	def natural[E :Specialized] :S[E] = EmptySet(ValOrdering.natural[E])
+
 
 	def one[@specialized(ItemTypes) E :ValOrdering](singleton :E) :S[E] = (newBuilder[E] += singleton).result()
 
@@ -152,8 +183,6 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
 
 
 
-//	implicit def canFitFrom[@specialized(Elements) E :ValOrdering] :CanFitFrom[S[_], E, S[E]] =
-//		new CanBuildOrderedSet[E]
 
 
 	private[this] val EmptySet :Specialize.With[S, ValOrdering] = new Specialize.With[S, ValOrdering] {
@@ -167,8 +196,6 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
 	}
 
 
-//	type CFF[E] = CanFitFrom[S[_], E, S[E]]
-//	type CFF[E] = CanBuildFrom[S[_], E, S[E]]
 
 	protected[this] class CanBuildOrderedSet[@specialized(ItemTypes) E :ValOrdering]
 		extends CanBuildFrom[S[_], E, S[E]] with CanFitFrom[S[_], E, S[E]]
@@ -179,9 +206,6 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
 
 		override def apply() :FitBuilder[E, S[E]] = newBuilder[E]
 
-		override def mapped[O](from :S[_], f :O => E) :FitBuilder[O, S[E]] = ???
-
-		override def mapped[O :RuntimeType](f :O => E) :FitBuilder[O, S[E]] = ???
 	}
 
 }
@@ -204,8 +228,6 @@ abstract class OrderedSetFactoryImplicits[S[E] <: OrderedSet[E] with SetSpeciali
 
 object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 
-//	@inline final implicit def canBuildFrom[@specialized(Elements) E :ValOrdering]: CanBuildFrom[OrderedSet[_], E, OrderedSet[E]] =
-//		new CanBuildOrderedSet[E]
 	@inline final implicit def canBuildFrom[E](implicit fit :CanFitFrom[OrderedSet[_], E, OrderedSet[E]])
 			:CanBuildFrom[OrderedSet[_], E, OrderedSet[E]] =
 		fit.cbf
@@ -213,8 +235,6 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 
 	override def empty[@specialized(ItemTypes) E :ValOrdering] :OrderedSet[E] = StableOrderedSet.empty[E]
 
-//	def one[@specialized(Elements) E](elem :E)(implicit ord :Ordering[E]) :OrderedSet[E] =
-//		(newBuilder[E] += elem).result()
 
 	private[sets] trait OrderedSetRangeSpecialization[@specialized(ItemTypes) E, +S <: OrderedSet[E] with OrderedSetTemplate[E, S]]
 		extends OrderedSet[E] with ConvertingSet[E, S]
@@ -223,15 +243,11 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 		protected val maxKey: ?[E]
 		protected val source :S
 
+		@unspecialized
 		override def ordering :ValOrdering[E] = source.ordering
 
-		override protected def reverseForeach(f :E => Unit) :Unit = {
-			val ord = source.ordering
-			source reverseTraverse { e =>
-				if ((minKey.isEmpty || ord.compare(minKey.get, e) <= 0) && (maxKey.isEmpty || ord.compare(e, maxKey.get) < 0))
-					f(e)
-			}
-		}
+		@unspecialized
+		override protected def reverseForeach(f :E => Unit) :Unit = reverseIterator foreach f
 
 
 		override def contains(key :E) :Boolean = {
@@ -263,12 +279,22 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 				if (minKey.isEmpty) source.iterator
 				else source.iteratorFrom(minKey.get)
 			if (maxKey.isEmpty)
-				source.iterator
+				iter
 			else {
 				val ord = source.ordering
 				val max = maxKey.get
 				iter.takeWhile(ord.compare(_, max) < 0)
 			}
+		}
+
+		override def reverseIterator :FitIterator[E] = {
+			val ord = source.ordering
+			var iter = source.reverseIterator
+			if (maxKey.isDefined)
+				iter = iter.dropWhile(ord.compare(_,  maxKey.get) < 0)
+			if (minKey.isDefined)
+				iter = iter.takeWhile(ord.compare(minKey.get, _) <= 0)
+			iter
 		}
 
 		override def keysIteratorFrom(start :E) :FitIterator[E] = {
@@ -278,7 +304,7 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 				else if (ord.compare(minKey.get, start) <= 0) source.iteratorFrom(start)
 				else source.iteratorFrom(minKey.get)
 			if (maxKey.isEmpty)
-				source.iterator
+				iter
 			else {
 				val ord = source.ordering
 				val max = maxKey.get
@@ -306,7 +332,7 @@ object StableOrderedSet extends OrderedSetFactoryImplicits[StableOrderedSet] {
 			:CanBuildFrom[StableOrderedSet[_], E, StableOrderedSet[E]] =
 		fit.cbf
 
-	override def empty[@specialized(ItemTypes) E :ValOrdering] :StableOrderedSet[E] = ???
+	override def empty[@specialized(ItemTypes) E :ValOrdering] :StableOrderedSet[E] = StableTreeSet.empty[E]
 
 	private[sets] class StableOrderedSetRange[@specialized(ItemTypes) E](
 			protected override val source :StableOrderedSet[E],

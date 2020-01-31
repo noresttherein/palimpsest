@@ -10,7 +10,7 @@ import scala.collection.{GenIterable, GenTraversableOnce}
 import scala.collection.generic.CanBuildFrom
 
 
-trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnownSize {
+trait EmptyIterableTemplate[+E, +Repr <: FitIterable[E]] extends IterableTemplate[E, Repr] with OfKnownSize {
 //	def empty :Repr = repr
 
 	override def size = 0
@@ -96,7 +96,7 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 
 	override def reversed: List[E] = Nil
 
-	override def inverse :FitSeq[E] = FitSeq.Empty
+	override def inverse :FitIterable[E] = repr //FitSeq.Empty
 	override def toFitSeq :FitSeq[E] = FitSeq.Empty
 	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] = FitBuffer.of[U]
 	override def toSeq :FitSeq[E] = FitSeq.Empty
@@ -113,5 +113,5 @@ trait EmptyIterableTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with Of
 /**
   * @author Marcin Mościcki
   */
-abstract class EmptyIterableFoundation[+E, +Repr] extends IterableFoundation[E, Repr] with EmptyIterableTemplate[E, Repr]
+abstract class EmptyIterableFoundation[+E, +Repr <: FitIterable[E]] extends IterableFoundation[E, Repr] with EmptyIterableTemplate[E, Repr]
 

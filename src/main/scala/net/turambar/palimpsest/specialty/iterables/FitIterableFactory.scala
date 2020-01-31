@@ -114,40 +114,22 @@ abstract class FitIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableI
 		extends GenericCanBuildFrom[E] with CanFitFrom[S[_], E, S[E]]
 	{ outer =>
 
-		private[this] final val mapper = new Specialize.With2[
-			({ type L[X] = FitBuilder[X, S[E]]})#L, ({ type L[X] = X => E})#L, ({ type L[X] = FitBuilder[E, S[E]]})#L
-		]{
-			override def specialized[@specialized X :RuntimeType](f :X => E, builder :FitBuilder[E, S[E]]) =
-				builder.mapInput(f)
-		}
-
-
 		override def apply(from: S[_]): FitBuilder[E, S[E]] = from.genericBuilder[E]
 
 		override def apply(): FitBuilder[E, S[E]] = newBuilder[E]
-
-		override def mapped[O](from :S[_], f :O => E) :FitBuilder[O, S[E]] =
-			mapper(f, apply(from))(from.runtimeType.asInstanceOf[RuntimeType[O]])
-
-		override def mapped[O :RuntimeType](f :O => E) :FitBuilder[O, S[E]] =
-			mapper(f, apply())
-
 
 
 		override private[specialty] def companion: Any = factory
 
 		override def canEqual(that :Any) :Boolean = that.isInstanceOf[CanBuildSpecialized[_]]
 
-		override def toString = s"$factory.CFF[$runtimeType]"
+		override def toString = s"$factory.CBF[$runtimeType]"
 	}
 
 
 
-	override val ReusableCBF :CanBuildSpecialized[Nothing] = new CanBuildSpecialized[Nothing]()(RuntimeType.erased[Nothing]) {
-		override def mapped[O](from :S[_], f :O => Nothing)= from.genericBuilder[Nothing].mapInput(f)
+	override val ReusableCBF :CanBuildSpecialized[Nothing] = new CanBuildSpecialized[Nothing]()(RuntimeType.erased[Nothing])
 
-		override def mapped[O :RuntimeType](f :O => Nothing) = newBuilder[Nothing].mapInput(f)
-	}
 
 
 	type CFF[E] = CanFitFrom[S[_], E, S[E]]

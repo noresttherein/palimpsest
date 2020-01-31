@@ -123,7 +123,7 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 
 	override def filterNot(p :E => Boolean) :Repr = filter(p, false)
 
-	def filter(p :E=>Boolean, where :Boolean) :Repr
+	def filter(p :E=>Boolean, neoTruth :Boolean) :Repr
 
 
 

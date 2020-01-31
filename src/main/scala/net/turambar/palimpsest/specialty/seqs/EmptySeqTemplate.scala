@@ -12,6 +12,8 @@ import scala.collection.{IndexedSeqLike, LinearSeq, LinearSeqLike}
 trait EmptySeqTemplate[+E, +Repr <: FitSeq[E]] extends IndexedSeqLike[E, Repr] with SliceLike[E, Repr] with EmptyIterableTemplate[E, Repr]
 { this :Repr => //could extend LinearSeq
 
+	override def inverse :FitSeq[E] = this
+
 //	override def seq :Repr = this
 	override def length = 0
 

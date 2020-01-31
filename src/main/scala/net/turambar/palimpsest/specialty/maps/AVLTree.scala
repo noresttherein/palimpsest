@@ -3,29 +3,134 @@ package net.turambar.palimpsest.specialty.maps
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.mutable.ArrayBuffer
 
-import net.turambar.palimpsest.specialty.maps.AVLTree.{Balanced, LeftHeavy, Node, RightHeavy}
-import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.Var
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
+import net.turambar.palimpsest.specialty.{?, Blank, ElementLens, ItemTypes, Sure, Var}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.maps.AVLTree.Node.{Balanced, BalancedAnyAnyMap, BalancedAnyIntMap, BalancedAnyLongMap, BalancedAnySet, BalancedIntAnyMap, BalancedIntIntMap, BalancedIntLongMap, BalancedIntSet, BalancedLongAnyMap, BalancedLongIntMap, BalancedLongLongMap, BalancedLongSet, LeftHeavy, RightHeavy}
+import net.turambar.palimpsest.specialty.maps.AVLTree.{Entry, EntryLens, Node}
+import net.turambar.palimpsest.specialty.ordered.ValOrdering
 
 
 
-private[palimpsest] sealed trait AVLTreeBase[K, V] { this :AVLTree[K, V] =>
+private[palimpsest] sealed trait AVLTreeBase[K, V] { root :AVLTree[K, V] with Node[K, V] =>
 
-	protected def iterator[@specialized(ValueTypes) T](value :Node[K, V] => T) :FitIterator[T] = {
-		var node = root
-		if (node == null)
-			FitIterator.Empty
-		else {
-			val stack = new ArrayBuffer[Node[K, V]]()
-			do {
-				stack += node
-				node = node.left
-			} while (node != null)
-			new BSTIterator[Node[K, V], T](stack)(value)
-		}
+	def size :Int = {
+		def rec(node :Node[K, V]) :Int =
+			if (node == null) 0
+			else rec(node.left) + 1 + rec(node.right)
+		rec(root)
 	}
 
+
+
+	def find_?[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Boolean, where :Boolean = true): ?[T] =
+		find_rec(this)(lens, p, where) match {
+			case null => Blank
+			case node => Sure(lens.element(node))
+		}
+
+	private def find_rec[@specialized(ItemTypes) T]
+	                    (node :Node[K, V])(implicit lens :EntryLens[K, V, T], p :T => Boolean, where :Boolean): Node[K, V] =
+		if (node == null)
+			null
+		else if (p(lens.element(node)) == where)
+			node
+		else
+            find_rec(node.left) match {
+                case null => find_rec(node.right)
+                case found => found
+            }
+
+
+
+	def count[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Boolean) :Int =
+		count_rec(this)(lens, p)
+
+	private def count_rec[@specialized(ItemTypes) T](node :Node[K, V])(implicit lens :EntryLens[K, V, T], p :T => Boolean) :Int =
+		if (node == null)
+			0
+		else
+			count_rec(node.left) + count_rec(node.right) + (if (p(lens.element(node))) 1 else 0)
+
+
+
+	def foreach[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Unit) :Unit =
+		foreach_rec(this)(lens, p)
+
+	private def foreach_rec[@specialized(ItemTypes) T](node :Node[K, V])(implicit lens :EntryLens[K, V, T], p :T => Unit) :Unit =
+		if (node != null) {
+			foreach_rec(node.left)
+			p(lens.element(node))
+			foreach_rec(node.right)
+		}
+
+
+
+	def reverseForeach[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Unit) :Unit =
+		reverseForeach_rec(this)(lens, p)
+
+	private def reverseForeach_rec[@specialized(ItemTypes) T](node :Node[K, V])(implicit lens :EntryLens[K, V, T], p :T => Unit) :Unit =
+		if (node != null) {
+			reverseForeach_rec(node.right)
+			p(lens.element(node))
+			reverseForeach_rec(node.left)
+		}
+
+
+
+	def foldLeft[@specialized(Fun2) T, @specialized(Fun2) A](lens :EntryLens[K, V, T])(acc :A)(f :(A, T) => A) :A =
+		foldl(this)(acc)(lens, f)
+
+	private def foldl[@specialized(Fun2) T, @specialized(Fun2) A]
+	                 (node :Node[K, V])(acc :A)(implicit lens :EntryLens[K, V, T], f :(A, T) => A) :A =
+		if (node == null)
+			acc
+		else
+			foldl(node.right)(f(foldl(node.left)(acc), lens.element(node)))
+
+
+
+	def foldRight[@specialized(Fun2) T, @specialized(Fun2) A](lens :EntryLens[K, V, T])(acc :A)(f :(T, A) => A) :A =
+		foldr(this)(acc)(lens, f)
+
+	private def foldr[@specialized(Fun2) T, @specialized(Fun2) A]
+	                 (node :Node[K, V])(acc :A)(implicit lens :EntryLens[K, V, T], f :(T, A) => A) :A =
+		if (node == null)
+			acc
+		else
+			foldr(node.left)(f(lens.element(node), foldr(node.left)(acc)))
+
+
+
+	def copyToArray[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(xs :Array[T], start :Int, total :Int) :Int =
+		copy_rec(this)(start, total)(xs, lens)
+
+	private def copy_rec[@specialized(ItemTypes) T]
+	                    (node :Node[K, V])(start :Int, total :Int)(implicit xs :Array[T], lens :EntryLens[K, V, T]) :Int =
+		if (node == null || total <= 0)
+			0
+		else {
+			var copied = copy_rec(node.left)(start, total)
+			val remainder = total - copied
+			if (remainder <= 0)
+				copied
+			else {
+				xs(start + copied) = lens.element(node)
+				copied += 1
+				if (remainder == 1)
+					total
+				else
+					copied + copy_rec(node.right)(start + copied, remainder - 1)
+			}
+		}
+
+
+
+	def iterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :FitIterator[T] =
+		new BSTIterator[Node[K, V], T](root)(lens)
+
+	def reverseIterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :FitIterator[T] =
+		new ReverseBSTIterator[Node[K, V], T](root)(lens)
 
 }
 
@@ -38,28 +143,46 @@ private[palimpsest] sealed trait AVLTreeBase[K, V] { this :AVLTree[K, V] =>
   */
 private[palimpsest] sealed trait AVLTreeKeySpecialization[@specialized(RawKeyTypes) K, V]
 	extends AVLTreeBase[K, V]
-{ this :AVLTree[K, V] =>
-	protected def root :Node[K, V]
+{ root :AVLTree[K, V] with Node[K, V] =>
 
-	protected def compareRaw(k1 :K, k2 :K) :Int
-
-	@unspecialized
-	protected def minNode :Node[K, V] = BSTNode.min(root)
+//	protected def compareRaw(k1 :K, k2 :K) :Int
 
 	@unspecialized
-	protected def maxNode :Node[K, V] = BSTNode.max(root)
+	private[maps] def minNode :Node[K, V] = BinaryTree.min(root)
 
 	@unspecialized
-	protected def node(idx :Int) :Node[K, V] = BSTNode.node(root, idx)
+	private[maps] def maxNode :Node[K, V] = BinaryTree.max(root)
 
-	protected def iteratorFrom[@specialized(ValueTypes) T](value :Node[K, V] => T)(key :K) :FitIterator[T] = {
-		var node = root
+	@unspecialized
+	def minEntry :Entry[K, V] = BinaryTree.min(root)
+
+	@unspecialized
+	def maxEntry :Entry[K, V] = BinaryTree.max(root)
+
+	@unspecialized
+	def entry(idx :Int) :Entry[K, V] = BinaryTree.node(root, idx)
+
+	def entryFor(key :K)(implicit raw :ValOrdering[K]) :Entry[K, V] = get_rec(key)(root)
+
+	@tailrec
+	private def get_rec(key :K)(node :Node[K, V])(implicit raw :ValOrdering[K]) :Node[K, V] =
+		if (node == null)
+			null
+		else raw.compare(key, node.key) match {
+			case -1 => get_rec(key)(node.left)
+			case 1 => get_rec(key)(node.right)
+			case _ => node
+		}
+
+
+	def iteratorFrom[@specialized(ValueTypes) T](lens :EntryLens[K, V, T])(key :K)(implicit raw :ValOrdering[K]) :FitIterator[T] = {
+		var node :Node[K, V] = root
 		if (node == null)
 			FitIterator.Empty
 		else {
 			val stack = new ArrayBuffer[Node[K, V]]
 			do {
-				compareRaw(key, node.key) match {
+				raw.compare(key, node.key) match {
 					case -1 =>
 						stack += node
 						node = node.left
@@ -70,20 +193,20 @@ private[palimpsest] sealed trait AVLTreeKeySpecialization[@specialized(RawKeyTyp
 						node = null
 				}
 			} while (node != null)
-			new BSTIterator(stack)(value)
+			new BSTIterator(stack)(lens)
 		}
 	}
 
 
 
-	protected def deleteRaw(key :K) :Node[K, V] = delete_rec(key)(root)
+	def deleteRaw(key :K)(implicit raw :ValOrdering[K]) :AVLTree[K, V] = delete_rec(key)(root)
 
 
 
-	private def delete_rec(key :K)(node :Node[K, V]) :Node[K, V] =
+	private def delete_rec(key :K)(node :Node[K, V])(implicit raw :ValOrdering[K]) :Node[K, V] =
 		if (node == null)
 			null
-		else compareRaw(key, node.key) match {
+		else raw.compare(key, node.key) match {
 			case -1 =>
 				leftDeletion(node, delete_rec(key)(node.left))
 			case 1 =>
@@ -201,33 +324,20 @@ private[palimpsest] sealed trait AVLTreeKeySpecialization[@specialized(RawKeyTyp
 /** Implementation of immutable Adelson-Velsky and Landis balanced binary search trees.
   * This class
   */
-private[palimpsest] trait AVLTree[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V] extends AVLTreeKeySpecialization[K, V] {
-//	root :Node[K, V] =>
-
-	protected def leaf(key :K, value :V) :Node[K, V]
-
-	protected def getNode(key :K) :Node[K, V] = get_rec(key)(root)
-
-	@tailrec
-	private def get_rec(key :K)(node :Node[K, V]) :Node[K, V] =
-		if (node == null)
-			null
-		else compareRaw(key, node.key) match {
-			case -1 => get_rec(key)(node.left)
-			case 1 => get_rec(key)(node.right)
-			case _ => node
-		}
+private[palimpsest] trait AVLTree[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V]
+	extends AVLTreeKeySpecialization[K, V]
+{ root :Node[K, V] =>
 
 
-	def insertRaw(key :K, value :V) :Node[K, V] = {
+	def insertRaw(key :K, value :V)(implicit raw :ValOrdering[K]) :AVLTree[K, V] = {
 		val r = root
 		if (r == null) leaf(key, value)
 		else insert_rec(key, value)(r)
 	}
 
 
-	private def insert_rec(key :K, value :V)(node :Node[K, V]) :Node[K, V] = {
-		val cmp = compareRaw(key, node.key)
+	private def insert_rec(key :K, value :V)(node :Node[K, V])(implicit raw :ValOrdering[K]) :Node[K, V] = {
+		val cmp = raw.compare(key, node.key)
 		if (cmp < 0) node.left match { //key < node.key
 			case null =>
 				val l = node.leaf(key, value)
@@ -338,18 +448,43 @@ private[palimpsest] trait AVLTree[@specialized(RawKeyTypes) K, @specialized(RawV
 
 
 private[palimpsest] object AVLTree {
-	type Balance = Int
-	@inline final val Balanced :Balance = 0
-	@inline final val LeftHeavy :Balance = 0x80000000
-	@inline final val RightHeavy :Balance = 0x040000000
-
-	final val MaxSize = 0x7fffffff
 
 
-	trait Node[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V] extends BSTNode[Node[K, V]] {
+	/** Public representation of an element node in a binary search tree, exposing only the key and value
+	  * for use in actual collection implementations from other packages.
+	  */
+	trait Entry[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V] { this :Node[K, V] =>
 		def key :K
 		def value :V
+	}
 
+	type EntryLens[K, V, @specialized(ItemTypes) +T] = ElementLens[Entry[K, V], T]
+
+
+	def IntSet(key :Int) :AVLTree[Int, Unit] = new BalancedIntSet(key, null, null)
+	def LongSet(key :Long) :AVLTree[Long, Unit] = new BalancedLongSet(key, null, null)
+	def Set[K](key :K) :AVLTree[K, Unit] = new BalancedAnySet(key, null, null)
+
+	def IntIntMap(key :Int, value :Int) :AVLTree[Int, Int] = new BalancedIntIntMap(key, value, null, null)
+	def IntLongMap(key :Int, value :Long) :AVLTree[Int, Long] = new BalancedIntLongMap(key, value, null, null)
+	def IntKeyMap[V](key :Int, value :V) :AVLTree[Int, V] = new BalancedIntAnyMap(key, value, null, null)
+
+	def LongIntMap(key :Long, value :Int) :AVLTree[Long, Int] = new BalancedLongIntMap(key, value, null, null)
+	def LongLongMap(key :Long, value :Long) :AVLTree[Long, Long] = new BalancedLongLongMap(key, value, null, null)
+	def LongKeyMap[V](key :Long, value :V) :AVLTree[Long, V] = new BalancedLongAnyMap(key, value, null, null)
+
+	def IntValueMap[K](key :K, value :Int) :AVLTree[K, Int] = new BalancedAnyIntMap(key, value, null, null)
+	def LongValueMap[K](key :K, value :Long) :AVLTree[K, Long] = new BalancedAnyLongMap(key, value, null, null)
+	def Map[K, V](key :K, value :V) :AVLTree[K, V] = new BalancedAnyAnyMap(key, value, null, null)
+
+
+
+	/** Private, implementation interface of a node in a binaryr search tree. Cannot be made public as it extends
+	  * a package-protected java [[net.turambar.palimpsest.specialty.maps.BinaryTree BinaryTree]].
+	  */
+	private[maps] trait Node[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V]
+		extends BinaryTree[Node[K, V]] with Entry[K, V] with AVLTree[K, V]
+	{
 		def leaf(key :K, value :V) :Node[K, V]
 		
 		def balanced(left: Node[K, V], right: Node[K, V]) :Node[K, V]
@@ -368,19 +503,29 @@ private[palimpsest] object AVLTree {
 		override def toString = s"($left, $key: $value, $right)"
 	}
 
-	trait Balanced[K, V] extends Node[K, V] {
-		override def copy(entry :Node[K, V]) :Node[K, V] = entry.balanced(left, right)
-	}
 
-	trait LeftHeavy[K, V] extends Node[K, V] {
-		override def copy(entry :Node[K, V]) :Node[K, V] = entry.leftHeavy(left, right)
-	}
 
-	trait RightHeavy[K, V] extends Node[K, V] {
-		override def copy(entry :Node[K, V]) :Node[K, V] = entry.rightHeavy(left, right)
-	}
+	private[maps] object Node {
 
-	object Node {
+		trait Balanced[K, V] extends Node[K, V] {
+			override def copy(entry :Node[K, V]) :Node[K, V] = entry.balanced(left, right)
+
+			override def toString = s"($left-$key: $value-$right)"
+		}
+
+		trait LeftHeavy[K, V] extends Node[K, V] {
+			override def copy(entry :Node[K, V]) :Node[K, V] = entry.leftHeavy(left, right)
+
+			override def toString = s"($left/$key: $value-$right)"
+		}
+
+		trait RightHeavy[K, V] extends Node[K, V] {
+			override def copy(entry :Node[K, V]) :Node[K, V] = entry.rightHeavy(left, right)
+
+			override def toString = s"($left-$key: $value\\$right)"
+		}
+
+
 
 		trait SetNode[K] extends Node[K, Unit] {
 			override def value :Unit = ()
@@ -412,21 +557,21 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedIntSet(override val key :Int, left :Node[Int, Unit], right :Node[Int, Unit])
-			extends BSTNode[Node[Int, Unit]](left, right) with IntSetTree with Balanced[Int, Unit]
+			extends BinaryTree[Node[Int, Unit]](left, right) with IntSetTree with Balanced[Int, Unit]
 		{
 			override def copy(left :Node[Int, Unit], right :Node[Int, Unit]) :Node[Int, Unit] =
 				new BalancedIntSet(key, left, right)
 		}
 
 		class LeftIntSet(override val key :Int, left :Node[Int, Unit], right :Node[Int, Unit])
-			extends BSTNode[Node[Int, Unit]](left, right) with IntSetTree with LeftHeavy[Int, Unit]
+			extends BinaryTree[Node[Int, Unit]](left, right) with IntSetTree with LeftHeavy[Int, Unit]
 		{
 			override def copy(left :Node[Int, Unit], right :Node[Int, Unit]) :Node[Int, Unit] =
 				new LeftIntSet(key, left, right)
 		}
 
 		class RightIntSet(override val key :Int, left :Node[Int, Unit], right :Node[Int, Unit])
-			extends BSTNode[Node[Int, Unit]](left, right) with IntSetTree with RightHeavy[Int, Unit]
+			extends BinaryTree[Node[Int, Unit]](left, right) with IntSetTree with RightHeavy[Int, Unit]
 		{
 			override def copy(left :Node[Int, Unit], right :Node[Int, Unit]) :Node[Int, Unit] =
 				new RightIntSet(key, left, right)
@@ -449,21 +594,21 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedLongSet(override val key :Long, left :Node[Long, Unit], right :Node[Long, Unit])
-			extends BSTNode[Node[Long, Unit]](left, right) with LongSetTree with Balanced[Long, Unit]
+			extends BinaryTree[Node[Long, Unit]](left, right) with LongSetTree with Balanced[Long, Unit]
 		{
 			override def copy(left :Node[Long, Unit], right :Node[Long, Unit]) :Node[Long, Unit] =
 				new BalancedLongSet(key, left, right)
 		}
 
 		class LeftLongSet(override val key :Long, left :Node[Long, Unit], right :Node[Long, Unit])
-			extends BSTNode[Node[Long, Unit]](left, right) with LongSetTree with LeftHeavy[Long, Unit]
+			extends BinaryTree[Node[Long, Unit]](left, right) with LongSetTree with LeftHeavy[Long, Unit]
 		{
 			override def copy(left :Node[Long, Unit], right :Node[Long, Unit]) :Node[Long, Unit] =
 				new LeftLongSet(key, left, right)
 		}
 
 		class RightLongSet(override val key :Long, left :Node[Long, Unit], right :Node[Long, Unit])
-			extends BSTNode[Node[Long, Unit]](left, right) with LongSetTree with RightHeavy[Long, Unit]
+			extends BinaryTree[Node[Long, Unit]](left, right) with LongSetTree with RightHeavy[Long, Unit]
 		{
 			override def copy(left :Node[Long, Unit], right :Node[Long, Unit]) :Node[Long, Unit] =
 				new RightLongSet(key, left, right)
@@ -487,21 +632,21 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedAnySet[K](override val key :K, left :Node[K, Unit], right :Node[K, Unit])
-			extends BSTNode[Node[K, Unit]](left, right) with AnySetTree[K] with Balanced[K, Unit]
+			extends BinaryTree[Node[K, Unit]](left, right) with AnySetTree[K] with Balanced[K, Unit]
 		{
 			override def copy(left :Node[K, Unit], right :Node[K, Unit]) :Node[K, Unit] =
 				new BalancedAnySet(key, left, right)
 		}
 
 		class LeftAnySet[K](override val key :K, left :Node[K, Unit], right :Node[K, Unit])
-			extends BSTNode[Node[K, Unit]](left, right) with AnySetTree[K] with LeftHeavy[K, Unit]
+			extends BinaryTree[Node[K, Unit]](left, right) with AnySetTree[K] with LeftHeavy[K, Unit]
 		{
 			override def copy(left :Node[K, Unit], right :Node[K, Unit]) :Node[K, Unit] =
 				new LeftAnySet(key, left, right)
 		}
 
 		class RightAnySet[K](override val key :K, left :Node[K, Unit], right :Node[K, Unit])
-			extends BSTNode[Node[K, Unit]](left, right) with AnySetTree[K] with RightHeavy[K, Unit]
+			extends BinaryTree[Node[K, Unit]](left, right) with AnySetTree[K] with RightHeavy[K, Unit]
 		{
 			override def copy(left :Node[K, Unit], right :Node[K, Unit]) :Node[K, Unit] =
 				new RightAnySet(key, left, right)
@@ -526,7 +671,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedIntIntMap(override val key :Int, override val value :Int, l :Node[Int, Int], r :Node[Int, Int])
-			extends BSTNode[Node[Int, Int]](l, r) with IntIntMapTree with Balanced[Int, Int]
+			extends BinaryTree[Node[Int, Int]](l, r) with IntIntMapTree with Balanced[Int, Int]
 		{
 			override def copy(value :Int) :Node[Int, Int] = new BalancedIntIntMap(key, value, left, right)
 
@@ -535,7 +680,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftIntIntMap(override val key :Int, override val value :Int, l :Node[Int, Int], r :Node[Int, Int])
-			extends BSTNode[Node[Int, Int]](l, r) with IntIntMapTree with LeftHeavy[Int, Int]
+			extends BinaryTree[Node[Int, Int]](l, r) with IntIntMapTree with LeftHeavy[Int, Int]
 		{
 			override def copy(value :Int) :Node[Int, Int] = new LeftIntIntMap(key, value, left, right)
 
@@ -544,7 +689,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightIntIntMap(override val key :Int, override val value :Int, l :Node[Int, Int], r :Node[Int, Int])
-			extends BSTNode[Node[Int, Int]](l, r) with IntIntMapTree with RightHeavy[Int, Int]
+			extends BinaryTree[Node[Int, Int]](l, r) with IntIntMapTree with RightHeavy[Int, Int]
 		{
 			override def copy(value :Int) :Node[Int, Int] = new RightIntIntMap(key, value, left, right)
 
@@ -570,7 +715,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedIntLongMap(override val key :Int, override val value :Long, l :Node[Int, Long], r :Node[Int, Long])
-			extends BSTNode[Node[Int, Long]](l, r) with IntLongMapTree with Balanced[Int, Long]
+			extends BinaryTree[Node[Int, Long]](l, r) with IntLongMapTree with Balanced[Int, Long]
 		{
 			override def copy(value :Long) :Node[Int, Long] = new BalancedIntLongMap(key, value, left, right)
 
@@ -579,7 +724,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftIntLongMap(override val key :Int, override val value :Long, l :Node[Int, Long], r :Node[Int, Long])
-			extends BSTNode[Node[Int, Long]](l, r) with IntLongMapTree with LeftHeavy[Int, Long]
+			extends BinaryTree[Node[Int, Long]](l, r) with IntLongMapTree with LeftHeavy[Int, Long]
 		{
 			override def copy(value :Long) :Node[Int, Long] = new LeftIntLongMap(key, value, left, right)
 
@@ -588,7 +733,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightIntLongMap(override val key :Int, override val value :Long, l :Node[Int, Long], r :Node[Int, Long])
-			extends BSTNode[Node[Int, Long]](l, r) with IntLongMapTree with RightHeavy[Int, Long]
+			extends BinaryTree[Node[Int, Long]](l, r) with IntLongMapTree with RightHeavy[Int, Long]
 		{
 			override def copy(value :Long) :Node[Int, Long] = new RightIntLongMap(key, value, left, right)
 
@@ -614,7 +759,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedIntAnyMap[V](override val key :Int, override val value :V, l :Node[Int, V], r :Node[Int, V])
-			extends BSTNode[Node[Int, V]](l, r) with IntAnyMapTree[V] with Balanced[Int, V]
+			extends BinaryTree[Node[Int, V]](l, r) with IntAnyMapTree[V] with Balanced[Int, V]
 		{
 			override def copy(value :V) :Node[Int, V] = new BalancedIntAnyMap(key, value, left, right)
 
@@ -623,7 +768,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftIntAnyMap[V](override val key :Int, override val value :V, l :Node[Int, V], r :Node[Int, V])
-			extends BSTNode[Node[Int, V]](l, r) with IntAnyMapTree[V] with LeftHeavy[Int, V]
+			extends BinaryTree[Node[Int, V]](l, r) with IntAnyMapTree[V] with LeftHeavy[Int, V]
 		{
 			override def copy(value :V) :Node[Int, V] = new LeftIntAnyMap(key, value, left, right)
 
@@ -632,7 +777,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightIntAnyMap[V](override val key :Int, override val value :V, l :Node[Int, V], r :Node[Int, V])
-			extends BSTNode[Node[Int, V]](l, r) with IntAnyMapTree[V] with RightHeavy[Int, V]
+			extends BinaryTree[Node[Int, V]](l, r) with IntAnyMapTree[V] with RightHeavy[Int, V]
 		{
 			override def copy(value :V) :Node[Int, V] = new RightIntAnyMap(key, value, left, right)
 
@@ -658,7 +803,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedLongIntMap(override val key :Long, override val value :Int, l :Node[Long, Int], r :Node[Long, Int])
-			extends BSTNode[Node[Long, Int]](l, r) with LongIntMapTree with Balanced[Long, Int]
+			extends BinaryTree[Node[Long, Int]](l, r) with LongIntMapTree with Balanced[Long, Int]
 		{
 			override def copy(value :Int) :Node[Long, Int] = new BalancedLongIntMap(key, value, left, right)
 
@@ -667,7 +812,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftLongIntMap(override val key :Long, override val value :Int, l :Node[Long, Int], r :Node[Long, Int])
-			extends BSTNode[Node[Long, Int]](l, r) with LongIntMapTree with LeftHeavy[Long, Int]
+			extends BinaryTree[Node[Long, Int]](l, r) with LongIntMapTree with LeftHeavy[Long, Int]
 		{
 			override def copy(value :Int) :Node[Long, Int] = new LeftLongIntMap(key, value, left, right)
 
@@ -676,7 +821,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightLongIntMap(override val key :Long, override val value :Int, l :Node[Long, Int], r :Node[Long, Int])
-			extends BSTNode[Node[Long, Int]](l, r) with LongIntMapTree with RightHeavy[Long, Int]
+			extends BinaryTree[Node[Long, Int]](l, r) with LongIntMapTree with RightHeavy[Long, Int]
 		{
 			override def copy(value :Int) :Node[Long, Int] = new RightLongIntMap(key, value, left, right)
 
@@ -702,7 +847,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedLongLongMap(override val key :Long, override val value :Long, l :Node[Long, Long], r :Node[Long, Long])
-			extends BSTNode[Node[Long, Long]](l, r) with LongLongMapTree with Balanced[Long, Long]
+			extends BinaryTree[Node[Long, Long]](l, r) with LongLongMapTree with Balanced[Long, Long]
 		{
 			override def copy(value :Long) :Node[Long, Long] = new BalancedLongLongMap(key, value, left, right)
 
@@ -711,7 +856,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftLongLongMap(override val key :Long, override val value :Long, l :Node[Long, Long], r :Node[Long, Long])
-			extends BSTNode[Node[Long, Long]](l, r) with LongLongMapTree with LeftHeavy[Long, Long]
+			extends BinaryTree[Node[Long, Long]](l, r) with LongLongMapTree with LeftHeavy[Long, Long]
 		{
 			override def copy(value :Long) :Node[Long, Long] = new LeftLongLongMap(key, value, left, right)
 
@@ -720,7 +865,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightLongLongMap(override val key :Long, override val value :Long, l :Node[Long, Long], r :Node[Long, Long])
-			extends BSTNode[Node[Long, Long]](l, r) with LongLongMapTree with RightHeavy[Long, Long]
+			extends BinaryTree[Node[Long, Long]](l, r) with LongLongMapTree with RightHeavy[Long, Long]
 		{
 			override def copy(value :Long) :Node[Long, Long] = new RightLongLongMap(key, value, left, right)
 
@@ -746,7 +891,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedLongAnyMap[V](override val key :Long, override val value :V, l :Node[Long, V], r :Node[Long, V])
-			extends BSTNode[Node[Long, V]](l, r) with LongAnyMapTree[V] with Balanced[Long, V]
+			extends BinaryTree[Node[Long, V]](l, r) with LongAnyMapTree[V] with Balanced[Long, V]
 		{
 			override def copy(value :V) :Node[Long, V] = new BalancedLongAnyMap(key, value, left, right)
 
@@ -755,7 +900,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftLongAnyMap[V](override val key :Long, override val value :V, l :Node[Long, V], r :Node[Long, V])
-			extends BSTNode[Node[Long, V]](l, r) with LongAnyMapTree[V] with LeftHeavy[Long, V]
+			extends BinaryTree[Node[Long, V]](l, r) with LongAnyMapTree[V] with LeftHeavy[Long, V]
 		{
 			override def copy(value :V) :Node[Long, V] = new LeftLongAnyMap(key, value, left, right)
 
@@ -764,7 +909,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightLongAnyMap[V](override val key :Long, override val value :V, l :Node[Long, V], r :Node[Long, V])
-			extends BSTNode[Node[Long, V]](l, r) with LongAnyMapTree[V] with RightHeavy[Long, V]
+			extends BinaryTree[Node[Long, V]](l, r) with LongAnyMapTree[V] with RightHeavy[Long, V]
 		{
 			override def copy(value :V) :Node[Long, V] = new RightLongAnyMap(key, value, left, right)
 
@@ -779,18 +924,18 @@ private[palimpsest] object AVLTree {
 			override def leaf(key :K, value :Int) :Node[K, Int] =
 				new BalancedAnyIntMap(key, value, null, null)
 			
-			override def balanced(left: Node[K, Balance], right: Node[K, Int]) :Node[K, Int] =
+			override def balanced(left: Node[K, Int], right: Node[K, Int]) :Node[K, Int] =
 				new BalancedAnyIntMap(key, value, left, right)
 
-			override def leftHeavy(left: Node[K, Balance], right: Node[K, Int]) :Node[K, Int] =
+			override def leftHeavy(left: Node[K, Int], right: Node[K, Int]) :Node[K, Int] =
 				new LeftAnyIntMap(key, value, left, right)
 
-			override def rightHeavy(left: Node[K, Balance], right: Node[K, Int]) :Node[K, Int] =
+			override def rightHeavy(left: Node[K, Int], right: Node[K, Int]) :Node[K, Int] =
 				new RightAnyIntMap(key, value, left, right)
 		}
 
 		class BalancedAnyIntMap[K](override val key :K, override val value :Int, l :Node[K, Int], r :Node[K, Int])
-			extends BSTNode[Node[K, Int]](l, r) with AnyIntMapTree[K] with Balanced[K, Int]
+			extends BinaryTree[Node[K, Int]](l, r) with AnyIntMapTree[K] with Balanced[K, Int]
 		{
 			override def copy(value :Int) :Node[K, Int] = new BalancedAnyIntMap(key, value, left, right)
 
@@ -799,7 +944,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftAnyIntMap[K](override val key :K, override val value :Int, l :Node[K, Int], r :Node[K, Int])
-			extends BSTNode[Node[K, Int]](l, r) with AnyIntMapTree[K] with LeftHeavy[K, Int]
+			extends BinaryTree[Node[K, Int]](l, r) with AnyIntMapTree[K] with LeftHeavy[K, Int]
 		{
 			override def copy(value :Int) :Node[K, Int] = new LeftAnyIntMap(key, value, left, right)
 
@@ -808,7 +953,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightAnyIntMap[K](override val key :K, override val value :Int, l :Node[K, Int], r :Node[K, Int])
-			extends BSTNode[Node[K, Int]](l, r) with AnyIntMapTree[K] with RightHeavy[K, Int]
+			extends BinaryTree[Node[K, Int]](l, r) with AnyIntMapTree[K] with RightHeavy[K, Int]
 		{
 			override def copy(value :Int) :Node[K, Int] = new RightAnyIntMap(key, value, left, right)
 
@@ -834,7 +979,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedAnyLongMap[K](override val key :K, override val value :Long, l :Node[K, Long], r :Node[K, Long])
-			extends BSTNode[Node[K, Long]](l, r) with AnyLongMapTree[K] with Balanced[K, Long]
+			extends BinaryTree[Node[K, Long]](l, r) with AnyLongMapTree[K] with Balanced[K, Long]
 		{
 			override def copy(value :Long) :Node[K, Long] = new BalancedAnyLongMap(key, value, left, right)
 
@@ -843,7 +988,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftAnyLongMap[K](override val key :K, override val value :Long, l :Node[K, Long], r :Node[K, Long])
-			extends BSTNode[Node[K, Long]](l, r) with AnyLongMapTree[K] with LeftHeavy[K, Long]
+			extends BinaryTree[Node[K, Long]](l, r) with AnyLongMapTree[K] with LeftHeavy[K, Long]
 		{
 			override def copy(value :Long) :Node[K, Long] = new LeftAnyLongMap(key, value, left, right)
 
@@ -852,7 +997,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightAnyLongMap[K](override val key :K, override val value :Long, l :Node[K, Long], r :Node[K, Long])
-			extends BSTNode[Node[K, Long]](l, r) with AnyLongMapTree[K] with RightHeavy[K, Long]
+			extends BinaryTree[Node[K, Long]](l, r) with AnyLongMapTree[K] with RightHeavy[K, Long]
 		{
 			override def copy(value :Long) :Node[K, Long] = new RightAnyLongMap(key, value, left, right)
 
@@ -878,7 +1023,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class BalancedAnyAnyMap[K, V](override val key :K, override val value :V, l :Node[K, V], r :Node[K, V])
-			extends BSTNode[Node[K, V]](l, r) with AnyAnyMapTree[K, V] with Balanced[K, V]
+			extends BinaryTree[Node[K, V]](l, r) with AnyAnyMapTree[K, V] with Balanced[K, V]
 		{
 			override def copy(value :V) :Node[K, V] = new BalancedAnyAnyMap(key, value, left, right)
 
@@ -887,7 +1032,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class LeftAnyAnyMap[K, V](override val key :K, override val value :V, l :Node[K, V], r :Node[K, V])
-			extends BSTNode[Node[K, V]](l, r) with AnyAnyMapTree[K, V] with LeftHeavy[K, V]
+			extends BinaryTree[Node[K, V]](l, r) with AnyAnyMapTree[K, V] with LeftHeavy[K, V]
 		{
 			override def copy(value :V) :Node[K, V] = new LeftAnyAnyMap(key, value, left, right)
 
@@ -896,7 +1041,7 @@ private[palimpsest] object AVLTree {
 		}
 
 		class RightAnyAnyMap[K, V](override val key :K, override val value :V, l :Node[K, V], r :Node[K, V])
-			extends BSTNode[Node[K, V]](l, r) with AnyAnyMapTree[K, V] with RightHeavy[K, V]
+			extends BinaryTree[Node[K, V]](l, r) with AnyAnyMapTree[K, V] with RightHeavy[K, V]
 		{
 			override def copy(value :V) :Node[K, V] = new RightAnyAnyMap(key, value, left, right)
 

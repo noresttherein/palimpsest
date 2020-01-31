@@ -36,9 +36,9 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 	
 	override def size: Int = bitmap - (bitmap >> 1)
 
-	override def isEmpty :Boolean = bitmap==0
+	override def isEmpty :Boolean = bitmap == 0
 
-	override def nonEmpty :Boolean = bitmap>0
+	override def nonEmpty :Boolean = bitmap > 0
 
 	override def hasFastSize = true
 	override def hasDefiniteSize: Boolean =  true
@@ -69,8 +69,8 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 
 	override def filter(p: Boolean => Boolean, ourTruth: Boolean): MutableOrderedSet[Boolean] =
 		new BooleanSet(
-		  (if ((bitmap & 1) > 0 && p(false)==ourTruth) 1 else 0) |
-		      (if ((bitmap & 2) > 0 && p(true)==ourTruth) 2 else 0)
+		  (if ((bitmap & 1) > 0 && p(false) == ourTruth) 1 else 0) |
+		      (if ((bitmap & 2) > 0 && p(true) == ourTruth) 2 else 0)
 		)
 
 
@@ -358,7 +358,7 @@ private[sets] object BooleanSet {
 		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 		override def specialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
-
+		override def inverse :StableOrderedSet[Boolean] = this
 		override def empty :Empty.type = this
 		override def contains(elem: Boolean): Boolean = false
 
@@ -406,7 +406,7 @@ private[sets] object BooleanSet {
 		override def ordering :ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 		override def specialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
-
+		override def inverse :StableOrderedSet[Boolean] = this
 		override def empty :Empty.type = Empty
 		@inline override def head :Boolean = value
 
@@ -499,7 +499,8 @@ private[sets] object BooleanSet {
 		override implicit def ordering: ValOrdering[Boolean] = ValOrdering.BooleanOrdering
 		override def specialization: RuntimeType[Boolean] = RuntimeType.OfBoolean
 
-
+		override def inverse :StableOrderedSet[Boolean] =
+			StableOrderedSet.of[Boolean](ValOrdering.ReverseBooleanOrdering) ++ this
 		override def empty :StableOrderedSet[Boolean] = Empty
 
 		override def head = false

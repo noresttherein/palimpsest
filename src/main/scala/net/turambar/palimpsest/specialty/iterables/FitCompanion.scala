@@ -108,11 +108,6 @@ object FitCompanion {
 	trait CanFitFrom[-From, -E, +To] extends SpecializedGeneric { outer :CanBuildFrom[From, E, To] =>
 		private[this] type Builder[X] = FitBuilder[X, To]
 		private[this] type MapFun[X] = X => E
-		//todo: this is a trait, so it isn't really a field. Maybe move it down?
-		private[this] final val mapper = new Specialize.With2[Builder, MapFun, Specialize.Const[FitBuilder[E, To]]#T]{
-			override def specialized[@specialized X :RuntimeType](f :X => E, builder :FitBuilder[E, To]) =
-				builder.mapInput(f)
-		}
 
 		def cbf :CanBuildFrom[From, E, To] = this
 
@@ -120,17 +115,7 @@ object FitCompanion {
 		
 		def apply(): FitBuilder[E, To]
 
-//		def copy(from :FitSeq[E]) :To = (apply() ++= from).result()
 
-		def mapped[O](from :From, f :O => E) :FitBuilder[O, To]
-
-		def mapped[O :RuntimeType](f :O => E) :FitBuilder[O, To]
-
-		def mapping[O](from :From with FitIterable[O], f :O => E) :FitBuilder[O, To] =
-			mapper[O](f, (this :CanFitFrom[From, E, To]).apply(from))(from.runtimeType.asInstanceOf[RuntimeType[O]])
-
-		def mapping[O :RuntimeType](f :O => E) :FitBuilder[O, To] =
-			mapper(f, (this :CanFitFrom[From, E, To]).apply())
 
 		/** If `true`, `this(from)` takes its builder, as is customary, from
 		  * [[SpecializableIterable#genericBuilder]] / [[SpecializableIterable#builder]].

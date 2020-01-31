@@ -93,6 +93,6 @@ trait OrderedVals[@specialized(ItemTypes) E]
 //	def ++(elems :GenTraversableOnce[E]) :Self
 	override protected[this] def newBuilder :FitBuilder[E, OrderedVals[E]] = OrderedSeq.newBuilder
 
-	override def stringPrefix :String = typeStringPrefix + "[" + specialization.classTag + "]"
+//	override def stringPrefix :String = typeStringPrefix + "[" + specialization.classTag + "]"
 }
 
