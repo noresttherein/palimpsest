@@ -8,6 +8,8 @@ import net.turambar.palimpsest.specialty.RuntimeType.Specialized
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Numbers
 import net.turambar.palimpsest.specialty.Specialize.SpecializeSome
 
+
+
 /** Specialization of the standard scala `Ordering` trait. Ordered collections in this library check if the passed
   * ordering is one of the implicit values defined here and use dedicated implementations for natural orderings of
   * standard value types. In addition to natural orderings, their reverse variants, returned by the `reverse` method,
@@ -16,7 +18,7 @@ import net.turambar.palimpsest.specialty.Specialize.SpecializeSome
   */
 trait ValOrdering[@specialized(ItemTypes) K] extends Ordering[K] { ord =>
 
-	def runtime :RuntimeType[K] = RuntimeType.specialized[K]
+	def specialization :RuntimeType[K] = RuntimeType.specialized[K]
 
 	override def compare(x :K, y :K) :Int
 
@@ -87,7 +89,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 
 
 	implicit case object BooleanOrdering extends ValOrdering[Boolean] with NaturalValOrdering[Boolean] {
-		override def runtime :RuntimeType[Boolean] = RuntimeType.OfBoolean
+		override def specialization :RuntimeType[Boolean] = RuntimeType.OfBoolean
 
 		override def compare(x: Boolean, y: Boolean): Int =
 			if (x)
@@ -99,7 +101,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object ByteOrdering extends ValOrdering[Byte] with NaturalValOrdering[Byte] {
-		override def runtime :RuntimeType[Byte] = RuntimeType.OfByte
+		override def specialization :RuntimeType[Byte] = RuntimeType.OfByte
 
 		override def compare(x: Byte, y: Byte): Int = x.toInt - y.toInt
 
@@ -107,7 +109,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object ShortOrdering extends ValOrdering[Short] with NaturalValOrdering[Short] {
-		override def runtime :RuntimeType[Short] = RuntimeType.OfShort
+		override def specialization :RuntimeType[Short] = RuntimeType.OfShort
 
 		override def compare(x :Short, y :Short) :Int = x.toInt - y.toInt
 
@@ -115,7 +117,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object CharOrdering extends ValOrdering[Char] with NaturalValOrdering[Char] {
-		override def runtime :RuntimeType[Char] = RuntimeType.OfChar
+		override def specialization :RuntimeType[Char] = RuntimeType.OfChar
 
 		override def compare(x: Char, y: Char): Int = x.toInt - y.toInt
 
@@ -123,7 +125,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object IntOrdering extends ValOrdering[Int] with NaturalValOrdering[Int] {
-		override def runtime :RuntimeType[Int] = RuntimeType.OfInt
+		override def specialization :RuntimeType[Int] = RuntimeType.OfInt
 
 		override def compare(x :Int, y :Int) :Int = (x.toLong - y.toLong).signum
 
@@ -132,7 +134,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 
 
 	implicit case object LongOrdering extends ValOrdering[Long] with NaturalValOrdering[Long] {
-		override def runtime :RuntimeType[Long] = RuntimeType.OfLong
+		override def specialization :RuntimeType[Long] = RuntimeType.OfLong
 
 		override def compare(x: Long, y: Long): Int = if (x < y) -1 else if (x > y) 1 else 0
 
@@ -154,7 +156,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object FloatOrdering extends ValOrdering[Float] with NaturalValOrdering[Float] {
-		override def runtime :RuntimeType[Float] = RuntimeType.OfFloat
+		override def specialization :RuntimeType[Float] = RuntimeType.OfFloat
 
 		override def compare(x: Float, y: Float): Int = if (x < y) -1 else if (x > y) 1 else 0
 
@@ -162,7 +164,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object DoubleOrdering extends ValOrdering[Double] with NaturalValOrdering[Double] {
-		override def runtime :RuntimeType[Double] = RuntimeType.OfDouble
+		override def specialization :RuntimeType[Double] = RuntimeType.OfDouble
 
 		override def compare(x :Double, y :Double) :Int = if (x < y) -1 else if (x > y) 1 else 0
 
@@ -171,7 +173,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 
 
 	implicit case object BigIntOrdering extends ValOrdering[BigInt] with NaturalValOrdering[BigInt] {
-		override val runtime :RuntimeType[BigInt] = RuntimeType.of[BigInt]
+		override val specialization :RuntimeType[BigInt] = RuntimeType.of[BigInt]
 
 		override def compare(x: BigInt, y: BigInt): Int = x compare y
 
@@ -179,7 +181,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object BigDecimalOrdering extends ValOrdering[BigDecimal] with NaturalValOrdering[BigDecimal] {
-		override val runtime :RuntimeType[BigDecimal] = RuntimeType.of[BigDecimal]
+		override val specialization :RuntimeType[BigDecimal] = RuntimeType.of[BigDecimal]
 
 		override def compare(x: BigDecimal, y: BigDecimal): Int = x compare y
 
@@ -187,7 +189,7 @@ object ValOrdering extends FallbackOrderingImplicits {
 	}
 
 	implicit case object StringOrdering extends ValOrdering[String] {
-		override val runtime :RuntimeType[String] = RuntimeType.of[String]
+		override val specialization :RuntimeType[String] = RuntimeType.of[String]
 
 		override def compare(x: String, y: String): Int = x compareTo y
 

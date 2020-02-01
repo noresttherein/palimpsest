@@ -170,7 +170,7 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
 
 	def empty[@specialized(ItemTypes) E :ValOrdering] :S[E] //= newBuilder[E].result()
 
-	def of[E](implicit ordering :ValOrdering[E]) :S[E] = EmptySet(ordering)(ordering.runtime)
+	def of[E](implicit ordering :ValOrdering[E]) :S[E] = EmptySet(ordering)(ordering.specialization)
 
 	def natural[E :Specialized] :S[E] = EmptySet(ValOrdering.natural[E])
 
@@ -352,7 +352,7 @@ object MutableOrderedSet extends OrderedSetFactoryImplicits[MutableOrderedSet] {
 			:CanBuildFrom[MutableOrderedSet[_], E, MutableOrderedSet[E]] =
 		fit.cbf
 
-	override def empty[@specialized(ItemTypes) E :ValOrdering] :MutableOrderedSet[E] = ???
+	override def empty[@specialized(ItemTypes) E :ValOrdering] :MutableOrderedSet[E] = MutableTreeSet.empty[E]
 
 	override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, MutableOrderedSet[E]] = empty[E]
 

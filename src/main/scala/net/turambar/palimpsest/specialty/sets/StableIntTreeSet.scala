@@ -6,6 +6,8 @@ import net.turambar.palimpsest.specialty.maps.AVLTree.EntryLens
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets
 
+
+
 /**
   * @author Marcin Mościcki
   */
@@ -59,6 +61,7 @@ private[sets] class StableIntTreeSet(protected val root :AVLTree[Int, Unit], ele
 	}
 
 	protected override def debugString = "StableIntTreeSet"
+
 }
 
 

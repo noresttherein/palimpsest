@@ -14,36 +14,5 @@ class MutableBSTNode<T extends MutableBSTNode<T>> {
         this.right = right;
     }
 /*
-    T rotateRight() {
-        T root = left;
-        left = root.right;
-        root.right = (T) this;
-        return root;
-    }
-
-    T rotateLeft() {
-        T root = right;
-        right = root.left;
-        root.left = (T) this;
-        return root;
-    }
-
-    T rotateLeftRight() {
-        T root = left.right;
-        left.right = root.left;
-        root.left = left;
-        left = root.right;
-        root.right = (T) this;
-        return root;
-    }
-
-    T rotateRightLeft() {
-        T root = right.left;
-        right.left = root.right;
-        root.right = right;
-        right = root.left;
-        root.left = (T) this;
-        return root;
-    }
 */
 }

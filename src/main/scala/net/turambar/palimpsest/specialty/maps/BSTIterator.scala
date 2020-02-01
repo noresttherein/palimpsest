@@ -13,19 +13,26 @@ import net.turambar.palimpsest.specialty.{ElementLens, ItemTypes}
 /**
   * @author Marcin Mościcki
   */
-private[palimpsest] class BSTIterator[N <: BinaryTree[N], @specialized(ItemTypes) +T](stack :ArrayBuffer[N])(lens :ElementLens[N, T])
+private[palimpsest] class BSTIterator[N >: Null <: BinaryTree[N], @specialized(ItemTypes) +T](stack :ArrayBuffer[N])(lens :ElementLens[N, T])
 	extends FitIterator[T]
 {
 	def this(root :N)(lens :ElementLens[N, T]) = this(BSTIterator.initStack(root))(lens)
+
+	private[this] var last :N = null
 
 	override def hasNext :Boolean = stack.nonEmpty
 
 	override def head :T = lens.element(stack(stack.length - 1))
 
 	override def next() :T = {
+		skip()
+		lens.element(last)
+	}
+
+	override def skip() :Unit = { //can't just call next() as it would box the returned value
 		val depth = stack.length - 1
 		var top = stack(depth)
-		val res = lens.element(top)
+		this.last = top
 
 		if (top.right == null) {
 			stack.remove(depth)
@@ -37,10 +44,7 @@ private[palimpsest] class BSTIterator[N <: BinaryTree[N], @specialized(ItemTypes
 				stack += top
 			}
 		}
-		res
 	}
-
-	override def skip() :Unit = next()
 
 }
 
@@ -51,14 +55,21 @@ private[palimpsest] class ReverseBSTIterator[N <: BinaryTree[N], @specialized(It
 {
 	def this(root :N)(lens :ElementLens[N, T]) = this(BSTIterator.reverseStack(root))(lens)
 
+	private[this] var last :N = _
+
 	override def hasNext :Boolean = stack.nonEmpty
 
 	override def head :T = lens.element(stack(stack.length - 1))
 
 	override def next() :T = {
+		skip() //we call skip() from next() rather than the other way round to avoid boxing the discarded value by skip()
+		lens.element(last)
+	}
+
+	override def skip() :Unit = {
 		val depth = stack.length - 1
 		var top = stack(depth)
-		val res = lens.element(top)
+		last = top
 
 		if (top.right == null) {
 			stack.remove(depth)
@@ -70,10 +81,7 @@ private[palimpsest] class ReverseBSTIterator[N <: BinaryTree[N], @specialized(It
 				stack += top
 			}
 		}
-		res
 	}
-
-	override def skip() :Unit = next()
 
 }
 

@@ -14,13 +14,13 @@ import net.turambar.palimpsest.specialty.ordered.ValOrdering
 
 private[palimpsest] sealed trait AVLTreeBase[K, V] { root :AVLTree[K, V] with Node[K, V] =>
 
-	def size :Int = {
-		def rec(node :Node[K, V]) :Int =
-			if (node == null) 0
-			else rec(node.left) + 1 + rec(node.right)
-		rec(root)
-	}
-
+//	def size :Int = {
+//		def rec(node :Node[K, V]) :Int =
+//			if (node == null) 0
+//			else rec(node.left) + 1 + rec(node.right)
+//		rec(root)
+//	}
+	def size :Int
 
 
 	def find_?[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Boolean, where :Boolean = true): ?[T] =
@@ -168,61 +168,61 @@ private[palimpsest] sealed trait AVLTreeKeySpecialization[@specialized(RawKeyTyp
 	private def get_rec(key :K)(node :Node[K, V])(implicit raw :ValOrdering[K]) :Node[K, V] =
 		if (node == null)
 			null
-		else raw.compare(key, node.key) match {
-			case -1 => get_rec(key)(node.left)
-			case 1 => get_rec(key)(node.right)
-			case _ => node
-		}
-
-
-	def iteratorFrom[@specialized(ValueTypes) T](lens :EntryLens[K, V, T])(key :K)(implicit raw :ValOrdering[K]) :FitIterator[T] = {
-		var node :Node[K, V] = root
-		if (node == null)
-			FitIterator.Empty
 		else {
-			val stack = new ArrayBuffer[Node[K, V]]
-			do {
-				raw.compare(key, node.key) match {
-					case -1 =>
-						stack += node
-						node = node.left
-					case 1 =>
-						node = node.right
-					case _ =>
-						stack += node
-						node = null
-				}
-			} while (node != null)
-			new BSTIterator(stack)(lens)
+			val cmp = raw.compare(key, node.key)
+			if (cmp < 0) get_rec(key)(node.left)
+			else if (cmp > 0) get_rec(key)(node.right)
+			else node
 		}
+
+
+	def iteratorFrom[@specialized(ValueTypes) T](lens :EntryLens[K, V, T])(key :K)(implicit raw :ValOrdering[K]) :FitIterator[T] =
+		new BSTIterator[Node[K, V], T](iteratorFromStack(key))(lens)
+
+	private def iteratorFromStack(key :K)(implicit raw :ValOrdering[K]) :ArrayBuffer[Node[K, V]] = {
+		val stack = new ArrayBuffer[Node[K, V]]
+		var node = root
+		do {
+			val cmp = raw.compare(key, node.key)
+			if (cmp < 0) {
+				stack += node
+				node = node.left
+			} else if (cmp > 0) {
+				node = node.right
+			} else {
+				stack += node
+				node = null
+			}
+		} while (node != null)
+		stack
 	}
 
 
 
 	def deleteRaw(key :K)(implicit raw :ValOrdering[K]) :AVLTree[K, V] = delete_rec(key)(root)
 
-
-
 	private def delete_rec(key :K)(node :Node[K, V])(implicit raw :ValOrdering[K]) :Node[K, V] =
 		if (node == null)
 			null
-		else raw.compare(key, node.key) match {
-			case -1 =>
+		else {
+			val cmp = raw.compare(key, node.key)
+			if (cmp < 0)
 				leftDeletion(node, delete_rec(key)(node.left))
-			case 1 =>
+			else if (cmp > 0)
 				rightDeletion(node, delete_rec(key)(node.right))
-			case _ => //key == node.key
+			else {
 				val l = node.left
 				val r = node.right
 				if (l == null)
 					r
 				else if (r == null)
-					l
+			        l
 				else {
 					val res = Var[Node[K, V]](null)
 					val replacement = delete_min(r, res)
 					rightDeletion(node.copy(res.value), replacement)
 				}
+			}
 		}
 
 
@@ -453,7 +453,7 @@ private[palimpsest] object AVLTree {
 	/** Public representation of an element node in a binary search tree, exposing only the key and value
 	  * for use in actual collection implementations from other packages.
 	  */
-	trait Entry[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V] { this :Node[K, V] =>
+	trait Entry[@specialized(RawKeyTypes) K, @specialized(RawValueTypes) V] {
 		def key :K
 		def value :V
 	}
