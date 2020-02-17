@@ -162,7 +162,7 @@ trait StableOrderedSet[@specialized(ItemTypes) E]
 
 
 
-abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E, S[E]]] {
+abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SpecializableOrderedSet[E, S]] {
 
 	def apply[@specialized(ItemTypes) E :ValOrdering](elems :E*) :S[E] =
 		(newBuilder[E] ++= elems).result()
@@ -216,7 +216,7 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SetSpecialization[E
   * based on implicitly available `ValOrdering`. Extracted here to have a single implementation of the required
   * specialized method.
   */
-abstract class OrderedSetFactoryImplicits[S[E] <: OrderedSet[E] with SetSpecialization[E, S[E]]] extends OrderedSetFactory[S] {
+abstract class OrderedSetFactoryImplicits[S[E] <: OrderedSet[E] with SpecializableOrderedSet[E, S]] extends OrderedSetFactory[S] {
 
 	implicit def canFitFrom[@specialized(ItemTypes) E :ValOrdering] :CanFitFrom[S[_], E, S[E]] =
 		new CanBuildOrderedSet[E]
@@ -249,6 +249,7 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 		@unspecialized
 		override protected def reverseForeach(f :E => Unit) :Unit = reverseIterator foreach f
 
+		override def keyAt(n :Int) :E = iterator.get(n)
 
 		override def contains(key :E) :Boolean = {
 			val ord = source.ordering

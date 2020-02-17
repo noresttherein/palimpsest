@@ -20,7 +20,7 @@ private[palimpsest] sealed trait AVLTreeBase[K, V] { root :AVLTree[K, V] with No
 //			else rec(node.left) + 1 + rec(node.right)
 //		rec(root)
 //	}
-	def size :Int
+	def count :Int
 
 
 	def find_?[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Boolean, where :Boolean = true): ?[T] =

@@ -11,10 +11,12 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 /**
   * @author Marcin Mościcki
   */
-private[sets] class MutableLongTreeSet(private[palimpsest] final var keyCount :Int = 0, zero :Long = 0, l :Node[Long, Unit] = null, r :Node[Long, Unit] = null)
-                                      (implicit val ordering :ValOrdering[Long])
-	extends LongSetNode(zero, l, r) with MutableTreeSet[Long] with RedBlackTree[Long, Unit] with EntryLens[Long, Unit, Long] with OfKnownSize
+private[sets] class MutableLongTreeSet(implicit val ordering :ValOrdering[Long])
+	extends LongSetNode(0L, null, null)
+	   with MutableTreeSet[Long] with RedBlackTree[Long, Unit] with EntryLens[Long, Unit, Long] with OfKnownSize
 {
+	protected final override var keyCount = 0
+
 	override protected type Key = Long
 
 	override protected def root :RedBlackTree[Long, Unit] = this
@@ -25,14 +27,6 @@ private[sets] class MutableLongTreeSet(private[palimpsest] final var keyCount :I
 	override def element(node :Node[Long, Unit], sign :Int) :Long = node.key(sign)
 	
 	override protected def compareRaw(k1 :Long, k2 :Long) :Int = ordering.compare(k1, k2)
-
-
-
-	override def size :Int = keyCount
-
-	override def head :Long = firstRawKey
-
-	override def last :Long = lastRawKey
 
 
 

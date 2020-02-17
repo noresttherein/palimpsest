@@ -2,17 +2,18 @@ package net.turambar.palimpsest.specialty.sets
 
 import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
-
 import net.turambar.palimpsest.specialty.{?, FitBuilder, ItemTypes, RuntimeType, Specialize}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.maps.RedBlackTree
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
 import net.turambar.palimpsest.specialty.Specialize.SpecializeSome
+import net.turambar.palimpsest.specialty.iterables.IterableOverrides
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.EntryLens
 import net.turambar.palimpsest.specialty.sets.MutableTreeSet.MutableTreeSetRange
 import net.turambar.palimpsest.specialty.sets.OrderedSet.OrderedSetRangeSpecialization
+import net.turambar.palimpsest.LibraryError
 
 
 
@@ -26,16 +27,19 @@ trait MutableTreeSet[@specialized(ItemTypes) E]
 	protected type Key
 	protected def root :RedBlackTree[Key, Unit]
 	protected def lens :EntryLens[Key, Unit, E]
+	protected def keyCount :Int
 
 	override def factory :OrderedSetFactory[MutableTreeSet] = MutableTreeSet
 
 
 
+	override def size :Int = keyCount
 
-//	override def head :E = root.min(lens)
-//
-//	override def last :E = root.max(lens)
+	override def head :E = root.min(lens)
 
+	override def last :E = root.max(lens)
+
+	override def keyAt(n :Int) :E = root.keyAt(lens)(n)
 
 
 	override def find_?(p :E => Boolean, where :Boolean): ?[E] = root.find_?(lens)(p, where)
@@ -76,85 +80,57 @@ trait MutableTreeSet[@specialized(ItemTypes) E]
 
 
 
-object MutableTreeSet extends OrderedSetFactory[MutableTreeSet] {
+object MutableTreeSet extends OrderedSetFactoryImplicits[MutableTreeSet] {
 
-		@inline final implicit def canBuildFrom[E](implicit fit :CanFitFrom[MutableTreeSet[_], E, MutableTreeSet[E]])
-				:CanBuildFrom[MutableTreeSet[_], E, MutableTreeSet[E]] =
-			fit.cbf
+	@inline final implicit def canBuildFrom[E](implicit fit :CanFitFrom[MutableTreeSet[_], E, MutableTreeSet[E]])
+			:CanBuildFrom[MutableTreeSet[_], E, MutableTreeSet[E]] =
+		fit.cbf
 
-		override def empty[@specialized(ItemTypes) E](implicit ordering :ValOrdering[E]) :MutableTreeSet[E] =
-			Empty()(RuntimeType.specialized[E])(ordering)
+	override def empty[@specialized(ItemTypes) E](implicit ordering :ValOrdering[E]) :MutableTreeSet[E] =
+		Empty()(RuntimeType.specialized[E])(ordering)
 
-		override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, MutableTreeSet[E]] = empty[E]
-
-
-		private type Constructor[X] = ValOrdering[X] => MutableTreeSet[X]
-
-		private[this] final val Empty :Specialize.Individually[Constructor] = new SpecializeSome[Constructor] {
-			override val forByte = { ord :ValOrdering[Byte] => new MutableByteTreeSet()(ord) }
-			override val forShort = { ord :ValOrdering[Short] => new MutableShortTreeSet()(ord) }
-			override val forChar = { ord :ValOrdering[Char] => new MutableCharTreeSet()(ord) }
-			override val forInt = { ord :ValOrdering[Int] => new MutableIntTreeSet()(ord) }
-			override val forLong = { ord :ValOrdering[Long] => new MutableLongTreeSet()(ord) }
-			override val forFloat = { ord :ValOrdering[Float] => new MutableFloatTreeSet()(ord) }
-			override val forDouble = { ord :ValOrdering[Double] => new MutableDoubleTreeSet()(ord) }
-
-			override protected[this] def generic[E :RuntimeType] = erased.asInstanceOf[Constructor[E]]
-
-			private[this] final val erased = { ord :ValOrdering[Any] => new StableAVLSet[Any](null, 0)(ord) }
-		}
+	override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, MutableTreeSet[E]] = empty[E]
 
 
+	private type Constructor[X] = ValOrdering[X] => MutableTreeSet[X]
 
-		private[sets] class MutableTreeSetRange[@specialized(ItemTypes) E](
-				protected override val source :MutableTreeSet[E],
-				protected override val minKey: ?[E],
-				protected override val maxKey: ?[E]
-			) extends MutableTreeSet[E] with OrderedSetRangeSpecialization[E, MutableTreeSet[E]]
-		{
-			override protected type Key = source.Key
-			override protected def root :RedBlackTree[Key, Unit] = null
-			override protected def lens :EntryLens[Key, Unit, E] = source.lens
+	private[this] final val Empty :Specialize.Individually[Constructor] = new SpecializeSome[Constructor] {
+		override val forByte = { ord :ValOrdering[Byte] => new MutableByteTreeSet()(ord) }
+		override val forShort = { ord :ValOrdering[Short] => new MutableShortTreeSet()(ord) }
+		override val forChar = { ord :ValOrdering[Char] => new MutableCharTreeSet()(ord) }
+		override val forInt = { ord :ValOrdering[Int] => new MutableIntTreeSet()(ord) }
+		override val forLong = { ord :ValOrdering[Long] => new MutableLongTreeSet()(ord) }
+		override val forFloat = { ord :ValOrdering[Float] => new MutableFloatTreeSet()(ord) }
+		override val forDouble = { ord :ValOrdering[Double] => new MutableDoubleTreeSet()(ord) }
+
+		override protected[this] def generic[E :RuntimeType] = erased.asInstanceOf[Constructor[E]]
+
+		private[this] final val erased = { ord :ValOrdering[Any] => new MutableErasedTreeSet[Any]()(ord) }
+	}
 
 
 
-			override def +=(elem :E) :this.type = { source += elem; this }
+	private[sets] class MutableTreeSetRange[@specialized(ItemTypes) E](
+			protected override val source :MutableTreeSet[E],
+			protected override val minKey: ?[E],
+			protected override val maxKey: ?[E]
+		) extends MutableTreeSet[E] with OrderedSetRangeSpecialization[E, MutableTreeSet[E]]
+		     with IterableOverrides[E, MutableTreeSet[E]]
+	{
+		override protected type Key = source.Key
 
-			override def -=(elem :E) :this.type = { source += elem; this }
+		override protected def root :RedBlackTree[Key, Unit] =
+			throw new LibraryError("MutableTreeSetRange.root: this method shouldn't be used!")
 
+		override protected def lens :EntryLens[Key, Unit, E] = source.lens
 
-			override def head :E = iterator.next()
+		override def keyCount = size
 
-			override def last :E = reverseIterator.next()
+		override def +=(elem :E) :this.type = { source += elem; this }
 
-			@unspecialized
-			override def find_?(p :E => Boolean, where :Boolean) : ?[E] = iterator.find_?(p, where)
+		override def -=(elem :E) :this.type = { source += elem; this }
 
-			@unspecialized
-			override def count(p :E => Boolean) :Int = iterator.count(p)
-
-			@unspecialized
-			override def foldLeft[@specialized(Fun2) O](z :O)(op :(O, E) => O) :O = iterator.foldLeft(z)(op)
-
-			@unspecialized
-			override def foldRight[@specialized(Fun2) O](z :O)(op :(E, O) => O) :O = iterator.foldRight(z)(op)
-
-			@unspecialized
-			override def foreach[@specialized(Unit) U](f :E => U) :Unit = iterator.foreach(f.asInstanceOf[E => Unit])
-
-
-
-			protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int = {
-				val iter = iterator
-				var copied = 0
-				while (copied < total && iter.hasNext) {
-					xs(start + copied) = iter.next()
-					copied += 1
-				}
-				copied
-			}
-
-		}
+	}
 
 
 }

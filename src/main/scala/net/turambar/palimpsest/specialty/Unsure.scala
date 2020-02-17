@@ -150,7 +150,7 @@ case object Blank extends Unsure[Nothing] {
 
 
 /** A specialized equivalent of `scala.Some`. */
-class Sure[@specialized(Primitives) +T] private[specialty] (private[this] val x :T) extends Unsure[T] {
+final class Sure[@specialized(Primitives) +T] private[specialty] (private[this] val x :T) extends Unsure[T] {
 
 	/** This is the same as `get`, but is not declared by the parent trait, meaning it can only be called
 	  * if this instance is statically known to be `Sure`. For this reason it is always preferable to `get`,

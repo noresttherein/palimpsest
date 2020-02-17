@@ -23,12 +23,12 @@ class BinaryTree<T extends BinaryTree<T>> {
 
 
 
-    public int size() {
+    public int count() {
         int size = 1;
         if (left != null)
-            size += left.size();
+            size += left.count();
         if (right != null)
-            size += right.size();
+            size += right.count();
         return size;
     }
 
@@ -126,10 +126,10 @@ class BinaryTree<T extends BinaryTree<T>> {
 
 
 
-    static<T extends BinaryTree<T>> int size(T tree) {
+    static<T extends BinaryTree<T>> int count(T tree) {
         if (tree == null)
             return 0;
-        return size(tree.left) + 1 + size(tree.right);
+        return count(tree.left) + 1 + count(tree.right);
     }
 
     static<T extends BinaryTree<T>> T node(T tree, int index) {
@@ -137,7 +137,7 @@ class BinaryTree<T extends BinaryTree<T>> {
             T left = tree.left;
             int lsize = 0;
             if (left != null)
-                lsize = size(left); //.size();
+                lsize = count(left); //.size();
             if (index < lsize)
                 tree = left;
             else if (index > lsize) {

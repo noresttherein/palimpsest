@@ -6,7 +6,8 @@ import net.turambar.palimpsest.specialty.seqs.SharedArray
 
 import scala.annotation.unspecialized
 import scala.collection.immutable.ListSet
-import scala.collection.{mutable, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
+import scala.collection.{BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
+import scala.collection.mutable.WrappedArray
 
 
 /** A base trait for everything that is specialized. It exists to avoid numerous overrides caused by inheriting
@@ -85,7 +86,7 @@ object FitTraversableOnce {
 	def unapply[E](col :GenTraversableOnce[E]) :Option[FitTraversableOnce[E]] =
 		col match {
 			case it :FitTraversableOnce[E] => Some(it)
-			case arr :mutable.WrappedArray[E] => Some(SharedArray(arr.array))
+			case arr :WrappedArray[E] => Some(SharedArray(arr.array))
 			case _ => None
 		}
 

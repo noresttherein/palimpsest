@@ -4,17 +4,18 @@ package net.turambar.palimpsest.specialty
 import java.lang.Math
 
 import scala.annotation.tailrec
-import scala.collection.{mutable, GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce}
+import scala.collection.{GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals}
 import net.turambar.palimpsest.specialty.FitBuilder.{BuilderAdapter, BuilderWrapper}
 import net.turambar.palimpsest.specialty.seqs.{FitSeq, SharedArrayBuffer}
 
 import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable.Builder
 
 
 
-/** Specialized version of [[mutable.Builder]] (for any result type). */
-trait FitBuilder[@specialized(ItemTypes) -E, +To] extends mutable.Builder[E, To] with SpecializedGeneric {
+/** Specialized version of [[scala.collection.mutable.Builder Builder]] (for any result type). */
+trait FitBuilder[@specialized(ItemTypes) -E, +To] extends Builder[E, To] with SpecializedGeneric {
 //	protected[this] def specialization :Specialized[E] = Specialized[E]
 
 
@@ -125,14 +126,14 @@ trait FitBuilder[@specialized(ItemTypes) -E, +To] extends mutable.Builder[E, To]
   */
 object FitBuilder {
 	
-	def apply[E, To](builder :mutable.Builder[E, To]) :FitBuilder[E, To] = builder match {
+	def apply[E, To](builder :Builder[E, To]) :FitBuilder[E, To] = builder match {
 		case fit :FitBuilder[E, To] => fit
 		case _ => new BuilderWrapper(builder)
 	}
 	
 //	def unapply[E, What](cbf :CanBuildFrom[_, E, What]) :Option[FitBuilder[E, What]] =
 	
-	private def mapper[@specialized(Fun1) X, @specialized(Fun1Vals) Y, To](b :mutable.Builder[Y, To])(f :X=>Y) :X=>Unit =
+	private def mapper[@specialized(Fun1) X, @specialized(Fun1Vals) Y, To](b :Builder[Y, To])(f :X=>Y) :X=>Unit =
 		{ x :X => b += f(x) }
 	
 	private def traversed[@specialized(Fun1) X](appender :X=>Unit) :TraversableOnce[X]=>Unit =
@@ -163,18 +164,18 @@ object FitBuilder {
 		new BuilderAdapter(builder, { x :X => if (p(x) == where) append(x) }, builder.build, true)
 	}
 
-	trait IgnoresHints extends mutable.Builder[Nothing, Any] {
+	trait IgnoresHints extends Builder[Nothing, Any] {
 		override def sizeHint(size: Int) :Unit = ()
 		override def sizeHint(coll: TraversableLike[_, _]) :Unit = ()
 		override def sizeHint(coll: TraversableLike[_, _], delta: Int) :Unit = ()
 		override def sizeHintBounded(size: Int, boundingColl: TraversableLike[_, _]) :Unit = ()
 	}
 
-	private class BuilderWrapper[-E, +To](vanilla :mutable.Builder[E, _], override val build :()=>To, supressHints :Boolean = false)
+	private class BuilderWrapper[-E, +To](vanilla :Builder[E, _], override val build :()=>To, supressHints :Boolean = false)
 		extends FitBuilder[E, To]
 	{
 		
-		def this(vanilla :mutable.Builder[E, To]) = this(vanilla, () => vanilla.result())
+		def this(vanilla :Builder[E, To]) = this(vanilla, () => vanilla.result())
 		
 		override private[specialty] def addOne :E => Unit = e => vanilla += e
 
@@ -211,17 +212,17 @@ object FitBuilder {
 	
 	
 	private class BuilderAdapter[@specialized(Fun1) X, +To](
-			target :mutable.Builder[_, _],
+			target :Builder[_, _],
 			override val addOne :X=>Unit,
 			override val addMany :TraversableOnce[X]=>Unit,
 			override val build :()=>To,
 			supressHints :Boolean
 		) extends FitBuilder[X, To]
 	{
-		def this(target :mutable.Builder[_, _], addOne :X=>Unit, build :()=>To, supressHints :Boolean=false) =
+		def this(target :Builder[_, _], addOne :X=>Unit, build :()=>To, supressHints :Boolean=false) =
 			this(target, addOne, traversed(addOne), build, supressHints)
 		
-//		def this(target :mutable.Builder[_, To], addOne :X=>Unit, supressHints :Boolean=false) =
+//		def this(target :Builder[_, To], addOne :X=>Unit, supressHints :Boolean=false) =
 //			this(target, addOne, traversed(addOne), () => target.result(), supressHints)
 		
 		def this(target :FitBuilder[X, To]) = this(target, target.addOne, target.addMany, target.build, false)

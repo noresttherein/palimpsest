@@ -4,7 +4,7 @@ package net.turambar.palimpsest.specialty.sets
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.sets.ValSet.SetAdapter
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, MutableIterable, SpecializableIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.{FitCompanion, FitIterableFactory, InterfaceIterableFactory, MutableIterable, SpecializableIterableFactory}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 
@@ -182,12 +182,14 @@ trait MutableSet[@specialized(ItemTypes) E]
 
 
 
-object MutableSet extends SpecializableIterableFactory[MutableSet] {
+object MutableSet extends InterfaceIterableFactory[MutableSet] {
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableSet[_], E, MutableSet[E]]): CanBuildFrom[MutableSet[_], E, MutableSet[E]] =
 		fit.cbf
 
 
+	override protected[this] type RealType[@specialized(ItemTypes) E] = MutableHashSet[E]
+	override protected[this] def default :FitIterableFactory[MutableHashSet] = MutableHashSet
 
 	/** Creates a mutable wrapper over another specialized set. This is especially useful if {{immutable}} is
 	  * an immutable set, but it isn't required. Result of concurrent modifications done to the argument and
@@ -206,13 +208,6 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 		new MutableOrderedSetAdapter(immutable)
 
 
-	override def empty[@specialized(ItemTypes) E] :MutableSet[E] = from(ValSet.empty[E])
-
-	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, MutableSet[E]] = from(ValSet.empty[E])
-
-
-
-
 
 
 
@@ -220,7 +215,7 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 	private[sets] trait MutableSetAdapterTemplate[
 				+Source <: ValSet[E] with SetSpecialization[E, Source],
 				@specialized(ItemTypes) E,
-				+This <: MutableSet[E] with SetSpecialization[E, This] with MutableSetSpecialization[E, This] with FitBuilder[E, This]
+				+This <: MutableSet[E] with MutableSetSpecialization[E, This] with FitBuilder[E, This]
 			]
 		extends SetAdapter[Source, E, This] with MutableSetSpecialization[E, This] //with MutableSet[E] with SetSpecialization[E, This]
 	{
@@ -330,6 +325,8 @@ object MutableSet extends SpecializableIterableFactory[MutableSet] {
 
 		override def origin :AnyRef = MutableOrderedSet
 	}
+
+
 
 }
 

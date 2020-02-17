@@ -4,9 +4,14 @@ import java.util
 
 import scala.collection.{mutable, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
 import scala.reflect.ClassTag
-import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Primitives
+import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun2, Primitives}
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableTemplate}
+import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.seqs.FitList
 
+import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.ListSet
+import scala.collection.mutable.Builder
 
 
 
@@ -45,16 +50,6 @@ package object specialty {
 
 
 //todo: adapters/converters from scala classes
-//	/** Same as `scala.collection.breakOut`, but for [[CanFitFrom]] instances.
-//	  * Named differently to avoid conflicts when both are imported.
-//	  * Adapts a builder factory tied to a specific source type to be used for any input collection types.
-//	  * Used to escape default resolution of static and dynamic result type of collection operations
-//	  * such as `map` and enforce the usage of a builder for a desired return type expressed as type
-//	  * constraint on the result of the operation.
-//	  */
-//	//todo: I don't think it does anything more than breakOut - it's the builder that matters
-//	def forceFit[F, E, T](implicit anyFactory :CanFitFrom[_, E, T]) :CanBuildFrom[F, E, T] =
-//		new CanBreakOut[F, E, T].cbf
 
 
 	
@@ -71,19 +66,54 @@ package object specialty {
 
 
 
-	private[specialty] def concat[E, R](first :FitTraversableOnce[E], second :TraversableOnce[E])(builder :mutable.Builder[E, R]) :R = {
+	private[specialty] def concat[E, R](first :FitTraversableOnce[E], second :TraversableOnce[E])(builder :Builder[E, R]) :R = {
 		if (first.hasFastSize && ofKnownSize(second))
 			builder sizeHint first.size + second.size
 		builder ++= first ++= second
 		builder.result()
 	}
 
-	private[specialty] def concat[E, R](first :TraversableOnce[E], second :FitTraversableOnce[E])(builder :mutable.Builder[E, R]) :R = {
+	private[specialty] def concat[E, R](first :TraversableOnce[E], second :FitTraversableOnce[E])(builder :Builder[E, R]) :R = {
 		if (second.hasFastSize && ofKnownSize(first))
 			builder sizeHint first.size + second.size
 		builder ++= first ++= second
 		builder.result()
 	}
+
+
+
+	private[specialty] def span[@specialized(ItemTypes) E, R]
+	                           (src :FitIterator[E], prefix :FitBuilder[E, R], suffix :FitBuilder[E, R])(p :E => Boolean) :(R, R) =
+	{
+		while (src.hasNext && p(src.head)) prefix += src.next()
+		while (src.hasNext) suffix += src.next()
+		(prefix.result(), suffix.result())
+	}
+
+	private[specialty] def filter[@specialized(ItemTypes) E, R](src :FitIterator[E], builder :FitBuilder[E, R])
+	                                                           (p :E => Boolean, neoTruth :Boolean = true) :R =
+	{
+		while (src.hasNext) {
+			val e = src.next()
+			if (p(e) == neoTruth)
+				builder += e
+		}
+		builder.result()
+	}
+
+	private[specialty] def partition[@specialized(ItemTypes) E, R]
+	                                (src :FitIterator[E], whereTrue :FitBuilder[E, R], whereFalse :FitBuilder[E, R])
+	                                (p :E => Boolean) :(R, R) =
+	{
+		while (src.hasNext) {
+			val e = src.next()
+			if (p(e)) whereTrue += e
+			else whereFalse += e
+		}
+		(whereTrue.result(), whereFalse.result())
+	}
+
+
 
 
 

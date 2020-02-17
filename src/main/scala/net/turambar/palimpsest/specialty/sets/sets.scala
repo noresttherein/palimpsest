@@ -17,13 +17,4 @@ package object sets {
 	}
 
 
-	private[sets] def buildDifference[@specialized(ItemTypes) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :FitBuilder[E, R]) :Unit = {
-		val it = set1.iterator
-		while (it.hasNext) {
-			val e = it.next()
-			if (!set2.contains(e))
-				builder += e
-		}
-	}
-
 }

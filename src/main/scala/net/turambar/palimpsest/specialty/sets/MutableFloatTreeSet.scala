@@ -13,10 +13,12 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 /**
   * @author Marcin Mościcki
   */
-private[sets] class MutableFloatTreeSet(private[palimpsest] final var keyCount :Int = 0, zero :Int = 0, l :Node[Int, Unit] = null, r :Node[Int, Unit] = null)
-                                       (implicit val ordering :ValOrdering[Float])
-	extends IntSetNode(zero, l, r) with MutableTreeSet[Float] with RedBlackTree[Int, Unit] with EntryLens[Int, Unit, Float] with OfKnownSize
+private[sets] class MutableFloatTreeSet(implicit val ordering :ValOrdering[Float])
+	extends IntSetNode(0, null, null)
+	   with MutableTreeSet[Float] with RedBlackTree[Int, Unit] with EntryLens[Int, Unit, Float] with OfKnownSize
 {
+	protected final override var keyCount = 0
+
 	override protected type Key = Int
 
 	override protected def root :RedBlackTree[Int, Unit] = this
@@ -27,14 +29,6 @@ private[sets] class MutableFloatTreeSet(private[palimpsest] final var keyCount :
 	override def element(node :Node[Int, Unit], sign :Int) :Float = intBitsToFloat(node.key(sign))
 	
 	override protected def compareRaw(k1 :Int, k2 :Int) :Int = ordering.compare(intBitsToFloat(k1), intBitsToFloat(k2))
-
-
-
-	override def size :Int = keyCount
-
-	override def head :Float = intBitsToFloat(firstRawKey)
-
-	override def last :Float = intBitsToFloat(lastRawKey)
 
 
 

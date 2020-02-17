@@ -1,15 +1,11 @@
 package net.turambar.palimpsest.specialty.maps
 
-import java.lang.Double.{doubleToLongBits, longBitsToDouble}
-import java.lang.Float.{floatToIntBits, intBitsToFloat}
-
 import scala.annotation.{tailrec, unspecialized}
-
-import net.turambar.palimpsest.specialty.{?, maps, Blank, ItemTypes, Sure}
+import net.turambar.palimpsest.specialty.{?, maps, Blank, ItemTypes, Sure, Var}
 import net.turambar.palimpsest.specialty.iterators.FitIterator
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.{Black, Color, EntryLens, Negative, Node, Positive, Red, RedBlackIterator, ReverseRedBlackIterator}
-import scala.collection.mutable.ArrayBuffer
 
+import scala.collection.mutable.ArrayBuffer
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
 
 
@@ -18,17 +14,13 @@ import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
 private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, V] with Node[K, V] =>
 
 
-
-
-
-/*
 	def min[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]): T =
 		if (left != null) {
 			var res = left.left
 			while (res.left != null)
 				res = res.left
 			lens.element(res, Negative)
-		} else if (color != 0)
+		} else if (colorBit != 0)
 			lens.element(this, 0)
 		else if (right != null) {
 			var res = right.right
@@ -36,7 +28,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 				res = res.right
 			lens.element(res, Positive)
 		} else
-			throw new NoSuchElementException(this + "().head")
+			throw new NoSuchElementException(this + ".head")
 
 
 	def max[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]): T =
@@ -45,22 +37,55 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 			while (res.left != null)
 				res = res.left
 			lens.element(res, Negative)
-		} else if (color != 0)
-			       lens.element(this, 0)
+		} else if (colorBit != 0)
+			lens.element(this, 0)
 		else if (right != null) {
 			var res = right.right
 			while (res.right != null)
 				res = res.right
 			lens.element(res, Positive)
 		} else
-			  throw new NoSuchElementException(this + "().last")
-*/
+			  throw new NoSuchElementException(this + ".last")
+
+
+
+	def keyAt[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(idx :Int) :T = {
+		if (idx < 0)
+			throw new IndexOutOfBoundsException(idx.toString)
+		implicit val remainder = Var(idx)
+		var res = keyAt_rec(left)
+		if (res != null)
+			return lens.element(res, Negative)
+		if (colorBit != 0) {
+			remainder.--
+			if (remainder.get < 0)
+				return lens.element(this, 0)
+		}
+		res = keyAt_rec(right)
+		if (res == null)
+			throw new IndexOutOfBoundsException(idx + " of " + keyCount)
+		lens.element(res, Positive)
+	}
+
+	private def keyAt_rec(node :Node[K, V])(implicit remainder :Var[Int]) :Node[K, V] =
+		if (node == null)
+			null
+		else keyAt_rec(node.left) match {
+			case null =>
+				if (remainder.get == 0)
+					node
+				else {
+					remainder.--
+					keyAt_rec(node.right)
+				}
+			case res => res
+		}
 
 
 
 	def find_?[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Boolean, where :Boolean): ?[T] =
 		find_rec(left)(Negative, lens, p, where) match {
-			case null if color == 0 && p(lens.element(this, 0)) == where =>
+			case null if colorBit != 0 && p(lens.element(this, 0)) == where =>
 				Sure(lens.element(this, 0))
 			case null =>
 				find_rec(right)(Positive, lens, p, where) match {
@@ -88,7 +113,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 	def count[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Boolean) :Int =
 		count_rec(left)(Negative, lens, p) + count_rec(right)(Positive, lens, p) + (
-			if (color != 0 && p(lens.element(this, 0))) 1
+			if (colorBit != 0 && p(lens.element(this, 0))) 1
 			else 0
 		)
 
@@ -102,7 +127,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 	def foreach[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Unit) :Unit = {
 		foreach_rec(left)(Negative, lens, p)
-		if (color != 0)
+		if (colorBit != 0)
 			p(lens.element(this, 0))
 		foreach_rec(right)(Positive, lens, p)
 	}
@@ -118,7 +143,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 	def reverseForeach[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(p :T => Unit) :Unit = {
 		reverseForeach_rec(right)(Positive, lens, p)
-		if (color != 0)
+		if (colorBit != 0)
 			p(lens.element(this, 0))
 		reverseForeach_rec(left)(Negative, lens, p)
 	}
@@ -135,7 +160,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 	def foldLeft[@specialized(Fun2) T, @specialized(Fun2) A](lens :EntryLens[K, V, T])(acc :A)(f :(A, T) => A) :A = {
 		var a = foldLeft_rec(left)(acc)(Negative, lens, f)
-		if (color != 0)
+		if (colorBit != 0)
 			a = f(a, lens.element(this, 0))
 		foldLeft_rec(right)(a)(Positive, lens, f)
 	}
@@ -151,7 +176,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 	def foldRight[@specialized(Fun2) T, @specialized(Fun2) A](lens :EntryLens[K, V, T])(acc :A)(f :(T, A) => A) :A = {
 		var a = foldRight_rec(right)(acc)(Positive, lens, f)
-		if (color != 0)
+		if (colorBit != 0)
 			a = f(lens.element(this, 0), a)
 		foldRight_rec(left)(acc)(Negative, lens, f)
 	}
@@ -167,7 +192,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 	def copyToArray[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(xs :Array[T], start :Int, total :Int) :Int = {
 		var copied = copy_rec(left)(start, total)(Negative, xs, lens)
-		if (copied < total && color != 0) {
+		if (copied < total && colorBit != 0) {
 			xs(start + copied) = lens.element(this, 0)
 			copied += 1
 		}
@@ -212,7 +237,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 				stack += top
 			}
 			Negative
-		} else if (color != 0) { //zero (this.key) is in the tree and no negative elements.
+		} else if (colorBit != 0) { //zero (this.key) is in the tree and no negative elements.
 			stack += this
 			Positive
 		} else if (right != null) { //only positive elements present in the tree.
@@ -244,7 +269,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 				stack += top
 			}
 			Positive
-		} else if (color != 0) { //zero (this.key) is in the tree and no positive elements.
+		} else if (colorBit != 0) { //zero (this.key) is in the tree and no positive elements.
 			stack += this
 			Positive
 		} else if (left != null) { //only negative elements present in the tree.
@@ -306,7 +331,7 @@ private[palimpsest] sealed trait RedBlackTreeKeySpecialization[@specialized(RawK
 			stack += this
 			descend(left, Negative, stack)
 			Negative
-		} else if (cmp <= 0 && color != 0) { //start <= 0 and zero key is present, hence we are the first node.
+		} else if (cmp <= 0 && colorBit != 0) { //start <= 0 and zero key is present, hence we are the first node.
 			stack += this
 			Positive
 		} else { //start > 0 || start >= 0 && !contains(0) ==> the first iterator node is in the right subtree
@@ -433,7 +458,7 @@ private[palimpsest] sealed trait RedBlackTreeKeySpecialization[@specialized(RawK
 	  * as the child of `granny`, separating the pair by `parent.right` via a rotation.
 	  * The success of the operation is signaled by changing the color of the returned deleted node `res` to red.
 	  * Otherwise further rebalancing will be needed up the tree, performed by another call to either
-	  * of `rebalanceLeftDelete` or `rebalanceRightDelete` whith current `parent` as the `node` argument.
+	  * of `rebalanceLeftDelete` or `rebalanceRightDelete` with current `parent` as the `node` argument.
 	  * @param granny the parent node of `parent`, always not null (root needs no rebalancing).
 	  * @param parent the node whose left child marks the root of the tree where a black node was deleted.
 	  * @param res the node with the deleted value, as returned by `deleteLeft`. Its color indicates if rebalancing
@@ -565,7 +590,7 @@ private[palimpsest] sealed trait RedBlackTreeKeySpecialization[@specialized(RawK
   * Additionally, we force extending collection classes to extend also the
   * [[net.turambar.palimpsest.specialty.maps.RedBlackTree.Node Node]] base class and thus serve as the tree root
   * themselves. As in the classic collection implementation we would need to store a pointer to the root node anyway,
-  * this doesn't even extend the length of the path to the node measured in the number of accessed object.
+  * this doesn't even extend the length of the path to the node measured in the number of accessed objects.
   * In the end, the only cost of obtaining the most compact representation possible, is slightly slower key comparison
   * caused by the need for masking the sign/colour bit each time (and optionally Int-to-Float and Long-to-Double cast);
   * this is negligible in the presence of already incurred key getter method cost.
@@ -585,15 +610,12 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 	protected def red(key :K, value :V) :Node[K, V]
 
 	/** The number of keys in this tree. */
-	private[maps] var keyCount :Int
-	private[maps] def size_++() :Unit = keyCount = keyCount + 1
-	private[maps] def size_--() :Unit = keyCount = keyCount - 1
+	protected var keyCount :Int
+
+//	override def count :Int = keyCount
 
 
-
-	def size :Int = keyCount //BinaryTree.size(left) + BinaryTree.size(right) + (if (color == 0) 0 else 1)
-
-
+/*
 
 	def firstRawKey :K = {
 		if (left != null) { //negative keys present
@@ -637,31 +659,23 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 			node.key(Negative)
 		}
 	}
-
-
-/*
-	override def keyAt(n :Int) :K = {
-		val i = keysIterator.drop(n)
-		if (!i.hasNext)
-			throw new IndexOutOfBoundsException(this + ".keyAt(" + n + ")")
-		i.next()
-	}
 */
+
+
 
 
 	def containsRaw(key :K) :Boolean = {
 		var k = this.key(0)
 		var cmp = compareRaw(k, key)
 		if (cmp == 0) //key == 0
-			color != 0
+			colorBit != 0
 		else {
-			var sign = 0
-			var node =
-				if (cmp > 0) {
-					right
-				} else {
-					sign = Negative; left
-				}
+			var sign = Positive
+			var node = right
+			if (cmp < 0) {
+				sign = Negative
+				node = left
+			}
 			while (node != null) {
 				k = node.key(sign)
 				cmp = compareRaw(k, key)
@@ -693,9 +707,10 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 		else if (cmp > 0)
 			insertRight(key, value, Positive)(null, root)
 		else //key == 0
-			if (color == 0) { //zero key is not present, add it to the tree
+			if (colorBit == 0) { //zero key is not present, add it to the tree
 				this.value = value
-				size_++()
+				colorBit = Red
+				keyCount += 1
 				Blank
 			} else { //zero already present, just swap the value
 				val res = Sure(this.value)
@@ -724,7 +739,7 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 		if  (node == null) { //key wasn't present, create a new node under parent with key -> value
 			node = red(key, value)
 			parent.left = node
-			root.size_++()
+			keyCount += 1
 			Blank
 		} else {
 			val k = node.key(sign)
@@ -764,7 +779,7 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 		if  (node == null) { //key wasn't present, create a new node under parent with key -> value
 			node = red(key, value)
 			parent.right = node
-			root.size_++()
+			keyCount += 1
 			Blank
 		} else {
 			val k = node.key(sign)
@@ -875,11 +890,11 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 		        deleteRight(key, Positive)(null, root)
 			else //key == 0
 				return {
-					if (color == 0) //zero key is not part of the tree
+					if (colorBit == 0) //zero key is not part of the tree
 						Blank
 					else {
-						color = 0
-						size_--()
+						colorBit = 0
+						keyCount -= 1
 						sure
 					}
 				}
@@ -890,7 +905,7 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 
 	protected final def deleteNode(sign :Int)(parent :Node[K, V], node :Node[K, V]) :Node[K, V] = {
 		var found = node
-		root.size_--()
+		keyCount -= 1
 		val l = node.left; val r = node.right
 		if (l == null) {
 			parent.replace(node, r)
@@ -965,7 +980,7 @@ private[palimpsest] object RedBlackTree {
 				stack.remove(depth)
 				if (depth == 1 & sign == Negative && { node = stack(0); node.isInstanceOf[RedBlackTree[_, _]]}) {
 					sign = 0 //root node, changing the sign
-					if (node.color == 0) //the zero key is not rally in the tree, skip the root
+					if (node.colorBit == 0) //the zero key is not really in the tree, skip the root
 						skip()
 				}
 			} else {
@@ -1011,7 +1026,7 @@ private[palimpsest] object RedBlackTree {
 				stack.remove(depth)
 				if (depth == 1 & sign == Positive) { //quick check before more expensive one
 					node = stack(0)
-					if (node.isInstanceOf[maps.RedBlackTree[_, _]] && node.color == 0)
+					if (node.isInstanceOf[maps.RedBlackTree[_, _]] && node.colorBit == 0)
 						skip() //the zero key is not rally in the tree, skip the root
 
 				}
@@ -1041,6 +1056,13 @@ private[palimpsest] object RedBlackTree {
 		def sure :Sure[V] = Sure(value)
 
 		var color :Color
+
+		/** An alias for the `color` variable for the use by `RedBlackTree` and its descendants, as it uses this
+		  * variable for a different purpose and oveerrides the `color` accessors to fix the color to Black. */
+		def colorBit :Color = color
+		/** An alias for the `color` variable for the use by `RedBlackTree` and its descendants, as it uses this
+		 * variable for a different purpose and oveerrides the `color` accessors to fix the color to Black. */
+		def colorBit_=(sign :Color) :Unit = color = sign
 
 		def keys :EntryLens[K, V, K]
 		def vals :EntryLens[K, V, V]
@@ -1170,7 +1192,7 @@ private[palimpsest] object RedBlackTree {
 		private final val AnyKeys :EntryLens[Any, Any, Any] = { (node :Node[_, _], sign :Int) => node.key(sign) }
 
 		abstract class AnyKeyNode[K, V]
-				(final var key :K, override final var color :Color, l :Node[K, V] = null, r :Node[K, V] = null)
+				(final var key :K, override var color :Color, l :Node[K, V] = null, r :Node[K, V] = null)
 			extends BinaryTree(l, r) with Node[K, V]
 		{
 			override def key(sign :Int) :K = key

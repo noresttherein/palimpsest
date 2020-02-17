@@ -22,11 +22,7 @@ trait OrderedBy[+T <: OrderedBy[T, K], @specialized(MultiValue) K] extends Sorte
 	override def lastKey :K
 
 	/** N-th key in this collection. */
-	def keyAt(n :Int) :K = {
-		val it = keysIterator.drop(n)
-		if (it.hasNext) it.next()
-		else throw new IndexOutOfBoundsException(n)
-	}
+	def keyAt(n :Int) :K = keysIterator.get(n)
 
 	def contains(key :K) :Boolean
 

@@ -1,5 +1,6 @@
 package net.turambar.palimpsest.specialty.iterables
 
+import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.iterables.FitIterable.{FilterIterable, SpecializedFilter}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
@@ -42,10 +43,8 @@ import scala.collection.generic.CanBuildFrom
   */
 //we are not sealing this trait in order to allow similar templates for other collections to extend it without extending
 //the 'specialized' interfaces.
+//todo: rename to AptIterableFoundation
 trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversableOnce[E] with Cloneable {
-//	this :IterableSpecialization[E, Repr] =>
-
-//	override protected[this] def thisCollection :FitIterable[E] = this.asInstanceOf[FitIterable[E]]
 
 	/** Specialization of this iterable. Double call necessary to enforce specialized call and resolve covariance type clash. */
 	protected[this] override def specialization :RuntimeType[E]
@@ -132,7 +131,7 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 	//todo: traverse(f.asInstanceOf[E=>Unit])
 	override def foreach[@specialized(Unit) U](f: E => U): Unit = iterator.foreach(f)
 
-	//todo: consider renaming inverseForeach/foreachReversed. why is it protected? it's useful
+	//todo: consider renaming inReverse. why is it protected? it's useful
 	protected def reverseForeach(f :E=>Unit) :Unit
 
 	/** Equals - and usually implemented as - [[IterableSpecialization#foreach(f)]], but enforces `Unit` as
@@ -193,15 +192,6 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 	/** Delegates to specialized specialized [[foldRight]]. */
 	override def :\[@specialized(Fun2) O](z: O)(op: (E, O) => O): O = foldRight(z)(op)
 
-	//	override def scanLeft[@specialized(Fun2) O, That](z: O)(op: (O, E) => O)(implicit bf: CanBuildFrom[Repr, O, That]) = iterator.scanLeft(z)(op)
-	//
-	//	override def scanRight[@specialized(Fun2) O, That](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[Repr, O, That]) = super.scanRight(z)(op)
-
-	//todo: should non-specializable 'trap' methods like fold/reduce have their deprecated overrides here?
-
-	//	override def fold[U >: E](z: U)(op: (U, U) => U): U = foldLeft(z)(op)
-
-	//	override def withFilter(p: (E) => Boolean): FilterIterable[E, Repr] = new SpecializedFilter(this, p)
 
 
 	override def ++[B >: E, That](that: GenTraversableOnce[B])(implicit bf: CanBuildFrom[Repr, B, That]): That =
@@ -400,37 +390,13 @@ trait IterableSpecialization[@specialized(ItemTypes) +E, +Repr] extends Iterable
 //	override protected[this] def forLast[@specialized(Fun1Res) O](f: E => O) :O = f(last)
 
 
-	override def span(p: E => Boolean): (Repr, Repr) = {
-		val prefix = newBuilder; val suffix = newBuilder
-		val i = iterator
-		while (i.hasNext && p(i.head)) prefix += i.next()
-		while (i.hasNext) suffix += i.next()
-		(prefix.result(), suffix.result())
-	}
+	override def span(p: E => Boolean): (Repr, Repr) = specialty.span(iterator, newBuilder, newBuilder)(p)
 
-	override def filter(p :E => Boolean, where :Boolean) :Repr = {
-		val builder = newBuilder
-		val it = iterator
-		while (it.hasNext) {
-			val e = it.next()
-			if (p(e) == where)
-				builder += e
-		}
-		builder.result()
-	}
+	override def filter(p :E => Boolean, neoTruth :Boolean) :Repr = specialty.filter(iterator, newBuilder)(p, neoTruth)
 	
 	override def withFilter(p: E => Boolean): FilterIterable[E, Repr] = new SpecializedFilter(this, p)
 
-	override def partition(p: E => Boolean): (Repr, Repr) = {
-		val yes = newBuilder; val no = newBuilder
-		val i = iterator
-		while (i.hasNext) {
-			val e = i.next()
-			if (p(e)) yes += e
-			else no += e
-		}
-		(yes.result(), no.result())
-	}
+	override def partition(p: E => Boolean): (Repr, Repr) = specialty.partition(iterator, newBuilder, newBuilder)(p)
 
 
 

@@ -11,10 +11,12 @@ import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 /**
   * @author Marcin Mościcki
   */
-private[sets] class MutableIntTreeSet(private[palimpsest] final var keyCount :Int = 0, zero :Int = 0, l :Node[Int, Unit] = null, r :Node[Int, Unit] = null)
-	                                 (implicit val ordering :ValOrdering[Int])
-	extends IntSetNode(zero, l, r) with MutableTreeSet[Int] with RedBlackTree[Int, Unit] with EntryLens[Int, Unit, Int] with OfKnownSize
+private[sets] class MutableIntTreeSet(implicit val ordering :ValOrdering[Int])
+	extends IntSetNode(0, null, null)
+	   with MutableTreeSet[Int] with RedBlackTree[Int, Unit] with EntryLens[Int, Unit, Int] with OfKnownSize
 {
+	protected final override var keyCount = 0
+
 	override protected type Key = Int
 
 	override protected def root :RedBlackTree[Int, Unit] = this
@@ -26,12 +28,6 @@ private[sets] class MutableIntTreeSet(private[palimpsest] final var keyCount :In
 
 	override protected def compareRaw(k1 :Int, k2 :Int) :Int = ordering.compare(k1, k2)
 
-
-	override def size :Int = keyCount
-
-	override def head :Int = firstRawKey
-
-	override def last :Int = lastRawKey
 
 
 	override def contains(key :Int) :Boolean = containsRaw(key)

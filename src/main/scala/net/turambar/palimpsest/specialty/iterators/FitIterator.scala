@@ -156,7 +156,6 @@ trait FitIterator[@specialized(ItemTypes) +E]
 	protected[this] def specialization :RuntimeType[E] = RuntimeType.specialized[E]
 
 
-	
 
 	protected def empty :FitIterator[E] =
 		if (!hasNext) this
@@ -174,6 +173,22 @@ trait FitIterator[@specialized(ItemTypes) +E]
 	override def head :E
 	
 	override def next(): E //= { val res = head; skip(); head }
+
+	/** Returns the `n`-th element of this iterator. The state of the iterator after the method returns is undefined
+	  * and it should be discarded.
+	  * @throws IndexOutOfBoundsException if n < 0 or this iterator has fewer than n elements.
+	  */
+	def get(n :Int) :E = {
+		if (n < 0)
+			throw new IndexOutOfBoundsException(n)
+		val i = drop(n)
+		if (i.hasNext)
+			i.next()
+		else
+			throw new IndexOutOfBoundsException(n)
+	}
+
+
 
 	/** Applies the given function to `head` element of this iterator. Exists for the benefit of
 	  * [[iterators.FitIterator.MappedIterator]], so it can be specialized only on its

@@ -2,7 +2,6 @@ package net.turambar.palimpsest.specialty.sets
 
 import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
-
 import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, RuntimeType, Specialize}
 import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterators.FitIterator
@@ -10,10 +9,11 @@ import net.turambar.palimpsest.specialty.maps.AVLTree
 import net.turambar.palimpsest.specialty.maps.AVLTree.EntryLens
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableFoundation, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableFoundation, IterableOverrides, StableIterableTemplate}
 import net.turambar.palimpsest.specialty.sets.OrderedSet.OrderedSetRangeSpecialization
 import net.turambar.palimpsest.specialty.sets.StableTreeSet.StableTreeSetRange
 import net.turambar.palimpsest.specialty.Specialize.SpecializeSome
+import net.turambar.palimpsest.LibraryError
 
 /**
   * @author Marcin Mościcki
@@ -121,11 +121,11 @@ trait StableTreeSet[@specialized(ItemTypes) E]
 
 
 
-private[sets] abstract class AbstractStableTreeSet[E](elemCount :Int = -1) extends IterableFoundation[E, StableTreeSet[E]] {
+private[sets] abstract class AbstractStableTreeSet[E](keyCount :Int = -1) extends IterableFoundation[E, StableTreeSet[E]] {
 	this :StableTreeSet[E] =>
 
 	@volatile
-	private[this] var _size = elemCount
+	private[this] var _size = keyCount
 
 	override def hasFastSize :Boolean = _size >= 0
 
@@ -134,7 +134,7 @@ private[sets] abstract class AbstractStableTreeSet[E](elemCount :Int = -1) exten
 		if (res < 0) {
 			val tree = root
 			if (tree == null) res = 0
-			else res = tree.size
+			else res = tree.count
 			_size = res
 		}
 		res
@@ -147,7 +147,7 @@ private[sets] abstract class AbstractStableTreeSet[E](elemCount :Int = -1) exten
 
 
 
-object StableTreeSet extends OrderedSetFactory[StableTreeSet] {
+object StableTreeSet extends OrderedSetFactoryImplicits[StableTreeSet] {
 
 	@inline final implicit def canBuildFrom[E](implicit fit :CanFitFrom[StableTreeSet[_], E, StableTreeSet[E]])
 			:CanBuildFrom[StableTreeSet[_], E, StableTreeSet[E]] =
@@ -169,7 +169,7 @@ object StableTreeSet extends OrderedSetFactory[StableTreeSet] {
 
 		override protected[this] def generic[E :RuntimeType] = erased.asInstanceOf[Constructor[E]]
 
-		private[this] final val erased = { ord :ValOrdering[Any] => new StableAVLSet[Any](null, 0)(ord) }
+		private[this] final val erased = { ord :ValOrdering[Any] => new StableErasedTreeSet[Any](null, 0)(ord) }
 	}
 
 
@@ -179,40 +179,13 @@ object StableTreeSet extends OrderedSetFactory[StableTreeSet] {
 			protected override val minKey: ?[E],
 			protected override val maxKey: ?[E]
 		) extends StableTreeSet[E] with OrderedSetRangeSpecialization[E, StableTreeSet[E]]
+	         with IterableOverrides[E, StableTreeSet[E]]
 	{
 		override protected type Key = source.Key
-		override protected def root :AVLTree[Key, Unit] = null
+		override protected def root :AVLTree[Key, Unit] =
+			throw new LibraryError("StableTreeSetRange.root : this method should not be used!")
+
 		override protected def lens :EntryLens[Key, Unit, E] = source.lens
-
-		override def head :E = iterator.next()
-
-		override def last :E = reverseIterator.next()
-
-		@unspecialized
-		override def find_?(p :E => Boolean, where :Boolean) : ?[E] = iterator.find_?(p, where)
-
-		@unspecialized
-		override def count(p :E => Boolean) :Int = iterator.count(p)
-
-		@unspecialized
-		override def foldLeft[@specialized(Fun2) O](z :O)(op :(O, E) => O) :O = iterator.foldLeft(z)(op)
-
-		@unspecialized
-		override def foldRight[@specialized(Fun2) O](z :O)(op :(E, O) => O) :O = iterator.foldRight(z)(op)
-
-		@unspecialized
-		override def foreach[@specialized(Unit) U](f :E => U) :Unit = iterator.foreach(f.asInstanceOf[E => Unit])
-
-
-		protected override def trustedCopyTo(xs :Array[E], start :Int, total :Int) :Int = {
-			val iter = iterator
-			var copied = 0
-			while (copied < total && iter.hasNext) {
-				xs(start + copied) = iter.next()
-				copied += 1
-			}
-			copied
-		}
 
 	}
 

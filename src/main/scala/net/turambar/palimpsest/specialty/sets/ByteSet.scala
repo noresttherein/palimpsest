@@ -52,9 +52,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 
 
 	override final def size: Int = bytes.size
-//	override def hasFastSize = true
-//	override def hasDefiniteSize = true
-	
+
 	override final def nonEmpty :Boolean = bytes.nonEmpty
 
 	override final def isEmpty :Boolean = bytes.isEmpty
@@ -65,29 +63,21 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 
 	override final def head_? : ?[Byte] = bytes.head_?
 
-	override final def headOption :Option[Byte] = bytes.headOption
-	
 	override final def last :Byte = bytes.last
 
 	override final def last_? : ?[Byte] = bytes.last_?
-
-	override final def lastOption :Option[Byte] = bytes.lastOption
 
 	override final def tail :This = newByteSet(bytes.tail)
 
 	override final def init :This = newByteSet(bytes.init)
 
 
-	override final def apply(elem: Byte): Boolean = bytes.contains(elem)
-	
+//	override final def apply(elem: Byte): Boolean = bytes.contains(elem)
+//
 	override final def contains(elem: Byte): Boolean = bytes.contains(elem)
 
 
 	override def ^(elem :Byte) :This = newByteSet(bytes ^ elem)
-
-	override final def filterNot(p: Byte => Boolean): This = newByteSet(bytes.filterNot(p))
-
-	override final def filter(p: Byte => Boolean): This = newByteSet(bytes.filter(p))
 
 	override def filter(p: Byte => Boolean, ourTruth: Boolean): This = newByteSet(bytes.filter(p, ourTruth))
 
@@ -480,7 +470,7 @@ private[sets] object ByteSet {
 
 
 		/** Returns the index of the first set bit in this bitmap. This represents the first byte in this set with
-		  * the caveat that all negative values `&lt;-128..-1&gt;` preceed all positive values `&lt;0..127&gt;`
+		  * the caveat that all negative values `&lt;-128..-1&gt;` precede all positive values `&lt;0..127&gt;`
 		  * @return lowest byte in this set (when all elements are interpreted as unsigned values) or -1 if empty
 		  */
 		@inline def headInt :Int = {
