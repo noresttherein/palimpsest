@@ -3,9 +3,9 @@ package net.turambar.palimpsest.specialty.maps
 
 import scala.collection.immutable
 
-import net.turambar.palimpsest.specialty.{FitBuilder, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, FitIterable, IterableFoundation, IterableSpecialization, IterableViewTemplate, MappedIterableTemplate, SpecializableIterable, StableIterable, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.maps.FitMap.{ConvertingMap, FilteredKeysView, KeySetView, MappedValuesView, MapWithDefaultView}
+import net.turambar.palimpsest.specialty.{AptBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{AptCompanion, AptIterable, IterableFoundation, IterableSpecialization, IterableViewTemplate, MappedIterableTemplate, SpecializableIterable, StableIterable, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.maps.AptMap.{ConvertingMap, FilteredKeysView, KeySetView, MappedValuesView, MapWithDefaultView}
 import net.turambar.palimpsest.specialty.sets.StableSet
 import net.turambar.palimpsest.specialty.maps.StableMap.{FilteredStableMapKeys, MakesStableMaps, MappedStableMapValues, StableMapKeySet, StableMapWithDefault}
 import scala.annotation.unspecialized
@@ -42,8 +42,8 @@ trait StableMapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: StableMap[K
   */
 trait StableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V]
 	extends immutable.Map[K, V] with immutable.MapLike[K, V, StableMap[K, V]]
-	   with FitIterable[(K, V)] with StableIterable[(K, V)] //with MapInterfaceLike[K, V, StableMap[K, V]]
-	   with FitMap[K, V] with SpecializableMap[K, V, StableMap] with StableMapKeySpecialization[K, V, StableMap[K, V]] //with MakesStableMaps[K, V]
+	   with AptIterable[(K, V)] with StableIterable[(K, V)] //with MapInterfaceLike[K, V, StableMap[K, V]]
+	   with AptMap[K, V] with SpecializableMap[K, V, StableMap] with StableMapKeySpecialization[K, V, StableMap[K, V]] //with MakesStableMaps[K, V]
 {
 
 	@unspecialized
@@ -54,7 +54,7 @@ trait StableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V]
 		new StableMapWithDefault[K, U](this, d) with StableMap[K, U]
 
 	@unspecialized
-	override def withDefaultValue[U >: V](d :U) :StableMap[K, U] = withDefault(FitMap.defaultValue(d))
+	override def withDefaultValue[U >: V](d :U) :StableMap[K, U] = withDefault(AptMap.defaultValue(d))
 
 }
 
@@ -72,7 +72,7 @@ object StableMap extends SpecializableMapFactory[StableMap] {
 
 
 
-	private[maps] class StableMapKeySet[@specialized(KeyTypes) K](final override protected[this] val source :FitMap[K, Any])
+	private[maps] class StableMapKeySet[@specialized(KeyTypes) K](final override protected[this] val source :AptMap[K, Any])
 		extends IterableFoundation[K, StableSet[K]]
 		   with KeySetView[K, StableSet[K]] with ConvertingSet[K, StableSet[K]] with StableSet[K]
 
@@ -84,7 +84,7 @@ object StableMap extends SpecializableMapFactory[StableMap] {
 		) extends IterableFoundation[(K, V), StableMap[K, V]]
 		     with FilteredKeysView[K, V, StableMap] with ConvertingMap[K, V, StableMap] with StableMap[K, V]
 	{
-		protected[this] override val entryFilt = FitMap.entryFilter(filt)
+		protected[this] override val entryFilt = AptMap.entryFilter(filt)
 	}
 
 
@@ -111,11 +111,11 @@ object StableMap extends SpecializableMapFactory[StableMap] {
 
 
 
-	private[maps] trait MakesStableMaps[K, +V] extends FitMap[K, V] with ConvertingMap[K, V, FitMap] {
+	private[maps] trait MakesStableMaps[K, +V] extends AptMap[K, V] with ConvertingMap[K, V, AptMap] {
 
-		protected[this] override def build[U] :FitBuilder[(K, U), StableMap[K, U]] = StableMap.newBuilder
+		protected[this] override def build[U] :AptBuilder[(K, U), StableMap[K, U]] = StableMap.newBuilder
 
-		override def companion :FitCompanion[StableIterable] = StableIterable
+		override def companion :AptCompanion[StableIterable] = StableIterable
 
 	}
 }

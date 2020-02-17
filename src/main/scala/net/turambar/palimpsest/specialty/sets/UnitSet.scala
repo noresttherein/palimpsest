@@ -3,9 +3,9 @@ package net.turambar.palimpsest.specialty.sets
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, EmptyIterableFoundation, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization, StableIterableTemplate}
 import net.turambar.palimpsest.specialty.sets.UnitSet.MutableUnitSet
 import net.turambar.palimpsest.specialty.{?, Blank, Sure}
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{AptSeq, StableSeq}
 
 
 /**
@@ -28,7 +28,7 @@ object UnitSet {
 		override def -(elem :Unit) :UnitSet = this
 		override def ^(elem :Unit) :UnitSet = Full
 		override def empty :UnitSet = this
-		override val toSeq :FitSeq[Unit] = FitSeq.Empty
+		override val toSeq :AptSeq[Unit] = AptSeq.Empty
 
 	}
 
@@ -37,7 +37,7 @@ object UnitSet {
 		override def +(elem :Unit) :UnitSet = this
 		override def -(elem :Unit) :UnitSet = Empty
 		override def ^(elem :Unit) :UnitSet = Empty
-		override val toSeq :StableSeq[Unit] = FitSeq.one(())
+		override val toSeq :StableSeq[Unit] = AptSeq.one(())
 	}
 
 
@@ -72,9 +72,9 @@ object UnitSet {
 			if (full && p(())) Sure(())
 			else Blank
 
-		override def iterator :FitIterator[Unit] =
-			if (full) FitIterator.one(())
-			else FitIterator.Empty
+		override def iterator :AptIterator[Unit] =
+			if (full) AptIterator.one(())
+			else AptIterator.Empty
 
 
 		override def clone() = new MutableUnitSet(full)

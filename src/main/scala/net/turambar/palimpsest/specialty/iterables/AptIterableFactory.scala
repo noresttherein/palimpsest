@@ -1,9 +1,9 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.{iterables, ItemTypes, FitBuilder, RuntimeType, Specialize}
-import net.turambar.palimpsest.specialty.FitBuilder.RetardedFitBuilder
+import net.turambar.palimpsest.specialty.{iterables, ItemTypes, AptBuilder, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.AptBuilder.RetardedAptBuilder
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun0, Fun1, Fun1Vals}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.Specialize.{SpecializedVals, SpecializeIndividually}
 
 import scala.collection.generic.{CanBuildFrom, GenTraversableFactory}
@@ -12,7 +12,7 @@ import scala.collection.generic.{CanBuildFrom, GenTraversableFactory}
 
 /** Specialized counterpart of scala `GenTraversableFactory` to be extended by companions of specialized collections.
   * Provides specialized versions of standard factory methods as well as a default specialized
-  * [[net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom]] implementation. Collection companion objects
+  * [[net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom]] implementation. Collection companion objects
   * will generally implement its subclass [[net.turambar.palimpsest.specialty.iterables.SpecializableIterableFactory]],
   * which additionally declares implicit constants for all inbuilt value types, or
   * [[net.turambar.palimpsest.specialty.iterables.InterfaceIterableFactory]] for companions of collection interfaces.
@@ -20,8 +20,8 @@ import scala.collection.generic.{CanBuildFrom, GenTraversableFactory}
   * @tparam S type constructor for specialized collections.
   * @author Marcin Mościcki
   */
-abstract class FitIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with FitIterable[X]]
-	extends GenTraversableFactory[S] with FitCompanion[S]
+abstract class AptIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with AptIterable[X]]
+	extends GenTraversableFactory[S] with AptCompanion[S]
 { factory =>
 
 
@@ -45,11 +45,11 @@ abstract class FitIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableI
 
 
 
-	override def builder[E :RuntimeType] :FitBuilder[E, S[E]] = NewBuilder()
+	override def builder[E :RuntimeType] :AptBuilder[E, S[E]] = NewBuilder()
 
-//	override def newBuilder[@specialized E] :FitBuilder[E, S[E]]
+//	override def newBuilder[@specialized E] :AptBuilder[E, S[E]]
 
-	protected[this] type SpecializedBuilder[E] = FitBuilder[E, S[E]]
+	protected[this] type SpecializedBuilder[E] = AptBuilder[E, S[E]]
 
 	private[this] final val NewBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
 		override def specialized[@specialized E : RuntimeType]: SpecializedBuilder[E] = newBuilder[E] //specializedBuilder[E]
@@ -95,11 +95,11 @@ abstract class FitIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableI
 
 
 
-	class GenericFitBuilder[E] extends RetardedFitBuilder[E, S[E]] {
-		override def typeHint[L <: E](implicit tpe :RuntimeType[L]) :FitBuilder[E, S[E]] =
+	class GenericAptBuilder[E] extends RetardedAptBuilder[E, S[E]] {
+		override def typeHint[L <: E](implicit tpe :RuntimeType[L]) :AptBuilder[E, S[E]] =
 			builder(tpe.asInstanceOf[RuntimeType[E]])
 
-		override protected def resultBuilder(implicit runtimeType :RuntimeType[E]) :FitBuilder[E, S[E]] =
+		override protected def resultBuilder(implicit runtimeType :RuntimeType[E]) :AptBuilder[E, S[E]] =
 			builder
 	}
 
@@ -114,9 +114,9 @@ abstract class FitIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableI
 		extends GenericCanBuildFrom[E] with CanFitFrom[S[_], E, S[E]]
 	{ outer =>
 
-		override def apply(from: S[_]): FitBuilder[E, S[E]] = from.genericBuilder[E]
+		override def apply(from: S[_]): AptBuilder[E, S[E]] = from.genericBuilder[E]
 
-		override def apply(): FitBuilder[E, S[E]] = newBuilder[E]
+		override def apply(): AptBuilder[E, S[E]] = newBuilder[E]
 
 
 		override private[specialty] def companion: Any = factory
@@ -169,11 +169,11 @@ abstract class FitIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableI
 
 
 /** Actual base class extended by companions of collection implementation classes. Defines implicit `CanFitFrom` values
-  * for all primitives which should take precedence over the generic implicit inherited from `FitIterableFactory`.
+  * for all primitives which should take precedence over the generic implicit inherited from `AptIterableFactory`.
   * @tparam S type constructor for specialized collections.
   */
-abstract class SpecializableIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with FitIterable[X]]
-	extends FitIterableFactory[S]
+abstract class SpecializableIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with AptIterable[X]]
+	extends AptIterableFactory[S]
 {
 	/** This method needs to be implemented in each final companion object independently in order to take precedence
 	  * over standard scala `CanBuildFrom` implicits. Each implementation should simply return `fit.cbf`
@@ -198,10 +198,10 @@ abstract class SpecializableIterableFactory[S[@specialized(ItemTypes) X] <: Spec
 /** Base class for companion objects of specialized 'interface' traits which delegate all constructor (and builder)
   * methods eventually to the companion of the default implementation type.
   */
-abstract class InterfaceIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with FitIterable[X]]
+abstract class InterfaceIterableFactory[S[@specialized(ItemTypes) X] <: SpecializableIterable[X, S] with AptIterable[X]]
 	extends SpecializableIterableFactory[S]
 {
-	
+
 	/** The type constructor for the generic collection class used as actual implementation for `S[X]`. */
 	protected[this] type RealType[@specialized(ItemTypes) X] <: S[X] with SpecializableIterable[X, RealType]
 
@@ -209,7 +209,7 @@ abstract class InterfaceIterableFactory[S[@specialized(ItemTypes) X] <: Speciali
 	  * of this instance, ergo implementations must remain a method (and not a `val`) and must return a constant
 	  * which is not a member field (that is, which was initialized before the constructor of this class or its subclass).
 	  */
-	protected[this] def default :FitIterableFactory[RealType]
+	protected[this] def default :AptIterableFactory[RealType]
 
 	private[this] final val Impl = default
 
@@ -220,9 +220,9 @@ abstract class InterfaceIterableFactory[S[@specialized(ItemTypes) X] <: Speciali
 	
 	@inline final override def empty[@specialized(ItemTypes) E]: S[E] = Impl.empty[E]
 
-	@inline final override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, S[E]] = Impl.newBuilder[E]
+	@inline final override def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, S[E]] = Impl.newBuilder[E]
 
-	@inline final override def builder[E: RuntimeType]: FitBuilder[E, S[E]] = Impl.builder[E]
+	@inline final override def builder[E: RuntimeType]: AptBuilder[E, S[E]] = Impl.builder[E]
 
 	override def one[@specialized(ItemTypes) E](elem :E) :S[E] = Impl.one(elem)
 

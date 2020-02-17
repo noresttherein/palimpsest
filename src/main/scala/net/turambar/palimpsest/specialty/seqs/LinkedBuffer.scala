@@ -1,12 +1,12 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListIterator, NonEmpty}
 import net.turambar.palimpsest.specialty.seqs.ListSlice.ListSliceIterator
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, SpecializableIterable, SpecializableIterableFactory}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
@@ -22,7 +22,7 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 		private var coccyx :NonEmpty[E],
 		private[this] var len :Int)
 	extends mutable.LinearSeq[E] with LinearSeqLike[E, LinkedBuffer[E]]
-	   with FitBuffer[E] with ValSeqLike[E, LinkedBuffer[E]] with CloneableIterable[E, LinkedBuffer[E]]
+	   with AptBuffer[E] with ValSeqLike[E, LinkedBuffer[E]] with CloneableIterable[E, LinkedBuffer[E]]
 	   with SpecializableIterable[E, LinkedBuffer] with OfKnownSize
 { //todo: extend slicelike?
 
@@ -59,7 +59,7 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 
 //	override protected def section(from: Int, until: Int): LinkedBuffer[E] = ???
 
-	override def overwrite(start: Int, length: Int): FitBuffer[E] = ???
+	override def overwrite(start: Int, length: Int): AptBuffer[E] = ???
 
 //	@unspecialized
 //	private[seqs] def firstLink = hat.t
@@ -103,7 +103,7 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 			throw new IndexOutOfBoundsException(s"$stringPrefix<$length>($idx)")
 		case _ if idx>=length || elems.isEmpty => ()
 
-		case FitIterator(it) => update(idx, it)
+		case AptIterator(it) => update(idx, it)
 
 		case _ if idx == len-1 =>
 			coccyx.x = elems.toIterator.next()
@@ -119,7 +119,7 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 
 	}
 
-	override def update(idx: Int, elems: FitTraversableOnce[E]) :Unit =
+	override def update(idx: Int, elems: Vals[E]) :Unit =
 		if (idx < len && elems.nonEmpty)
 			if (idx<0)
 				throw new IndexOutOfBoundsException(s"$stringPrefix<$length>.update($idx, ...)")
@@ -159,7 +159,7 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 		this
 	}
 
-	override def ++=(elems: FitTraversableOnce[E]): this.type = { //todo: optimize for LinkedList, ListSlice
+	override def ++=(elems: Vals[E]): this.type = { //todo: optimize for LinkedList, ListSlice
 		val it = elems.toIterator
 		var last = coccyx
 		while(it.hasNext) {
@@ -197,7 +197,7 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 //	override def -=(elem1: E, elem2: E, elems: E*) = super.-=(elem1, elem2, elems)
 
 	override def insertAll(idx: Int, elems: Traversable[E]): Unit =  elems match {
-		case fit :FitTraversableOnce[E] => insertAll(idx, fit :FitTraversableOnce[E])
+		case fit :Vals[E] => insertAll(idx, fit :Vals[E])
 
 		case _ if idx<0 || idx > length =>
 			throw new IndexOutOfBoundsException(s"LinkedBuffer<$length>($idx)")
@@ -205,12 +205,12 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 			this ++= elems
 		case _ if elems.isEmpty => ()
 
-		case FitIterator(it) => insertAll(idx, it) //for wrapped arrays
+		case AptIterator(it) => insertAll(idx, it) //for wrapped arrays
 
-		case _ => insertAll(idx, FitIterator.adapt(elems.toIterator)) //to create specialized links
+		case _ => insertAll(idx, AptIterator.adapt(elems.toIterator)) //to create specialized links
 	}
 
-	def insertAll(idx :Int, elems :FitTraversableOnce[E]) :Unit =
+	def insertAll(idx :Int, elems :Vals[E]) :Unit =
 		if (idx<0 || idx>length)
 			throw new IndexOutOfBoundsException(s"$stringPrefix<$length>.insertAll($idx, ...)")
 		else if (idx==length)
@@ -276,9 +276,9 @@ class LinkedBuffer[@specialized(ItemTypes) E] private[seqs] (
 		new LinkedBuffer(res, last, count)
 	}
 
-	override def iterator :FitIterator[E] = new ListSliceIterator(hat.tail, length)
+	override def iterator :AptIterator[E] = new ListSliceIterator(hat.tail, length)
 
-	override def reverseIterator :FitIterator[E] = inverse.iterator
+	override def reverseIterator :AptIterator[E] = inverse.iterator
 
 	override def seq :LinkedBuffer[E] = this
 
@@ -297,9 +297,9 @@ object LinkedBuffer extends SpecializableIterableFactory[LinkedBuffer] {
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[LinkedBuffer[_], E, LinkedBuffer[E]]): CanBuildFrom[LinkedBuffer[_], E, LinkedBuffer[E]] =
 		fit.cbf
 
-	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, LinkedBuffer[E]] = ???
+	override def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, LinkedBuffer[E]] = ???
 
-//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedBuffer[E]] = ???
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: AptBuilder[E, LinkedBuffer[E]] = ???
 
 
 
@@ -310,7 +310,7 @@ object LinkedBuffer extends SpecializableIterableFactory[LinkedBuffer] {
 			private[this] var len :Int,
 			limit :Int)
 		extends mutable.LinearSeq[E] with LinearSeqLike[E, LinkedFiller[E]]
-				with FitBuffer[E] with MutableSliceLike[E, LinkedFiller[E]]
+				with AptBuffer[E] with MutableSliceLike[E, LinkedFiller[E]]
 				with SpecializableTraversableTemplate[E, LinkedFiller]
 	{
 		override def length = len
@@ -340,7 +340,7 @@ object LinkedBuffer extends SpecializableIterableFactory[LinkedBuffer] {
 
 
 		override protected def section(from: Int, until: Int): LinkedFiller[E] = ???
-		override def overwrite(start: Int, length: Int): FitBuffer[E] = ???
+		override def overwrite(start: Int, length: Int): AptBuffer[E] = ???
 
 		override def update(idx: Int, elem: E) :Unit =
 			if (idx < 0 || idx>=length)
@@ -453,8 +453,8 @@ object LinkedBuffer extends SpecializableIterableFactory[LinkedBuffer] {
 		override protected[this] def filter(p: (E) => Boolean, where: Boolean): LinkedFiller[E] = ???
 
 		private final def concurrentMod =
-			throw new NoSuchElementException("FitBuffer.overwrite: underlying buffer shrunk in concurrent modification.")
-//			throw new ConcurrentModificationException("FitBuffer.overwrite: underlying buffer shrunk.")
+			throw new NoSuchElementException("AptBuffer.overwrite: underlying buffer shrunk in concurrent modification.")
+//			throw new ConcurrentModificationException("AptBuffer.overwrite: underlying buffer shrunk.")
 
 		private final def shouldNotBeEmpty(link :LinkedList[E]) :NonEmpty[E] = link match {
 			case n :NonEmpty[E] => n
@@ -462,7 +462,7 @@ object LinkedBuffer extends SpecializableIterableFactory[LinkedBuffer] {
 		}
 
 		private final def overLimit =
-			throw new UnsupportedOperationException(s"FitBuffer.overwrite reached max capacity $limit.")
+			throw new UnsupportedOperationException(s"AptBuffer.overwrite reached max capacity $limit.")
 
 
 		override def seq :LinkedFiller[E] = this

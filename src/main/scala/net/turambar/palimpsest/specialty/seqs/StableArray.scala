@@ -4,8 +4,8 @@ import java.lang.System.arraycopy
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, IterableFoundation, SpecializableIterable, StableIterableTemplate}
 import net.turambar.palimpsest.specialty.{newArray, ItemTypes}
 
 import scala.annotation.unspecialized
@@ -16,7 +16,7 @@ import scala.annotation.unspecialized
   */
 class StableArray[@specialized(ItemTypes) +E] protected[seqs]
 		(final protected[this] val array :Array[E], final protected[palimpsest] val headIdx :Int, final val length :Int)
-	extends IterableFoundation[E, StableArray[E]] with CloneableIterable[E, StableArray[E]] //with FitIndexedSeq[E] //enforce the desired linearization
+	extends IterableFoundation[E, StableArray[E]] with CloneableIterable[E, StableArray[E]] //with AptIndexedSeq[E] //enforce the desired linearization
 //	   with StableSeq[E] with StableIndexedOverrides[E] with StableIterableTemplate[E, StableArray[E]]
 	   with ArrayView[E] with ArrayViewLike[E, StableArray[E]] with SpecializableIterable[E, StableArray]
 	   with StableSeq[E] with StableIndexedSeq[E] with StableIterableTemplate[E, StableArray[E]]
@@ -53,7 +53,7 @@ class StableArray[@specialized(ItemTypes) +E] protected[seqs]
 
 	override protected[this] def debugPrefix = "StableArray"
 
-	override def companion: FitCompanion[StableArray] = StableArray
+	override def companion: AptCompanion[StableArray] = StableArray
 }
 
 

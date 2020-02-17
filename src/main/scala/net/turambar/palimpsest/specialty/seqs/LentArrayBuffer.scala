@@ -3,9 +3,9 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable}
-import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, IterableFoundation, SpecializableIterable}
+import net.turambar.palimpsest.specialty.seqs.AptSeq.SeqFoundation
 import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType}
 
 import scala.annotation.unspecialized
@@ -65,7 +65,7 @@ class LentArrayBuffer[@specialized(ItemTypes) E] private[seqs]
 
 
 //	override protected[this] def factory: ArrayViewFactory[LentArrayBuffer] = LentArrayBuffer
-	override def companion :FitCompanion[LentArrayBuffer] = LentArrayBuffer
+	override def companion :AptCompanion[LentArrayBuffer] = LentArrayBuffer
 	
 	override protected def section(from: Int, until: Int): LentArrayBuffer[E] =
 		new LentArrayBuffer(array, headIdx+from, until-from, lowerBound, higherBound)

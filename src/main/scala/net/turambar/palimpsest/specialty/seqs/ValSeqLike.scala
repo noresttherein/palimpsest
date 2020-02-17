@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.seqs
 
 import java.lang.Math
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{ofKnownSize, ItemTypes, FitBuilder, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{ofKnownSize, ItemTypes, AptBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, AptIterableFactory, InterfaceIterableFactory, IterableSpecialization, SpecializableIterable}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, ValSet}
 
 import scala.annotation.unspecialized
@@ -52,16 +52,16 @@ trait ValSeqLike[@specialized(ItemTypes) E, +Repr <: ValSeqLike[E, Repr]]
 	}
 
 	@inline
-	final override def -(elem1: E, elem2: E, elems: E*): Repr = diff(FitSeq.two(elem1, elem2), elems)
+	final override def -(elem1: E, elem2: E, elems: E*): Repr = diff(AptSeq.two(elem1, elem2), elems)
 
 	@inline
-	final override def --(xs: GenTraversableOnce[E]): Repr = diff(FitSeq.Empty, xs)
+	final override def --(xs: GenTraversableOnce[E]): Repr = diff(AptSeq.Empty, xs)
 
 	/** Equals to `this -- elems1 -- elems2`, and is the common delegate implementation for
 	  * public subtraction methods. Default implementation slices this collection at
 	  * the appropriate indexes and appends them sequentially to a builder for the final result.
 	  */
-	protected[seqs] def diff(elems1 :FitSeq[E], elems2 :GenTraversableOnce[E]) :Repr = {
+	protected[seqs] def diff(elems1 :AptSeq[E], elems2 :GenTraversableOnce[E]) :Repr = {
 		val removedIndices = indicesOf(elems1, elems2)//.size //toList.sorted
 		if (removedIndices.isEmpty) repr
 		else {
@@ -86,7 +86,7 @@ trait ValSeqLike[@specialized(ItemTypes) E, +Repr <: ValSeqLike[E, Repr]]
 	}
 
 
-	protected[seqs] def indicesOf(elems1 :FitSeq[E], elems2 :GenTraversableOnce[E]) :ValSet[Int] = {
+	protected[seqs] def indicesOf(elems1 :AptSeq[E], elems2 :GenTraversableOnce[E]) :ValSet[Int] = {
 		var result = MutableSet[Int]() //todo: ValSet
 		var searchOffsets = mutable.Map[E, Int]().withDefaultValue(0) //todo: AptMap
 		def collect(e :E) :Unit = {
@@ -178,16 +178,16 @@ trait ValSeqLike[@specialized(ItemTypes) E, +Repr <: ValSeqLike[E, Repr]]
 
 
 trait ValSeq[@specialized(ItemTypes) E]
-	extends FitSeq[E] with ValSeqLike[E, ValSeq[E]] with SpecializableIterable[E, ValSeq] with CloneableIterable[E, ValSeq[E]]
+	extends AptSeq[E] with ValSeqLike[E, ValSeq[E]] with SpecializableIterable[E, ValSeq] with CloneableIterable[E, ValSeq[E]]
 {
-	override def companion :FitCompanion[ValSeq] = ValSeq
+	override def companion :AptCompanion[ValSeq] = ValSeq
 }
 
 
 
 object ValSeq extends InterfaceIterableFactory[ValSeq] {
 	override protected[this] type RealType[@specialized(ItemTypes) E] = SharedArray[E]
-	override protected[this] def default: FitIterableFactory[SharedArray] = SharedArray
+	override protected[this] def default: AptIterableFactory[SharedArray] = SharedArray
 
 	override implicit def canBuildFrom[E](implicit fit: CanFitFrom[ValSeq[_], E, ValSeq[E]]): CanBuildFrom[ValSeq[_], E, ValSeq[E]] =
 		fit.cbf

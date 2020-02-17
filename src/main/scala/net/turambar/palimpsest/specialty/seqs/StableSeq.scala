@@ -3,11 +3,11 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.annotation.unspecialized
 import scala.collection.generic.{CanBuildFrom, GenericTraversableTemplate}
 import scala.collection.{immutable, IndexedSeqLike, LinearSeq, LinearSeqLike}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables._
-import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, RuntimeType}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
+import net.turambar.palimpsest.specialty.{ItemTypes, AptBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.AptSeq.SeqFoundation
 
 
 
@@ -19,7 +19,7 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
   */
 trait StableSeq[@specialized(ItemTypes) +E]
 	extends immutable.Seq[E] //with IsStable[E] with StableIterableTemplate[E, StableSeq[E]]
-	   with FitSeq[E] with SeqTemplate[E, StableSeq[E]] with IterableSpecialization[E, StableSeq[E]]
+	   with AptSeq[E] with SeqTemplate[E, StableSeq[E]] with IterableSpecialization[E, StableSeq[E]]
 	   with SpecializableIterable[E, StableSeq]
 	   with StableIterable[E] with StableIterableTemplate[E, StableSeq[E]]
 {
@@ -36,7 +36,7 @@ trait StableSeq[@specialized(ItemTypes) +E]
 	override def toFitSeq :StableSeq[E] = this
 
 
-	override def companion: FitCompanion[StableSeq] = StableSeq
+	override def companion: AptCompanion[StableSeq] = StableSeq
 
 
 }
@@ -57,7 +57,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 
 	protected[this] type RealType[@specialized(ItemTypes) X] = StableArray[X]
-	protected[this] final def default :FitIterableFactory[StableArray] = StableArray
+	protected[this] final def default :AptIterableFactory[StableArray] = StableArray
 
 
 	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableSeq[_], E, StableSeq[E]]): CanBuildFrom[StableSeq[_], E, StableSeq[E]] =
@@ -69,11 +69,11 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 	private[seqs] class EmptySeq[@specialized(ItemTypes) +E]
 		extends SeqFoundation[E, StableIndexedSeq[E]]
-		   with FitIndexedSeq[E] with FitIndexedSeqTemplate[E, StableIndexedSeq[E]]
+		   with AptIndexedSeq[E] with AptIndexedSeqTemplate[E, StableIndexedSeq[E]]
 		   with StableSeq[E] with StableIndexedSeq[E] with EmptySeqTemplate[E, StableIndexedSeq[E]]
 	{
 		override protected def at(idx :Int) :E = throw new NoSuchElementException(debugString + "(" + idx + ")")
-		protected[this] override def newBuilder :FitBuilder[E, StableIndexedSeq[E]] = StableIndexedSeq.newBuilder[E]
+		protected[this] override def newBuilder :AptBuilder[E, StableIndexedSeq[E]] = StableIndexedSeq.newBuilder[E]
 	}
 
 
@@ -82,7 +82,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 	/** Specialized singleton sequence (small wrapper over a single element). */
 	private[seqs] class Seq1[@specialized(ItemTypes) +E](override val head :E)
 		extends SeqFoundation[E, StableIndexedSeq[E]]
-		   with FitIndexedSeq[E] with FitIndexedSeqTemplate[E, StableIndexedSeq[E]]
+		   with AptIndexedSeq[E] with AptIndexedSeqTemplate[E, StableIndexedSeq[E]]
 		   with StableSeq[E] with StableIndexedSeq[E] with SingletonSpecialization[E, StableIndexedSeq[E]]
 	{
 		override def empty :StableIndexedSeq[E] = EmptyIndexed
@@ -119,7 +119,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 
 		@unspecialized
-		final override def reverseIterator :FitIterator[E] = iterator
+		final override def reverseIterator :AptIterator[E] = iterator
 
 		@unspecialized override def toSeq :StableIndexedSeq[E] = this
 		@unspecialized override def reverse :StableIndexedSeq[E] = this
@@ -136,7 +136,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 	/** Specialized two-element sequence. */
 	private[seqs] class Seq2[@specialized(ItemTypes) +E](override val head :E, override val last :E)
 		extends SeqFoundation[E, StableIndexedSeq[E]]
-			with FitIndexedSeq[E] with FitIndexedSeqTemplate[E, StableIndexedSeq[E]]
+			with AptIndexedSeq[E] with AptIndexedSeqTemplate[E, StableIndexedSeq[E]]
 			with StableSeq[E] with StableIndexedSeq[E] with DoubletonSpecialization[E, StableIndexedSeq[E]]
 	{
 
@@ -195,7 +195,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 
 		//todo: inverse, reverse, reversedIterator and scala reversed: a bit much...
-		override def reverseIterator :FitIterator[E] = FitIterator.two(last, head)
+		override def reverseIterator :AptIterator[E] = AptIterator.two(last, head)
 		override def reverse = new Seq2(last, head)
 		@unspecialized override def inverse :StableIndexedSeq[E] = reverse
 		@unspecialized override def toSeq :StableIndexedSeq[E] = this
@@ -220,7 +220,7 @@ object StableSeq extends InterfaceIterableFactory[StableSeq] {
 
 
 				override def map[@specialized(Fun1Vals) O, That](f: (E) => O)(implicit bf: CanBuildFrom[MakeStableIndexed[E], O, That]): That = bf match {
-					case fit :CanFitFrom[_, _, _] if fit.companion==FitSeq || fit.companion == StableSeq =>
+					case fit :CanFitFrom[_, _, _] if fit.companion==AptSeq || fit.companion == StableSeq =>
 						new Seq2(f(head), f(last)).asInstanceOf[That]
 					case _ =>
 						(bf(this) += f(head) += f(last)).result()

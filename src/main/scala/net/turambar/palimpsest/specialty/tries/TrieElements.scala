@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.{?, Blank, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.tries.TrieElements.ElementOf
 import net.turambar.palimpsest.specialty.tries.Trie.KeyTypes
 
@@ -58,9 +58,9 @@ trait TrieElements[+K, +S, +T] extends TrieTemplate[K, T] { //this :T =>
 
 	def copyToArray[@specialized(TrieElements.Types) E](elements :ElementOf[E, S])(array :Array[E], from :Int, max :Int) :Int
 
-	def iterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E]
+	def iterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :AptIterator[E]
 
-	def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E]
+	def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :AptIterator[E]
 }
 
 
@@ -131,9 +131,9 @@ object TrieElements {
 		override def foldRight[@specialized(Fun2) E, @specialized(Fun2) O](elements :ElementOf[E, S])(acc :O)(f :(E, O) => O) :O = acc
 		override def copyToArray[@specialized(TrieElements.Types) E](elements :ElementOf[E, S])(array :Array[E], from :Int, max :Int) :Int = 0
 
-		override def iterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E] = FitIterator.empty[E]
+		override def iterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :AptIterator[E] = AptIterator.empty[E]
 
-		override def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E] = FitIterator.empty[E]
+		override def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :AptIterator[E] = AptIterator.empty[E]
 	}
 
 
@@ -192,11 +192,11 @@ object TrieElements {
 				array(from) = elements.elementOf(this);1
 			} else 0
 
-		override def iterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E] =
-			FitIterator.one(elements.elementOf(this))
+		override def iterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :AptIterator[E] =
+			AptIterator.one(elements.elementOf(this))
 
-		override def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :FitIterator[E] =
-			FitIterator.one(elements.elementOf(this))
+		override def reverseIterator[@specialized(TrieElements.Types) E](elements :ElementOf[E, S]) :AptIterator[E] =
+			AptIterator.one(elements.elementOf(this))
 	}
 	
 	

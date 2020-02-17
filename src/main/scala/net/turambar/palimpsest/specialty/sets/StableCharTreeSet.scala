@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.sets
 
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.AVLTree
 import net.turambar.palimpsest.specialty.maps.AVLTree.EntryLens
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
@@ -56,9 +56,9 @@ private[sets] class StableCharTreeSet(protected val root :AVLTree[Int, Unit], el
 
 
 
-	override def keysIteratorFrom(start :Char) :FitIterator[Char] = {
+	override def keysIteratorFrom(start :Char) :AptIterator[Char] = {
 		val tree = root
-		if (tree == null) FitIterator.Empty
+		if (tree == null) AptIterator.Empty
 		else tree.iteratorFrom(this)(start.toInt)(keyOrdering)
 	}
 

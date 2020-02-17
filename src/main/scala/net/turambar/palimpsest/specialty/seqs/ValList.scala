@@ -4,11 +4,11 @@ import net.turambar
 import net.turambar.palimpsest
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.{EmptyIterableTemplate, FitCompanion, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{EmptyIterableTemplate, AptCompanion, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.seqs.ValList.{Link, ListBuilder, ListIterator}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.annotation.{tailrec, unspecialized}
 import scala.collection.immutable.LinearSeq
@@ -124,11 +124,11 @@ sealed trait ValList[@specialized(ItemTypes) E]
 	override def clone() :ValList[E] = this
 
 
-	override def iterator :FitIterator[E] = new ListIterator(this)
+	override def iterator :AptIterator[E] = new ListIterator(this)
 
-	override def newBuilder :FitBuilder[E, ValList[E]] = ValList.newBuilder
+	override def newBuilder :AptBuilder[E, ValList[E]] = ValList.newBuilder
 
-	override def companion :FitCompanion[ValList] = ValList
+	override def companion :AptCompanion[ValList] = ValList
 }
 
 
@@ -141,7 +141,7 @@ object ValList extends SpecializableIterableFactory[ValList] {
 	override def empty[@specialized(ItemTypes) E] :ValList[E] = new EmptyList[E]
 
 
-	override def newBuilder[@specialized(ItemTypes) E] :FitBuilder[E, ValList[E]] = ListBuilder()
+	override def newBuilder[@specialized(ItemTypes) E] :AptBuilder[E, ValList[E]] = ListBuilder()
 
 
 
@@ -402,7 +402,7 @@ object ValList extends SpecializableIterableFactory[ValList] {
 
 
 
-	private class ListIterator[@specialized(ItemTypes) E](private[this] var list :ValList[E]) extends FitIterator[E] {
+	private class ListIterator[@specialized(ItemTypes) E](private[this] var list :ValList[E]) extends AptIterator[E] {
 		override def head :E = list.head
 
 		override def next() :E = { val res = list.head; list = list.tail; res }
@@ -416,7 +416,7 @@ object ValList extends SpecializableIterableFactory[ValList] {
 
 
 
-	private class ListBuilder[@specialized(ItemTypes) E](dummy :E, nil :ValList[E] = empty[E]) extends FitBuilder[E, ValList[E]] {
+	private class ListBuilder[@specialized(ItemTypes) E](dummy :E, nil :ValList[E] = empty[E]) extends AptBuilder[E, ValList[E]] {
 		private[this] val hat :Link[E] = new Link(dummy, nil)
 		private[this] var last = hat
 
@@ -431,7 +431,7 @@ object ValList extends SpecializableIterableFactory[ValList] {
 
 		override def clear() :Unit = { hat.tail = nil; last = hat }
 
-		override def typeHint[L <: E](implicit specialization :RuntimeType[L]) :FitBuilder[E, ValList[E]] = ListBuilder()
+		override def typeHint[L <: E](implicit specialization :RuntimeType[L]) :AptBuilder[E, ValList[E]] = ListBuilder()
 	}
 
 

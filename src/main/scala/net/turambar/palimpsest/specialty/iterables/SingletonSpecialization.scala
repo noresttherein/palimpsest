@@ -1,11 +1,11 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.seqs.{AptSeq, StableSeq}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.collection.{mutable, GenIterable, GenTraversableOnce, LinearSeq}
 import scala.collection.generic.CanBuildFrom
@@ -115,7 +115,7 @@ trait SingletonTemplate[+E, +Repr] extends IterableTemplate[E, Repr] with OfKnow
 
 	override def copyToBuffer[B >: E](dest: mutable.Buffer[B]) :Unit = dest += head
 
-	override def inverse :FitIterable[E] = this.asInstanceOf[FitIterable[E]]
+	override def inverse :AptIterable[E] = this.asInstanceOf[AptIterable[E]]
 
 	override def toString :String = stringPrefix + '(' +head +')'
 }
@@ -140,7 +140,7 @@ trait SingletonSpecialization[@specialized(ItemTypes) +E, +Repr] extends Iterabl
 	override def find_?(p :E => Boolean, where :Boolean): ?[E] = if (p(head) == where) Sure(head) else Blank
 
 
-	override def iterator: FitIterator[E] = FitIterator.one(head)
+	override def iterator: AptIterator[E] = AptIterator.one(head)
 
 	/** Overriden for speed. */
 	override def foreach[@specialized(Unit) U](f :E=>U) :Unit = f(head)
@@ -165,7 +165,7 @@ trait SingletonSpecialization[@specialized(ItemTypes) +E, +Repr] extends Iterabl
 
 	override def copyToBuffer[B >: E](dest: mutable.Buffer[B]) :Unit = dest += head
 
-	override def toSeq :FitSeq[E] = FitSeq.one(head)
+	override def toSeq :AptSeq[E] = AptSeq.one(head)
 
 
 }
@@ -260,7 +260,7 @@ abstract class SingletonFoundation[+E, +Repr] extends IterableFoundation[E, Repr
 
 	override def iterator :FitIterator[E] = forHead[FitIterator[E]](FitIterator.apply[E])
 
-	override def inverse = this.asInstanceOf[FitIterable[E]]
+	override def inverse = this.asInstanceOf[AptIterable[E]]
 
 	override def toString = stringPrefix + '(' +head +')'
 }

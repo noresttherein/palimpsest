@@ -5,7 +5,7 @@ import java.lang.Double.{doubleToLongBits, doubleToRawLongBits, longBitsToDouble
 import net.turambar.palimpsest.specialty.tries.{TriePotIterableFoundation, LongTrie, LongTrieKeys, MutableLongTrie, TrieKeySetOps}
 import net.turambar.palimpsest.specialty.tries.LongTrie.{EmptyLongTrie, LongTrieLeaf}
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
-import net.turambar.palimpsest.specialty.{?, Blank, FitTraversableOnce, RuntimeType, Sure, Var}
+import net.turambar.palimpsest.specialty.{?, Blank, Vals, RuntimeType, Sure, Var}
 import net.turambar.palimpsest.specialty.sets.StableDoubleSet.{doubleToKey, DoubleElementCounter}
 import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.BinaryTriePatch
@@ -166,7 +166,7 @@ class MutableDoubleSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 	override protected def patchTrie(elem :Double)(patch :BinaryTriePatch[Long, LongTrie, MutableLongTrie]) :Boolean =
 		trie.patchKey(patch, this)(doubleToKey(elem))
 
-	override protected def patchTrie(elems :FitTraversableOnce[Double])(patch :BinaryTriePatch[Long, LongTrie, MutableLongTrie]) :Unit =
+	override protected def patchTrie(elems :Vals[Double])(patch :BinaryTriePatch[Long, LongTrie, MutableLongTrie]) :Unit =
 		elems foreach { elem => trie.patchKey(patch, this)(doubleToKey(elem)) }
 
 

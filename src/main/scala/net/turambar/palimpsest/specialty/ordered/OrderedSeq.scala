@@ -1,9 +1,9 @@
 package net.turambar.palimpsest.specialty.ordered
 
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableAdapter, IterableSpecialization}
-import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, FitBuilder, Sure}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{FitSeq, SliceLike}
+import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, AptBuilder, Sure}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{AptSeq, SliceLike}
 import net.turambar.palimpsest.specialty.sets.OrderedSet
 
 import scala.collection.GenTraversableOnce
@@ -14,15 +14,15 @@ import scala.collection.GenTraversableOnce
 /** Ordered values stored in a sequence. Provides efficient `O(log n)` search, fast iteration, but adding or removing elements
   * is pessimistically (and realistically) `O(n)`.
   */
-class OrderedSeq[@specialized(ItemTypes) E] private[ordered](override protected[this] val source :FitSeq[E])(implicit override val ordering :ValOrdering[E])
-	extends IterableAdapter[FitSeq[E], E, OrderedSeq[E]] with OrderedVals[E] with OrderedAs[E, OrderedSeq[E]]
+class OrderedSeq[@specialized(ItemTypes) E] private[ordered](override protected[this] val source :AptSeq[E])(implicit override val ordering :ValOrdering[E])
+	extends IterableAdapter[AptSeq[E], E, OrderedSeq[E]] with OrderedVals[E] with OrderedAs[E, OrderedSeq[E]]
 	   with IterableSpecialization[E, OrderedSeq[E]]
 {
 	//	type This = OrderedSeq[E]
 
 //	override def companion :FitCompanion[OrderedSeq] = OrderedSeq
 
-	override protected[this] def fromSource(other: FitSeq[E]): OrderedSeq[E] =
+	override protected[this] def fromSource(other: AptSeq[E]): OrderedSeq[E] =
 		new OrderedSeq[E](other)
 
 	override def keyAt(idx: Int): E = source(idx)
@@ -87,7 +87,7 @@ class OrderedSeq[@specialized(ItemTypes) E] private[ordered](override protected[
 	}
 
 
-	override def keysIteratorFrom(start: E): FitIterator[E] =
+	override def keysIteratorFrom(start: E): AptIterator[E] =
 		if (source.isInstanceOf[SliceLike[E, _]])
 			source.drop(indexBefore(start)).iterator
 		else
@@ -113,12 +113,12 @@ class OrderedSeq[@specialized(ItemTypes) E] private[ordered](override protected[
 		(new OrderedSeq(div._1.sorted), new OrderedSeq(div._2.sorted))
 	}
 
-	override def reverseIterator: FitIterator[E] = source.reverseIterator
+	override def reverseIterator: AptIterator[E] = source.reverseIterator
 
-	override def empty: OrderedSeq[E] = new OrderedSeq[E](FitSeq.Empty)
+	override def empty: OrderedSeq[E] = new OrderedSeq[E](AptSeq.Empty)
 
-	override protected[this] def newBuilder :FitBuilder[E, OrderedSeq[E]] =
-		FitSeq.newBuilder.mapResult(new OrderedSeq(_))
+	override protected[this] def newBuilder :AptBuilder[E, OrderedSeq[E]] =
+		AptSeq.newBuilder.mapResult(new OrderedSeq(_))
 
 
 	override def +(elem: E): OrderedSeq[E] = new OrderedSeq((elem +: source).sorted)
@@ -150,18 +150,18 @@ class OrderedSeq[@specialized(ItemTypes) E] private[ordered](override protected[
 		new OrderedSeq(source.sorted(rev))(rev)
 	}
 
-	@inline final override def toSeq :FitSeq[E] = source
-	@inline final override def toFitSeq :FitSeq[E] = source
+	@inline final override def toSeq :AptSeq[E] = source
+	@inline final override def toFitSeq :AptSeq[E] = source
 }
 
 
 object OrderedSeq {
 
-	def empty[@specialized(ItemTypes) E :Ordering] :OrderedSeq[E] = new OrderedSeq(FitSeq.empty[E])
+	def empty[@specialized(ItemTypes) E :Ordering] :OrderedSeq[E] = new OrderedSeq(AptSeq.empty[E])
 
 	def apply[@specialized(ItemTypes) E :Ordering](elems :E*) :OrderedSeq[E] =
-		new OrderedSeq(FitSeq(elems:_*).sorted)
+		new OrderedSeq(AptSeq(elems:_*).sorted)
 
-	def newBuilder[@specialized(ItemTypes) E :Ordering] :FitBuilder[E, OrderedSeq[E]] =
-		FitSeq.newBuilder[E].mapResult(elems => new OrderedSeq(elems.sorted))
+	def newBuilder[@specialized(ItemTypes) E :Ordering] :AptBuilder[E, OrderedSeq[E]] =
+		AptSeq.newBuilder[E].mapResult(elems => new OrderedSeq(elems.sorted))
 }

@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, FitTraversableOnce, RuntimeType, Specialize, SpecializedGeneric}
+import net.turambar.palimpsest.specialty.{ItemTypes, AptBuilder, Vals, RuntimeType, Specialize, SpecializedGeneric}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
 
 import scala.collection.generic.{CanBuildFrom, GenericCompanion}
@@ -17,7 +17,7 @@ import scala.reflect.ClassTag
   *
   * @author Marcin Mościcki
   */
-trait FitCompanion[+S[@specialized(ItemTypes) X] <: FitIterable[X]]
+trait AptCompanion[+S[@specialized(ItemTypes) X] <: AptIterable[X]]
 	extends GenericCompanion[S]
 { factory =>
 
@@ -44,7 +44,7 @@ trait FitCompanion[+S[@specialized(ItemTypes) X] <: FitIterable[X]]
 
 
 	/** Create a new instance containing the given elements.
-	  * '''Do not use it with empty argument list''' - not only [[FitCompanion#empty empty[E]] will be more efficient, but due to
+	  * '''Do not use it with empty argument list''' - not only [[AptCompanion#empty empty[E]] will be more efficient, but due to
 	  * a bug in scala up to 2.11.8 such call won't be specialized if the `apply` method is overloaded.
 	  *
 	  * @return a specialized subclass of `S[E]`
@@ -57,16 +57,16 @@ trait FitCompanion[+S[@specialized(ItemTypes) X] <: FitIterable[X]]
 //	def apply[E](elems :TraversableOnce[E])(implicit specializationHint :Specialized[E]) :S[E] = {
 //		val spec = elems match {
 //			case it :FitIterator[E] => it.specialization.asInstanceOf[Specialized[E]]
-//			case items :FitIterable[E] => items.specialization.asInstanceOf[Specialized[E]]
+//			case items :AptIterable[E] => items.specialization.asInstanceOf[Specialized[E]]
 //			case _ => specializationHint
 //		}
 //		(builder(spec) ++= elems).result()
 //	}
-	
-	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, S[E]] //= specializedBuilder[E]
+
+	override def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, S[E]] //= specializedBuilder[E]
 
 	/** Builder specialized on `E` if any information about type `E` is available (see [[RuntimeType]]). */
-	def builder[E :RuntimeType] :FitBuilder[E, S[E]]
+	def builder[E :RuntimeType] :AptBuilder[E, S[E]]
 
 
 
@@ -91,7 +91,7 @@ trait FitCompanion[+S[@specialized(ItemTypes) X] <: FitIterable[X]]
   * of various helper traits.
   * @author Marcin Moscicki
   */
-object FitCompanion {
+object AptCompanion {
 	
 	
 	
@@ -106,14 +106,14 @@ object FitCompanion {
 	  * Can be queried from collection methods to 'cheat' on the dynamic double dispatch in order to perform optimizations.
 	  */
 	trait CanFitFrom[-From, -E, +To] extends SpecializedGeneric { outer :CanBuildFrom[From, E, To] =>
-		private[this] type Builder[X] = FitBuilder[X, To]
+		private[this] type Builder[X] = AptBuilder[X, To]
 		private[this] type MapFun[X] = X => E
 
 		def cbf :CanBuildFrom[From, E, To] = this
 
-		def apply(from: From): FitBuilder[E, To]
+		def apply(from: From): AptBuilder[E, To]
 		
-		def apply(): FitBuilder[E, To]
+		def apply(): AptBuilder[E, To]
 
 
 
@@ -160,23 +160,23 @@ object FitCompanion {
 	class CanBreakOut[-From, -E, +To]()(implicit cbf :CanFitFrom[_, E, To])
 		extends CanFitFrom[From, E, To] with CanBuildFrom[From, E, To]
 	{
-		override def apply(from: From): FitBuilder[E, To] = cbf()
+		override def apply(from: From): AptBuilder[E, To] = cbf()
 		
-		override def apply(): FitBuilder[E, To] = cbf()
+		override def apply(): AptBuilder[E, To] = cbf()
 
-		override def mapped[O](from :From, f :O => E) :FitBuilder[O, To] = from match {
+		override def mapped[O](from :From, f :O => E) :AptBuilder[O, To] = from match {
 			case fit :FitTraversableOnce[_] => cbf.mapped(f)(fit.runtimeType.asInstanceOf[RuntimeType[O]])
 
 			case _ => cbf().mapInput(f)
 		}
 
-		override def mapped[O :RuntimeType](f :O => E) :FitBuilder[O, To] = cbf.mapped(f)
+		override def mapped[O :RuntimeType](f :O => E) :AptBuilder[O, To] = cbf.mapped(f)
 
 
-		override def mapping[O](from :From with FitIterable[O], f :O => E) :FitBuilder[O, To] =
+		override def mapping[O](from :From with AptIterable[O], f :O => E) :AptBuilder[O, To] =
 			cbf.mapped(f)(from.runtimeType.asInstanceOf[RuntimeType[O]])
 
-		override def mapping[O :RuntimeType](f :O => E) :FitBuilder[O, To] =
+		override def mapping[O :RuntimeType](f :O => E) :AptBuilder[O, To] =
 			cbf.mapped(f)
 
 		override protected[this] def specialization: RuntimeType[_] = cbf.runtimeType

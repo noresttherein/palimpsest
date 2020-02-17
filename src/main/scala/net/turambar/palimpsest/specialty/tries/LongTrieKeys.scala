@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.{?, ItemTypes, Sure}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.tries.BinaryTrie._
 import net.turambar.palimpsest.specialty.tries.EmptyTrie.EmptyTrieFoundation
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.LongKeyBranch
@@ -127,7 +127,7 @@ trait LongTrieKeys[+S <: LongTrieKeys[S, S] with LongTrie, +This <: LongTrieKeys
 
 
 	/** Returns an iterator traversing all elements starting with the given key. */
-	def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E]
+	def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :AptIterator[E]
 
 
 
@@ -355,8 +355,8 @@ object LongTrieKeys {
 		override def keyRange(start: Long, end: Long): This = this
 		override def keyRangeImpl(from: ?[Long], until: ?[Long]): This = this
 
-		override def iteratorFrom[@specialized(ItemTypes) E](elements :ElementOf[E, S])(key :Long) :FitIterator[E] =
-			FitIterator.empty[E]
+		override def iteratorFrom[@specialized(ItemTypes) E](elements :ElementOf[E, S])(key :Long) :AptIterator[E] =
+			AptIterator.empty[E]
 
 
 		override def equals(that :Any) :Boolean = that.isInstanceOf[GenericEmptyLongKeys[_, _]]
@@ -405,9 +405,9 @@ object LongTrieKeys {
 			else emptyTrie
 		}
 
-		override def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E] =
-			if (flipSign(start) <= flipSign(key)) FitIterator.one(elems.elementOf(this))
-			else FitIterator.empty[E]
+		override def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :AptIterator[E] =
+			if (flipSign(start) <= flipSign(key)) AptIterator.one(elems.elementOf(this))
+			else AptIterator.empty[E]
 
 
 		override def juxtapose[T >: S <: Trie[Long, T] with LongTrie, @specialized(TrieOpRes) O](other :T)(op :TrieOp[T, O]) :O =
@@ -669,9 +669,9 @@ object LongTrieKeys {
 
 
 
-		def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :FitIterator[E] =
+		def iteratorFrom[@specialized(ItemTypes) E](elems :ElementOf[E, S])(start :Long) :AptIterator[E] =
 			if (center >= 0 && (start < 0 || start > upperBound))
-				FitIterator.empty[E] //all our keys start with '0' while start falls after our range
+				AptIterator.empty[E] //all our keys start with '0' while start falls after our range
 			else if (center < 0 && center != SignBit && (start >= 0 || start < lowerBound)) //all our keys start with `1` bit and `start` starts with `0`
 			     new LeafElementIterator[E, Long, S](elems, this, 64) //iterate over the whole trie
 			else {
@@ -685,7 +685,7 @@ object LongTrieKeys {
 					} else //now we are sure that keyStart will have the same sign as all values within requested range
 						fillIteratorStack(start, this, stack, 0) //handles also case path=0x8000000000000000L && start >=0
 				if (depth < 0)
-					FitIterator.empty[E]
+					AptIterator.empty[E]
 				else
 					new LeafElementIterator[E, Long, S](elems, stack, depth)
 			}

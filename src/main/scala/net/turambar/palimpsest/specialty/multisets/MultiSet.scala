@@ -3,12 +3,12 @@ package net.turambar.palimpsest.specialty.multisets
 import java.util
 
 import net.turambar.palimpsest.specialty
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables._
-import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, AptBuilder, Vals, RuntimeType}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun2, Fun2Res}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitSeq, SharedArray, SharedArrayBuffer}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{ArrayView, AptSeq, SharedArray, SharedArrayBuffer}
 import net.turambar.palimpsest.specialty.sets.{MutableSet, MutableSetSpecialization, SetSpecialization, SpecializableSet, StableSet, ValSet}
 
 import scala.annotation.unspecialized
@@ -26,7 +26,7 @@ trait MultiSetSpecialization[@specialized(ItemTypes) E, +Repr<:MultiSetSpecializ
 	def empty :Repr
 
 	def unique :ValSet[E]
-	def counts :FitIterable[(E, Int)]
+	def counts :AptIterable[(E, Int)]
 //	override def toSet[B >: E]
 
 	def uniqueItems :Int
@@ -59,11 +59,11 @@ trait MultiSetSpecialization[@specialized(ItemTypes) E, +Repr<:MultiSetSpecializ
 	def +(elem1 :E, elem2 :E, elems :E*) :Repr = this + elem1 + elem2 ++ elems
 
 	def ++(elems :GenTraversableOnce[E]) :Repr = elems match {
-		case fit :FitTraversableOnce[E] => this ++ elems
+		case fit :Vals[E] => this ++ elems
 		case _ => (repr /: elems.seq)(_ + _)
 	}
 
-	def ++(elems :FitTraversableOnce[E]) :Repr = {
+	def ++(elems :Vals[E]) :Repr = {
 		val it = elems.toIterator
 		var res = repr
 		while (it.hasNext) res += it.next()
@@ -77,11 +77,11 @@ trait MultiSetSpecialization[@specialized(ItemTypes) E, +Repr<:MultiSetSpecializ
 	def -(elem1 :E, elem2 :E, elems :E*) :Repr = this - elem1 - elem2 -- elems
 
 	def --(elems :GenTraversableOnce[E]) :Repr = elems match {
-		case fit :FitTraversableOnce[E] => this -- elems
+		case fit :Vals[E] => this -- elems
 		case _ => (repr /: elems)(_ - _)
 	}
 
-	def --(elems :FitTraversableOnce[E]) :Repr = {
+	def --(elems :Vals[E]) :Repr = {
 		val it = elems.toIterator
 		var res = repr
 		while (it.hasNext && res.nonEmpty) res -= it.next()
@@ -94,11 +94,11 @@ trait MultiSetSpecialization[@specialized(ItemTypes) E, +Repr<:MultiSetSpecializ
 	def -*(elem1 :E, elem2 :E, elems :E*) :Repr = this -* elem1 -* elem2 --* elems
 
 	def --*(elems :GenTraversableOnce[E]) :Repr = elems match {
-		case fit :FitTraversableOnce[E] => this --* fit
+		case fit :Vals[E] => this --* fit
 		case unfit => (repr /: elems){ (left, e) => left -* e }
 	}
 
-	def --*(elems :FitTraversableOnce[E]) :Repr = {
+	def --*(elems :Vals[E]) :Repr = {
 		val it = elems.toIterator
 		var res = repr
 		while(it.hasNext && res.nonEmpty) res -*= it.next()
@@ -198,7 +198,7 @@ trait MultiSetSpecialization[@specialized(ItemTypes) E, +Repr<:MultiSetSpecializ
   * @author Marcin Mościcki
   */
 trait MultiSet[@specialized(ItemTypes) E]
-	extends FitIterable[E] with SpecializableIterable[E, MultiSet] with MultiSetSpecialization[E, MultiSet[E]]
+	extends AptIterable[E] with SpecializableIterable[E, MultiSet] with MultiSetSpecialization[E, MultiSet[E]]
 	   with CloneableIterable[E, MultiSet[E]]
 {
 //	override def seq :MultiSet[E] = this
@@ -206,7 +206,7 @@ trait MultiSet[@specialized(ItemTypes) E]
 //	override def stable :StableMultiSet[E]
 //	override def mutable :MutableMultiSet[E]
 
-	override def companion :FitCompanion[MultiSet] = MultiSet
+	override def companion :AptCompanion[MultiSet] = MultiSet
 }
 
 
@@ -215,7 +215,7 @@ trait MultiSet[@specialized(ItemTypes) E]
 object MultiSet extends InterfaceIterableFactory[MultiSet] {
 	override protected[this] type RealType[@specialized(ItemTypes) E] = StableMultiSet[E]
 
-	override protected[this] def default: FitIterableFactory[RealType] = StableMultiSet
+	override protected[this] def default: AptIterableFactory[RealType] = StableMultiSet
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MultiSet[_], E, MultiSet[E]]): CanBuildFrom[MultiSet[_], E, MultiSet[E]] =
 		fit.cbf
@@ -236,7 +236,7 @@ trait StableMultiSet[@specialized(ItemTypes) E]
 	override def stable :StableMultiSet[E] = this
 	override def mutable :MutableMultiSet[E] = ???
 
-	override def companion :FitCompanion[StableMultiSet] = StableMultiSet
+	override def companion :AptCompanion[StableMultiSet] = StableMultiSet
 
 
 }
@@ -244,7 +244,7 @@ trait StableMultiSet[@specialized(ItemTypes) E]
 object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 	override protected[this] type RealType[@specialized(ItemTypes) E] = StableMultiSet[E]
 
-	override protected[this] def default: FitIterableFactory[StableMultiSet] = ???
+	override protected[this] def default: AptIterableFactory[StableMultiSet] = ???
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[StableMultiSet[_], E, StableMultiSet[E]]): CanBuildFrom[StableMultiSet[_], E, StableMultiSet[E]] =
 		fit.cbf
@@ -259,7 +259,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 		override def unique: StableSet[E] = StableSet.one(item)
 
-		override def counts: FitIterable[(E, Int)] = FitSeq.one((item, 1))
+		override def counts: AptIterable[(E, Int)] = AptSeq.one((item, 1))
 
 		override def copiesOf(elem: E): Int = if (elem==item) 1 else 0
 
@@ -325,7 +325,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 
 		override def --(xs: GenTraversableOnce[E]) :StableMultiSet[E] = xs match {
-			case fit :FitTraversableOnce[E] =>
+			case fit :Vals[E] =>
 				this -- fit
 			case _ =>
 				var count = 0
@@ -339,7 +339,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 		}
 
 
-		override def --(elems: FitTraversableOnce[E]) :StableMultiSet[E] = {
+		override def --(elems: Vals[E]) :StableMultiSet[E] = {
 			var left = copies
 			val it = elems.toIterator
 			while(it.hasNext)
@@ -352,7 +352,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 		override def -*(elem: E): StableMultiSet[E] = if (elem==item) StableMultiSet.empty[E] else this
 
-		override def --*(elems: FitTraversableOnce[E]): StableMultiSet[E] = {
+		override def --*(elems: Vals[E]): StableMultiSet[E] = {
 			val it = elems.toIterator
 			while(it.hasNext)
 				if (it.next()==item) return StableMultiSet.empty
@@ -368,7 +368,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 		}
 
 		override def --*(elems: GenTraversableOnce[E]) :StableMultiSet[E] = elems match {
-			case fit :FitTraversableOnce[E] => this --* fit
+			case fit :Vals[E] => this --* fit
 			case _ => if (elems.exists(item == _)) StableMultiSet.empty[E] else this
 		}
 
@@ -377,7 +377,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 
 
-		override def iterator: FitIterator[E] = FitIterator.repeated[E](item, size)
+		override def iterator: AptIterator[E] = AptIterator.repeated[E](item, size)
 
 		override def foreach[@specialized(Unit) O](f :E=>O) :Unit = {
 			var i = copies
@@ -470,7 +470,7 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 		override def unique :StableSet[E] = StableSet.one(item)
 
-		override def counts :FitSeq[(E, Int)] = FitSeq.one((item, copies))
+		override def counts :AptSeq[(E, Int)] = AptSeq.one((item, copies))
 
 		override def inverse :MultiSet1[E] = this
 
@@ -491,19 +491,19 @@ object StableMultiSet extends InterfaceIterableFactory[StableMultiSet] {
 
 trait MutableMultiSet[@specialized(ItemTypes) E]
 	extends MultiSet[E] with SpecializableIterable[E, MutableMultiSet] with MultiSetSpecialization[E, MutableMultiSet[E]]
-	   with FitBuilder[E, MultiSet[E]] with MutableIterable[E] with CloneableIterable[E, MutableMultiSet[E]]
+	   with AptBuilder[E, MultiSet[E]] with MutableIterable[E] with CloneableIterable[E, MutableMultiSet[E]]
 {
 	override def empty :MutableMultiSet[E] = MutableMultiSet.empty[E]
 	override def stable :StableMultiSet[E] = ???
 	override def mutable :MutableMultiSet[E] = this
 
-	override def companion :FitCompanion[MutableMultiSet] = MutableMultiSet
+	override def companion :AptCompanion[MutableMultiSet] = MutableMultiSet
 }
 
 object MutableMultiSet extends InterfaceIterableFactory[MutableMultiSet] {
 	override protected[this] type RealType[@specialized(ItemTypes) E] = MutableMultiSet[E]
 
-	override protected[this] def default: FitIterableFactory[MutableMultiSet] = ???
+	override protected[this] def default: AptIterableFactory[MutableMultiSet] = ???
 
 	@inline final override implicit def canBuildFrom[E](implicit fit: CanFitFrom[MutableMultiSet[_], E, MutableMultiSet[E]]): CanBuildFrom[MutableMultiSet[_], E, MutableMultiSet[E]] =
 		fit.cbf

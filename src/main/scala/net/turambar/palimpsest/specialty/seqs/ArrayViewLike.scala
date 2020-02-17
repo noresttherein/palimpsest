@@ -5,8 +5,8 @@ import java.lang.Math
 import scala.annotation.unspecialized
 import scala.reflect.ClassTag
 import scala.collection.{immutable, IndexedSeqLike, IndexedSeqOptimized, LinearSeqLike}
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2Vals
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, IterableSpecialization}
@@ -205,7 +205,7 @@ trait ArrayViewLike[@specialized(ItemTypes) +E, +Repr]
 	override def stable :StableSeq[E] = (ArrayPlus.builder[E](specialization) ++= this).result()
 
 	//todo: optimistic specialization
-//	override def toBuffer[U >: E]: FitBuffer[U] =
+//	override def toBuffer[U >: E]: AptBuffer[U] =
 
 	@unspecialized
 	override def toFitBuffer[U >: E: RuntimeType]: SharedArrayBuffer[U] =

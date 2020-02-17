@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty
 
-import net.turambar.palimpsest.specialty.iterables.FitIterable
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterables.AptIterable
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.seqs.SharedArray
 
 import scala.annotation.unspecialized
@@ -11,7 +11,7 @@ import scala.collection.mutable.WrappedArray
 
 
 /** A base trait for everything that is specialized. It exists to avoid numerous overrides caused by inheriting
-  * declarations from unrelated base types (such as `MutableSet` from `FitIterable` and FitBuilder), especially
+  * declarations from unrelated base types (such as `MutableSet` from `AptIterable` and AptBuilder), especially
   * unresolvable conflicts when inheriting a final definition. It should be considered an implementation detail
   * and possible to change without notice.
   */
@@ -33,12 +33,12 @@ trait SpecializedGeneric {
 
 /** Root trait for specialized collections and iterators.
   * It isn't specialized itself, so avoid using it to actually traverse the elements,
-  * preferring [[FitIterable]] and [[FitIterator]] interfaces where specialization is possible.
+  * preferring [[AptIterable]] and [[AptIterator]] interfaces where specialization is possible.
   * It exists mainly to check
   * @tparam E
   */
 //todo: rename to `Vals`
-trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[E] with SpecializedGeneric {
+trait Vals[/*@specialized(Elements) */+E] extends TraversableOnce[E] with SpecializedGeneric {
 //	protected[this] def specialization :Specialized[E]
 	override def runtimeType :RuntimeType[_<:E] = specialization
 
@@ -63,7 +63,7 @@ trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[
 	def ofAtLeast(size :Int) :Boolean //= this.size >= size
 
 	/**  Returns `true` if this collection contains at least one element. By default implemented via
-	  *  [[net.turambar.palimpsest.specialty.FitTraversableOnce#ofAtLeast]].
+	  *  [[net.turambar.palimpsest.specialty.Vals#ofAtLeast]].
 	  */
 	override def nonEmpty :Boolean = ofAtLeast(1)
 
@@ -72,7 +72,7 @@ trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[
 
 
 	@unspecialized
-	def toIterator :FitIterator[E]
+	def toIterator :AptIterator[E]
 	//todo: do we need it? its the only thing requireing specialization
 //	def head :E
 
@@ -82,16 +82,16 @@ trait FitTraversableOnce[/*@specialized(Elements) */+E] extends TraversableOnce[
 
 
 
-object FitTraversableOnce {
-	def unapply[E](col :GenTraversableOnce[E]) :Option[FitTraversableOnce[E]] =
+object Vals {
+	def unapply[E](col :GenTraversableOnce[E]) :Option[Vals[E]] =
 		col match {
-			case it :FitTraversableOnce[E] => Some(it)
+			case it :Vals[E] => Some(it)
 			case arr :WrappedArray[E] => Some(SharedArray(arr.array))
 			case _ => None
 		}
 
 	/** Marker trait implemented by finite collections providing reasonably fast `size` method. */
-	trait OfKnownSize extends TraversableOnce[Any] { this :FitTraversableOnce[Any] =>
+	trait OfKnownSize extends TraversableOnce[Any] { this :Vals[Any] =>
 		override def hasFastSize = true
 		override def hasDefiniteSize = true
 		override def ofAtLeast(items :Int) :Boolean = size >= items
@@ -101,7 +101,7 @@ object FitTraversableOnce {
 
 	@inline
 	private[palimpsest] final def ofKnownSize[T](col :GenTraversableOnce[T]) =  col match {
-		case fit :FitTraversableOnce[T] => fit.hasFastSize
+		case fit :Vals[T] => fit.hasFastSize
 		case _ :IndexedSeqLike[_, _] => true
 		case _ :ListSet[_] => col.isEmpty
 		case _ :BitSetLike[_] => false

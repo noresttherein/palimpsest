@@ -1,11 +1,11 @@
 package net.turambar.palimpsest.specialty.sets
 
 /*
-import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
-import net.turambar.palimpsest.specialty.{?, Elements, FitBuilder, FitIterator, FitTraversableOnce, Specialized}
+import net.turambar.palimpsest.specialty.AptIterable.IterableAdapter
+import net.turambar.palimpsest.specialty.{?, Elements, AptBuilder, FitIterator, FitTraversableOnce, Specialized}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.ordered.{OrderedAs, ValOrdering}
-import net.turambar.palimpsest.specialty.seqs.FitBuffer
+import net.turambar.palimpsest.specialty.seqs.AptBuffer
 import net.turambar.palimpsest.specialty.Specialized.Fun2
 import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, TrieCombinator, AbstractTriePatch}
 import net.turambar.palimpsest.specialty.tries.{Trie, TrieKeys, TrieLeaf}
@@ -50,9 +50,9 @@ abstract class MutableTrieValueSetFoundation[
 
 //	override def stable :StableSet[V] = root.stable
 
-	override def newBuilder :FitBuilder[V, This] = fromSource((root :SetSpecialization[V, T]).empty :T, 0)
+	override def newBuilder :AptBuilder[V, This] = fromSource((root :SetSpecialization[V, T]).empty :T, 0)
 
-	override def toBuffer[U>:V] :FitBuffer[U] = root.toBuffer
+	override def toBuffer[U>:V] :AptBuffer[U] = root.toBuffer
 
 
 	@inline final private[palimpsest] def trie :T = root

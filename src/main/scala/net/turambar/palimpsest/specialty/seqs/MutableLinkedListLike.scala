@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.seqs
 
 
-import net.turambar.palimpsest.specialty.{ofKnownSize, ItemTypes, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{ofKnownSize, ItemTypes, Vals}
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, NonEmpty}
 
 import scala.annotation.{tailrec, unspecialized}
@@ -70,7 +70,7 @@ trait MutableLinkedListLike[@specialized(ItemTypes) E, +Repr<:MutableLinkedListL
 //		}
 
 
-//	override def overwrite(start: Int, length: Int): FitBuffer[E] = ???
+//	override def overwrite(start: Int, length: Int): AptBuffer[E] = ???
 //
 //
 //	override protected[this] def at(idx: Int): E = hat.get(idx+1)
@@ -205,7 +205,7 @@ trait MutableLinkedListLike[@specialized(ItemTypes) E, +Repr<:MutableLinkedListL
 		newCollection(res, end, length-removed)
 	}
 
-	override protected[seqs] def diff(elems1: FitSeq[E], elems2: GenTraversableOnce[E]) :Repr = {
+	override protected[seqs] def diff(elems1: AptSeq[E], elems2: GenTraversableOnce[E]) :Repr = {
 		val counts = mutable.Map[E, Int]()
 		if (elems1.hasFastSize && ofKnownSize(elems2))
 			counts.sizeHint(elems1.length + elems2.size)

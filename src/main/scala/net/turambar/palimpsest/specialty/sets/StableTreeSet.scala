@@ -3,13 +3,13 @@ package net.turambar.palimpsest.specialty.sets
 import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
 import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, RuntimeType, Specialize}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.AVLTree
 import net.turambar.palimpsest.specialty.maps.AVLTree.EntryLens
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableFoundation, IterableOverrides, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.{AptIterable, IterableFoundation, IterableOverrides, StableIterableTemplate}
 import net.turambar.palimpsest.specialty.sets.OrderedSet.OrderedSetRangeSpecialization
 import net.turambar.palimpsest.specialty.sets.StableTreeSet.StableTreeSetRange
 import net.turambar.palimpsest.specialty.Specialize.SpecializeSome
@@ -94,15 +94,15 @@ trait StableTreeSet[@specialized(ItemTypes) E]
 
 
 
-	override def iterator :FitIterator[E] = {
+	override def iterator :AptIterator[E] = {
 		val tree = root
-		if (tree == null) FitIterator.Empty
+		if (tree == null) AptIterator.Empty
 		else tree.iterator(lens)
 	}
 
-	override def reverseIterator :FitIterator[E] = {
+	override def reverseIterator :AptIterator[E] = {
 		val tree = root
-		if (tree == null) FitIterator.Empty
+		if (tree == null) AptIterator.Empty
 		else tree.reverseIterator(lens)
 	}
 

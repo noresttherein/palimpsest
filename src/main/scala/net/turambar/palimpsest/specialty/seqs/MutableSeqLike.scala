@@ -11,7 +11,7 @@ import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType}
 /*
 trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] with MutableSeq[E]]
 	extends mutable.IndexedSeqOptimized[E, Repr] with mutable.SeqLike[E, Repr] with Subtractable[E, Repr]
-	        with FitIndexedSeq[E, Repr]
+	        with AptIndexedSeq[E, Repr]
 {
 
 	@inline override final def specialization :Specialized[E] = Specialized[E]
@@ -96,7 +96,7 @@ trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] wi
 	  * All append operations on the returned buffer trigger update of the corresponding elements in this sequence.
 	  * @return an empty specialized buffer backed by this sequence.
 	  */
-	def overwrite :FitBuffer[E] = overwrite(0, length)
+	def overwrite :AptBuffer[E] = overwrite(0, length)
 	
 	/** Treat a section of this sequence as space for a buffer.
 	  * Returned buffer will be initially empty and bound by range `start..(start+length) min this.length`
@@ -107,7 +107,7 @@ trait MutableSeqLike[@specialized(Elements) E, +Repr<:MutableSeqLike[E, Repr] wi
 	  * @param length maximum capacity of the buffer.
 	  * @return an empty specialized buffer using the given range to store all its data.
 	  */
-	def overwrite(start :Int, length :Int) :FitBuffer[E]
+	def overwrite(start :Int, length :Int) :AptBuffer[E]
 
 
 

@@ -4,10 +4,10 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.annotation.unspecialized
 import scala.collection.immutable.{SortedMap}
 
-import net.turambar.palimpsest.specialty.{?, FitBuilder}
+import net.turambar.palimpsest.specialty.{?, AptBuilder}
 import net.turambar.palimpsest.specialty.iterables.{IterableFoundation, MappedIterableTemplate, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.maps.FitMap.{ConvertingMap, KeySetView, MappedValuesView}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.maps.AptMap.{ConvertingMap, KeySetView, MappedValuesView}
 import net.turambar.palimpsest.specialty.maps.OrderedMap.{FilteredOrderedKeysView, FilteredOrderedMapKeys, MappedOrderedMapValues, OrderedMapKeySet}
 import net.turambar.palimpsest.specialty.maps.StableMap.MakesStableMaps
 import net.turambar.palimpsest.specialty.maps.StableOrderedMap.{FilteredStableOrderedMapKeys, MappedStableOrderedMapValues, StableOrderedMapKeySet}
@@ -64,7 +64,7 @@ object StableOrderedMap extends OrderedMapFactory[StableOrderedMap] {
 
 	trait MakesStableOrderedMaps[K, +V] extends OrderedMap[K, V] with MakesStableMaps[K, V] with ConvertingMap[K, V, OrderedMap] {
 
-		protected[this] override def build[U] :FitBuilder[(K, U), StableOrderedMap[K, U]] = StableOrderedMap.newBuilder
+		protected[this] override def build[U] :AptBuilder[(K, U), StableOrderedMap[K, U]] = StableOrderedMap.newBuilder
 	}
 
 
@@ -84,7 +84,7 @@ object StableOrderedMap extends OrderedMapFactory[StableOrderedMap] {
 			with StableOrderedMap[K, V] with FilteredOrderedKeysView[K, V, StableOrderedMap] with ConvertingMap[K, V, StableOrderedMap]
 	{
 
-		protected[this] override val entryFilt = FitMap.entryFilter(filt)
+		protected[this] override val entryFilt = AptMap.entryFilter(filt)
 
 		override def rangeImpl(from : ?[K], until : ?[K]) :StableOrderedMap[K, V] =
 			new FilteredStableOrderedMapKeys(source.rangeImpl(from, until), filt)
@@ -105,10 +105,10 @@ object StableOrderedMap extends OrderedMapFactory[StableOrderedMap] {
 		override def rangeImpl(from : ?[K], until : ?[K]) :StableOrderedMap[K, T] =
 			new MappedStableOrderedMapValues(source.rangeImpl(from, until), forVal, forEntry)
 
-		override def iteratorFrom(start :K) :FitIterator[(K, T)] =
+		override def iteratorFrom(start :K) :AptIterator[(K, T)] =
 			source.iteratorFrom(start).map(mine)
 
-		override def valuesIteratorFrom(start :K) :FitIterator[T] =
+		override def valuesIteratorFrom(start :K) :AptIterator[T] =
 			source.valuesIteratorFrom(start).map(forVal)
 	}
 

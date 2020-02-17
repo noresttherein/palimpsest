@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableSpecialization, IterableTemplate}
 import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
-import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.{ItemTypes, AptBuilder, Vals, RuntimeType}
 
 import scala.annotation.unspecialized
 import scala.collection.{mutable, GenSet, GenTraversableOnce, SetLike}
@@ -26,9 +26,9 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	extends SetLike[E, This] with IterableTemplate[E, This] //with mutable.Cloneable[This]
 {
 
-	def ++(elems :FitTraversableOnce[E]) :This
+	def ++(elems :Vals[E]) :This
 
-	def --(elems :FitTraversableOnce[E]) :This
+	def --(elems :Vals[E]) :This
 
 	/** Symmetric difference between this set and the argument. Symmetric difference is the set which contains
 	  * an element ''iff'' it is present in exactly one of the two sets.
@@ -61,7 +61,7 @@ trait SetTemplate[E, +This <: ValSet[E] with SetSpecialization[E, This]]
 	/** Default set builder delegating to a wrapped set's `+` and `++` methods. This implementation is ''not'' specialized
 	  * and must be overriden.
 	  */
-	protected[this] override def newBuilder :FitBuilder[E, This] = new StableSetBuilder[E, This](empty)
+	protected[this] override def newBuilder :AptBuilder[E, This] = new StableSetBuilder[E, This](empty)
 
 }
 
@@ -109,23 +109,23 @@ trait SetSpecialization[@specialized(ItemTypes) E, +This <: SetSpecialization[E,
 
 
 	override def ++(elems: GenTraversableOnce[E]) :This = elems match {
-		case fit :FitTraversableOnce[E] => this ++ fit
+		case fit :Vals[E] => this ++ fit
 		case _ => (repr /: elems)(_ + _)
 	}
 
 	override def --(xs: GenTraversableOnce[E]) :This = xs match {
-		case fit :FitTraversableOnce[E] => this -- fit
+		case fit :Vals[E] => this -- fit
 		case _ => (repr /: xs)(_ - _)
 	}
 
-	override def ++(elems :FitTraversableOnce[E]) :This = {
+	override def ++(elems :Vals[E]) :This = {
 		var res = repr; val it = elems.toIterator
 		while (it.hasNext)
 			res = res + it.next()
 		res
 	}
 
-	override def --(elems :FitTraversableOnce[E]) :This = {
+	override def --(elems :Vals[E]) :This = {
 		var res = repr; val it = elems.toIterator
 		while(it.hasNext && res.nonEmpty)
 			res = res - it.next()
@@ -193,7 +193,7 @@ trait SetSpecialization[@specialized(ItemTypes) E, +This <: SetSpecialization[E,
 	/** Default set builder delegating to a wrapped set's `+` and `++` methods. Good for most immutable sets,
 	  * overriden by [[MutableSetSpecialization]] for mutable sets.
 	  */
-	override def newBuilder :FitBuilder[E, This] = new StableSetBuilder[E, This](empty)
+	override def newBuilder :AptBuilder[E, This] = new StableSetBuilder[E, This](empty)
 
 
 }

@@ -2,10 +2,10 @@ package net.turambar.palimpsest.specialty.iterables
 
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.FitIterable.{FilterIterable, SpecializedFilter}
+import net.turambar.palimpsest.specialty.iterables.AptIterable.{FilterIterable, SpecializedFilter}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{ArrayView, FitBuffer, FitList, FitSeq}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{ArrayView, AptBuffer, AptList, AptSeq}
 
 import scala.annotation.unspecialized
 import scala.collection.{GenIterable, GenTraversableOnce, IterableLike}
@@ -18,7 +18,7 @@ import scala.collection.generic.CanBuildFrom
 /** Partial specialization of the `IterableLike` trait containing methods which can be implemented
   * without specialization for `E` - usually by delegating to another specialized method either
   * of this trait or its iterator. It is a partial interface only and should be considered as a group
-  * of methods implemented and inherited by [[FitIterable]] and not a referable interface in itself,
+  * of methods implemented and inherited by [[AptIterable]] and not a referable interface in itself,
   * or even implemented directly in general. All instances of it must also descend from [[IterableSpecialization]],
   * which is the fully specialized version of scala [[IterableLike]], providing similar implementations
   * It exists solely to avoid unnecessary explosion of specialized variants of methods like
@@ -44,7 +44,7 @@ import scala.collection.generic.CanBuildFrom
 //we are not sealing this trait in order to allow similar templates for other collections to extend it without extending
 //the 'specialized' interfaces.
 //todo: rename to AptIterableFoundation
-trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversableOnce[E] with Cloneable {
+trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with Vals[E] with Cloneable {
 
 	/** Specialization of this iterable. Double call necessary to enforce specialized call and resolve covariance type clash. */
 	protected[this] override def specialization :RuntimeType[E]
@@ -147,7 +147,7 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 
 
 	override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]): That = {
-		val b = FitBuilder(bf(repr)).mapInput(f)
+		val b = AptBuilder(bf(repr)).mapInput(f)
 		b.sizeHint(this)
 		b ++= this
 		b.result()
@@ -156,7 +156,7 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 
 
 	override def flatMap[U, That](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[Repr, U, That]): That = {
-		val b = FitBuilder(bf(repr)).flatMapInput(f)
+		val b = AptBuilder(bf(repr)).flatMapInput(f)
 		b ++= this
 		b.result()
 	}
@@ -177,7 +177,7 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 	override def count(p :E => Boolean) :Int = iterator.count(p)
 
 
-	/** Delegates to iterator's specialized [[FitIterator#foldLeft]]. */
+	/** Delegates to iterator's specialized [[AptIterator#foldLeft]]. */
 	override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O): O = iterator.foldLeft(z)(op)
 
 
@@ -242,9 +242,9 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 		iterator.copyToArray(xs, start, len)
 
 
-	override def iterator :FitIterator[E] //= toIterator
+	override def iterator :AptIterator[E] //= toIterator
 
-	override def toIterator :FitIterator[E] = iterator
+	override def toIterator :AptIterator[E] = iterator
 
 
 	//todo:
@@ -253,25 +253,25 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 //	def toFitList :LinkedList[E]
 
 	//todo: make toSeq the real implementation delegating to toFitSeq?
-	override def toSeq :FitSeq[E] = (FitSeq.builder(specialization) ++= this).result()
+	override def toSeq :AptSeq[E] = (AptSeq.builder(specialization) ++= this).result()
 
 	@deprecated("use toSeq", "")
-	def toFitSeq :FitSeq[E] = toSeq
+	def toFitSeq :AptSeq[E] = toSeq
 
 	/** Creates a buffer with the contents of this collection.
 	  * If this collection is mutable, returned buffer may share its contents,
 	  * with mutually visible modifications.
-	  * Note that while returned buffer is of type [[FitBuffer]], this method can't be specialized,
+	  * Note that while returned buffer is of type [[AptBuffer]], this method can't be specialized,
 	  * and as a result, returned instance will likely be not a specialized version.
 	  * If you want to preserve element type and possibly share the contents,
 	  * use [[IterableTemplate#toFitBuffer]] instead.
 	  */
-	override def toBuffer[B >: E]: FitBuffer[B] = toFitBuffer //todo: optimistic buffer for primitive collections
+	override def toBuffer[B >: E]: AptBuffer[B] = toFitBuffer //todo: optimistic buffer for primitive collections
 
-	def toFitBuffer[U >: E :RuntimeType] :FitBuffer[U] = FitBuffer.of[U] ++= this
+	def toFitBuffer[U >: E :RuntimeType] :AptBuffer[U] = AptBuffer.of[U] ++= this
 
 //	@deprecated("what does it even mean to inverse a set...", "")
-	def inverse :FitIterable[E] = (FitList.reverseBuilder(specialization) ++= this).result()
+	def inverse :AptIterable[E] = (AptList.reverseBuilder(specialization) ++= this).result()
 
 
 	def stable :StableIterable[E] = (StableIterable.builder[E](specialization) ++= this).result()
@@ -291,13 +291,13 @@ trait IterableTemplate[+E, +Repr] extends IterableLike[E, Repr] with FitTraversa
 	  * unless explicitly stated to the contrary, should be optimised towards creating sequences
 	  * with the same specialization and underlying structure.
 	  */
-	override protected[this] def newBuilder: FitBuilder[E, Repr]
+	override protected[this] def newBuilder: AptBuilder[E, Repr]
 
 
 
-	/** Compares both collections by delegating directly to [[FitIterator#sameElements]]. */
+	/** Compares both collections by delegating directly to [[AptIterator#sameElements]]. */
 	override def sameElements[U >: E](that: GenIterable[U]): Boolean = that match {
-		case fit :FitIterable[U] =>
+		case fit :AptIterable[U] =>
 			(!hasFastSize || !fit.hasFastSize || size == fit.size) && (iterator sameElements fit.iterator)
 		case _ =>
 			iterator sameElements that.iterator
@@ -422,7 +422,7 @@ trait IterableSpecialization[@specialized(ItemTypes) +E, +Repr] extends Iterable
 		val b = bf(repr)
 		b.sizeHint(this, 1)
 		b += z
-		val s = FitBuilder(b).mapInput { e :E => acc = op(acc, e); acc }
+		val s = AptBuilder(b).mapInput { e :E => acc = op(acc, e); acc }
 		s ++= this
 		s.result()
 	}
@@ -430,7 +430,7 @@ trait IterableSpecialization[@specialized(ItemTypes) +E, +Repr] extends Iterable
 	
 	override def scanRight[@specialized(Fun2) O, That](z: O)(op: (E, O) => O)(implicit bf: CanBuildFrom[Repr, O, That]): That = {
 		val b = bf(repr)
-		val buff = FitList.newReverseBuilder[O]
+		val buff = AptList.newReverseBuilder[O]
 		buff += z
 		var acc = z
 		reverseForeach { e :E => acc = op(e, acc); buff += acc }

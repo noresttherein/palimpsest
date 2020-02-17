@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.seqs
 
-import net.turambar.palimpsest.specialty.{ItemTypes, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{ItemTypes, Vals}
 import net.turambar.palimpsest.specialty.iterables.IterableViewTemplate
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Res
 
@@ -8,14 +8,14 @@ import scala.collection.{mutable, GenTraversableOnce}
 
 /**
   */
-class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
-	extends FitBuffer[U] with IterableViewTemplate[U, FitBuffer[U]]
+class OptimisticAptBuffer[U, E <: U](private[this] var optimistic :AptBuffer[E])
+	extends AptBuffer[U] with IterableViewTemplate[U, AptBuffer[U]]
 { outer =>
 
-	@inline final protected def source :FitBuffer[U] = target
+	@inline final protected def source :AptBuffer[U] = target
 
-	private[this] var target :FitBuffer[U] =
-		optimistic.asInstanceOf[FitBuffer[U]]
+	private[this] var target :AptBuffer[U] =
+		optimistic.asInstanceOf[AptBuffer[U]]
 
 
 
@@ -24,15 +24,15 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 
 	override protected def at(idx :Int) :U = target.get(idx)
 
-//	override protected def section(from :Int, until :Int) :FitBuffer[U] =
+//	override protected def section(from :Int, until :Int) :AptBuffer[U] =
 //		if (optimistic != null)
-//			new OptimisticFitBuffer[U, E](optimistic.slice(from, until))
+//			new OptimisticAptBuffer[U, E](optimistic.slice(from, until))
 //		else
 //			target.slice(from, until)
 
 
 	protected def goPessimistic() :Unit = {
-		target = FitBuffer[U](optimistic :_*)
+		target = AptBuffer[U](optimistic :_*)
 		optimistic = null
 	}
 
@@ -58,7 +58,7 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 
 	override def update(idx :Int, elems :TraversableOnce[U]) :Unit =
 		if (optimistic != null) {
-			val es = FitBuffer.of(optimistic.runtimeType)
+			val es = AptBuffer.of(optimistic.runtimeType)
 			try {
 				es ++= elems.asInstanceOf[TraversableOnce[E]]
 			} catch {
@@ -82,8 +82,8 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 
 
 
-	override def overwrite(start :Int, length :Int) :FitBuffer[U] =
-		new OptimisticFitBuffer[U, U](target.overwrite(start, length)) {
+	override def overwrite(start :Int, length :Int) :AptBuffer[U] =
+		new OptimisticAptBuffer[U, U](target.overwrite(start, length)) {
 			protected override def goPessimistic() :Unit = {
 				outer.goPessimistic()
 				optimistic = null
@@ -118,7 +118,7 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 			}
 			this
 		case _ => //need to copy the items
-			val es = FitBuffer.of(optimistic.runtimeType)
+			val es = AptBuffer.of(optimistic.runtimeType)
 			try { es ++= xs.asInstanceOf[TraversableOnce[E]] } catch {
 				case _ :ClassCastException | _ :ArrayStoreException =>
 					goPessimistic()
@@ -130,7 +130,7 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 	}
 
 
-	override def ++=(elems :FitTraversableOnce[U]) :this.type =
+	override def ++=(elems :Vals[U]) :this.type =
 		this ++= (elems :TraversableOnce[U])
 
 
@@ -148,7 +148,7 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 
 	override def insertAll(n :Int, elems :Traversable[U]) :Unit =
 		if (optimistic != null) {
-			val xs = try { FitBuffer.of(target.runtimeType) ++= elems } catch {
+			val xs = try { AptBuffer.of(target.runtimeType) ++= elems } catch {
 				case _ :ClassCastException =>
 					goPessimistic()
 					elems
@@ -170,8 +170,8 @@ class OptimisticFitBuffer[U, E <: U](private[this] var optimistic :FitBuffer[E])
 	}
 
 	override def stringPrefix :String =
-		if (optimistic != null) s"FitBuffer[_>:${optimistic.runtimeType}]"
-		else "FitBuffer[_]"
+		if (optimistic != null) s"AptBuffer[_>:${optimistic.runtimeType}]"
+		else "AptBuffer[_]"
 
 
 }

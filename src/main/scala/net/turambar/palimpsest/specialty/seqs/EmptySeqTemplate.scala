@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.seqs
 
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableTemplate
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.collection.{IndexedSeqLike, LinearSeq, LinearSeqLike}
 
@@ -9,10 +9,10 @@ import scala.collection.{IndexedSeqLike, LinearSeq, LinearSeqLike}
 /**
   * @author Marcin Mościcki marcin@moscicki.net
   */
-trait EmptySeqTemplate[+E, +Repr <: FitSeq[E]] extends IndexedSeqLike[E, Repr] with SliceLike[E, Repr] with EmptyIterableTemplate[E, Repr]
+trait EmptySeqTemplate[+E, +Repr <: AptSeq[E]] extends IndexedSeqLike[E, Repr] with SliceLike[E, Repr] with EmptyIterableTemplate[E, Repr]
 { this :Repr => //could extend LinearSeq
 
-	override def inverse :FitSeq[E] = this
+	override def inverse :AptSeq[E] = this
 
 //	override def seq :Repr = this
 	override def length = 0
@@ -31,7 +31,7 @@ trait EmptySeqTemplate[+E, +Repr <: FitSeq[E]] extends IndexedSeqLike[E, Repr] w
 	override def lastIndexOf[U >: E](elem :U, end :Int) :Int = -1
 
 //	override def iterator :FitIterator[E] = FitIterator.Empty
-	override def reverseIterator :FitIterator[E] = FitIterator.Empty
+	override def reverseIterator :AptIterator[E] = AptIterator.Empty
 
 	override def toFitSeq :Repr = repr
 	override def toSeq :Repr = repr

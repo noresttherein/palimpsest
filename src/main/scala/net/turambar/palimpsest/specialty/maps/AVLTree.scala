@@ -5,7 +5,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
 import net.turambar.palimpsest.specialty.{?, Blank, ElementLens, ItemTypes, Sure, Var}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.AVLTree.Node.{Balanced, BalancedAnyAnyMap, BalancedAnyIntMap, BalancedAnyLongMap, BalancedAnySet, BalancedIntAnyMap, BalancedIntIntMap, BalancedIntLongMap, BalancedIntSet, BalancedLongAnyMap, BalancedLongIntMap, BalancedLongLongMap, BalancedLongSet, LeftHeavy, RightHeavy}
 import net.turambar.palimpsest.specialty.maps.AVLTree.{Entry, EntryLens, Node}
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
@@ -126,10 +126,10 @@ private[palimpsest] sealed trait AVLTreeBase[K, V] { root :AVLTree[K, V] with No
 
 
 
-	def iterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :FitIterator[T] =
+	def iterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :AptIterator[T] =
 		new BSTIterator[Node[K, V], T](root)(lens)
 
-	def reverseIterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :FitIterator[T] =
+	def reverseIterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :AptIterator[T] =
 		new ReverseBSTIterator[Node[K, V], T](root)(lens)
 
 }
@@ -176,7 +176,7 @@ private[palimpsest] sealed trait AVLTreeKeySpecialization[@specialized(RawKeyTyp
 		}
 
 
-	def iteratorFrom[@specialized(ValueTypes) T](lens :EntryLens[K, V, T])(key :K)(implicit raw :ValOrdering[K]) :FitIterator[T] =
+	def iteratorFrom[@specialized(ValueTypes) T](lens :EntryLens[K, V, T])(key :K)(implicit raw :ValOrdering[K]) :AptIterator[T] =
 		new BSTIterator[Node[K, V], T](iteratorFromStack(key))(lens)
 
 	private def iteratorFromStack(key :K)(implicit raw :ValOrdering[K]) :ArrayBuffer[Node[K, V]] = {

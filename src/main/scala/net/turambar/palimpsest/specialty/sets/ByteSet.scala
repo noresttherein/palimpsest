@@ -5,12 +5,12 @@ import java.lang.Long.highestOneBit
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{GenIterable, GenSet, GenTraversableOnce}
 import net.turambar.palimpsest.specialty.iterators.BaseIterator
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.ByteSet.{ByteSetBitmap, ByteSetBuilder, ByteSetIterator}
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitTraversableOnce, RuntimeType, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, AptBuilder, Vals, RuntimeType, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 
 import scala.annotation.tailrec
@@ -128,12 +128,12 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 	override def find_?(p :Byte => Boolean, where :Boolean): ?[Byte] = bytes.find_?(p, where)
 
 
-	override def ++(elems: FitTraversableOnce[Byte]) :This = elems match {
+	override def ++(elems: Vals[Byte]) :This = elems match {
 		case other :ByteSet[_] => newByteSet(bytes ++ other.bitmap)
 		case _ => super.++(elems)
 	}
 
-	override def --(elems: FitTraversableOnce[Byte]) :This = elems match {
+	override def --(elems: Vals[Byte]) :This = elems match {
 		case other :ByteSet[_] => newByteSet(bytes -- other.bitmap)
 		case _ => super.--(elems)
 	}
@@ -196,13 +196,13 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 
 
 	//	override final def toIterator: FitIterator[Byte] = new ByteSetIterator(bytes.copy)
-	override final def iterator :FitIterator[Byte] = new ByteSetIterator(bytes.copy)
+	override final def iterator :AptIterator[Byte] = new ByteSetIterator(bytes.copy)
 
 
 	override def keyAt(idx :Int) :Byte = bytes.keyAt(idx)
 
 
-	override def keysIteratorFrom(start: Byte): FitIterator[Byte] = {
+	override def keysIteratorFrom(start: Byte): AptIterator[Byte] = {
 		val bits = bytes.copy
 		bits.clearUntil(start & 0xff)
 		new ByteSetIterator(bits)
@@ -279,7 +279,7 @@ private[sets] object ByteSet {
 	
 	final val Empty = new StableByteSet(EmptyBitmap())
 
-	@inline final def newBuilder :FitBuilder[Byte, StableOrderedSet[Byte]] = new ByteSetBuilder
+	@inline final def newBuilder :AptBuilder[Byte, StableOrderedSet[Byte]] = new ByteSetBuilder
 
 	def empty :StableOrderedSet[Byte] = Empty
 
@@ -378,12 +378,12 @@ private[sets] object ByteSet {
 
 		override def ^=(elem :Byte) :this.type = { bitmap ^= elem; this }
 
-		override def --=(xs: FitTraversableOnce[Byte]) :this.type = xs match {
+		override def --=(xs: Vals[Byte]) :this.type = xs match {
 			case other :ByteSet[_] => bitmap --= other.bitmap; this
 			case _ => super.--=(xs)
 		}
 
-		override def ++=(xs: FitTraversableOnce[Byte]) :this.type = xs match {
+		override def ++=(xs: Vals[Byte]) :this.type = xs match {
 			case other :ByteSet[_] => bitmap ++= other.bitmap; this
 			case _ => super.++=(xs)
 		}
@@ -860,7 +860,7 @@ private[sets] object ByteSet {
 		}
 
 		
-		def iterator: FitIterator[Byte] =
+		def iterator: AptIterator[Byte] =
 			new ByteSetIterator(copy)
 		
 		def sameElements(other :ByteSetBitmap) :Boolean = bitmap sameElements other.bitmap
@@ -882,7 +882,7 @@ private[sets] object ByteSet {
 
 
 	class ByteSetIterator private[ByteSet](bitmap :ByteSetBitmap)
-		extends BaseIterator[Byte] with FitIterator[Byte]
+		extends BaseIterator[Byte] with AptIterator[Byte]
 	{
 		
 		private[this] var hd: Int = bitmap.headInt
@@ -900,12 +900,12 @@ private[sets] object ByteSet {
 
 	
 	
-	class ByteSetBuilder private[ByteSet] extends FitBuilder[Byte, StableByteSet] {
+	class ByteSetBuilder private[ByteSet] extends AptBuilder[Byte, StableByteSet] {
 		protected[this] final var bits :ByteSetBitmap = EmptyBitmap()
 		
 		override def addOne :Byte => Unit = b => bits += b
 
-		override def ++=(xs: FitTraversableOnce[Byte]) :ByteSetBuilder.this.type = xs match {
+		override def ++=(xs: Vals[Byte]) :ByteSetBuilder.this.type = xs match {
 			case _ if xs.isEmpty => this
 			case bytes :ByteSet[_] => bits ++= bytes.bitmap; this
 			case _ =>

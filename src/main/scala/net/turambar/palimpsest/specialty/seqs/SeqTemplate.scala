@@ -2,11 +2,11 @@ package net.turambar.palimpsest.specialty.seqs
 
 import java.lang.Math
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
-import net.turambar.palimpsest.specialty.{ofKnownSize, FitBuilder}
+import net.turambar.palimpsest.specialty.{ofKnownSize, AptBuilder}
 import net.turambar.palimpsest.specialty.iterables.IterableTemplate
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.annotation.unspecialized
 import scala.collection.{GenSeq, IndexedSeqLike, SeqLike}
@@ -50,7 +50,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 	/** Basis for implementation of [[segmentLength]] and [[indexWhere]], which means that also all other
 	  * method searching for an index based on a predicate. Default implementation delegates
-	  * to the corresponding method of the iterator: [[net.turambar.palimpsest.specialty.iterators.FitIterator#indexWhere]].
+	  * to the corresponding method of the iterator: [[net.turambar.palimpsest.specialty.iterators.AptIterator#indexWhere]].
 	  * It's a good idea to override either this, or both `segmentLength` and `indexWhere`.
 	  */
 	protected[this] def indexWhere(p: E => Boolean, ourTruth: Boolean, from: Int): Int = {
@@ -176,7 +176,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 
 	override def reverseMap[@specialized(Fun1Vals) U, That](f: E => U)(implicit bf: CanBuildFrom[Repr, U, That]): That = {
-		val b = FitBuilder(bf(repr)).mapInput(f)
+		val b = AptBuilder(bf(repr)).mapInput(f)
 		if (hasFastSize)
 			b.sizeHint(length)
 		b ++= reverseIterator
@@ -185,7 +185,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 
 	override def +:[U >: E, That](elem: U)(implicit bf: CanBuildFrom[Repr, U, That]): That = {
-		val b = FitBuilder(bf(repr))
+		val b = AptBuilder(bf(repr))
 		if (hasFastSize)
 			b.sizeHint(length + 1)
 		b += elem ++= thisCollection
@@ -194,7 +194,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 
 
 	override def :+[U >: E, That](elem: U)(implicit bf: CanBuildFrom[Repr, U, That]): That = {
-		val b = FitBuilder(bf(repr))
+		val b = AptBuilder(bf(repr))
 		if (hasFastSize)
 			b.sizeHint(length + 1)
 		b ++= thisCollection += elem
@@ -202,7 +202,7 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 	}
 
 
-	override def reverseIterator :FitIterator[E] = inverse.toIterator
+	override def reverseIterator :AptIterator[E] = inverse.toIterator
 
 //todo: sorted
 
@@ -218,15 +218,15 @@ trait SeqTemplate[+E, +Repr] extends SeqLike[E, Repr] with IterableTemplate[E, R
 //	def immutable[U >: E](implicit cbf: CanFitFrom[_, E, StableSeq[U]]): StableSeq[U] =
 //		(cbf() ++= this).result()
 
-	override def toSeq: FitSeq[E] = toFitSeq
+	override def toSeq: AptSeq[E] = toFitSeq
 
 
-	override def toFitSeq: FitSeq[E] = this.asInstanceOf[FitSeq[E]]
+	override def toFitSeq: AptSeq[E] = this.asInstanceOf[AptSeq[E]]
 
 	override def toIndexedSeq: IndexedSeq[E] =
 		(StableArray.builder[E](specialization) ++= this).result()
 
-	override def inverse: FitSeq[E] = (FitList.reverseBuilder(specialization) ++= this).result()
+	override def inverse: AptSeq[E] = (AptList.reverseBuilder(specialization) ++= this).result()
 
 
 	protected[this] override def typeStringPrefix = "Seq"

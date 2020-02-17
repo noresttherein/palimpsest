@@ -3,12 +3,12 @@ package net.turambar.palimpsest.specialty.sets
 import java.lang
 
 import net.turambar.palimpsest.specialty.iterables.{DoubletonFoundation, DoubletonSpecialization, EmptyIterableFoundation, EmptyIterableTemplate, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitTraversableOnce, RuntimeType, Sure}
+import net.turambar.palimpsest.specialty.{?, Blank, AptBuilder, Vals, RuntimeType, Sure}
 import net.turambar.palimpsest.specialty.iterators.{BaseIterator, FastSizeIterator}
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.sets.BooleanSet.{BooleanSetIterator, IsTrue}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.ordered.OrderedBy.OrderedEmpty
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
@@ -226,9 +226,9 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 	}
 
 
-	override def ++=(xs: FitTraversableOnce[Boolean]): this.type = xs match {
+	override def ++=(xs: Vals[Boolean]): this.type = xs match {
 		case other :BooleanSet => bitmap |= other.toBitset; this
-		case i :FitIterator[Boolean] =>
+		case i :AptIterator[Boolean] =>
 			while (bitmap != 3 && i.hasNext)
 				if (i.next()) bitmap |= 2
 				else bitmap |= 1
@@ -256,9 +256,9 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 		case _ => this
 	}
 
-	override def --=(xs: FitTraversableOnce[Boolean]): this.type = xs match {
+	override def --=(xs: Vals[Boolean]): this.type = xs match {
 		case other :BooleanSet => bitmap &= ~other.toBitset; this
-		case i :FitIterator[Boolean] =>
+		case i :AptIterator[Boolean] =>
 			while (bitmap>0 && i.hasNext)
 				if (i.next()) bitmap &= 1
 				else bitmap &= 2
@@ -273,11 +273,11 @@ final class BooleanSet protected (private[this] var bitmap :Int) extends Mutable
 
 
 
-	override def iterator: FitIterator[Boolean] = new BooleanSetIterator(bitmap)
+	override def iterator: AptIterator[Boolean] = new BooleanSetIterator(bitmap)
 
 
 	//todo: projection carrying mutations to this
-	override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
+	override def keysIteratorFrom(start: Boolean): AptIterator[Boolean] =
 		if (start) new BooleanSetIterator(bitmap & 2)
 		else new BooleanSetIterator(bitmap)
 
@@ -343,7 +343,7 @@ private[sets] object BooleanSet {
 	  * Note that mutable sets are their own builders and need not an additional implementation.
 	  * @return default set builder iteratively growing its immutable result set.
 	  */
-	@inline final def newBuilder :FitBuilder[Boolean, StableOrderedSet[Boolean]] = //new BooleanSetBuilder
+	@inline final def newBuilder :AptBuilder[Boolean, StableOrderedSet[Boolean]] = //new BooleanSetBuilder
 		new StableSetBuilder[Boolean, StableOrderedSet[Boolean]](Empty)
 
 	@inline private[BooleanSet] final val IsTrue = { x :Boolean => x }
@@ -390,7 +390,7 @@ private[sets] object BooleanSet {
 
 		override def keyAt(n :Int) :Boolean = throw new NoSuchElementException(s"Set[Boolean]().keyAt($n)")
 
-		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] = FitIterator.Empty
+		override def keysIteratorFrom(start: Boolean): AptIterator[Boolean] = AptIterator.Empty
 
 		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] = this
 
@@ -471,8 +471,8 @@ private[sets] object BooleanSet {
 
 		override def mutable: MutableOrderedSet[Boolean] = new BooleanSet(if (value) 2 else 1)
 
-		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
-			if (start && !value) FitIterator.empty else FitIterator.one(value)
+		override def keysIteratorFrom(start: Boolean): AptIterator[Boolean] =
+			if (start && !value) AptIterator.empty else AptIterator.one(value)
 
 		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] =
 			if (until.isDefined)
@@ -563,9 +563,9 @@ private[sets] object BooleanSet {
 		override def mutable: MutableOrderedSet[Boolean] = new BooleanSet(3)
 
 
-		override def keysIteratorFrom(start: Boolean): FitIterator[Boolean] =
-			if (start) FitIterator.one(true)
-			else FitIterator.two(false, true)
+		override def keysIteratorFrom(start: Boolean): AptIterator[Boolean] =
+			if (start) AptIterator.one(true)
+			else AptIterator.two(false, true)
 
 		override def rangeImpl(from: ?[Boolean], until: ?[Boolean]): StableOrderedSet[Boolean] =
 			if (until.isDefined)
@@ -586,7 +586,7 @@ private[sets] object BooleanSet {
 
 
 	private class BooleanSetIterator (private[this] var bitmap :Int)
-		extends FastSizeIterator[Boolean] with FitIterator[Boolean]
+		extends FastSizeIterator[Boolean] with AptIterator[Boolean]
 	{
 		override def specialization :Specialized[Boolean] = RuntimeType.OfBoolean
 

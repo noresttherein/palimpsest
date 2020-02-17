@@ -1,10 +1,10 @@
 package net.turambar.palimpsest.specialty.tries
 
-import net.turambar.palimpsest.specialty.{?, FitTraversableOnce, Var}
+import net.turambar.palimpsest.specialty.{?, Vals, Var}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableSpecialization, IterableTemplate}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterables.{AptIterable, IterableSpecialization, IterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.seqs.ValList
 import net.turambar.palimpsest.specialty.sets.{SetSpecialization, ValSet}
 import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.SharingTrieOp
@@ -247,7 +247,7 @@ trait TriePotIterable[+K, +F, +T <: TrieElements[K, F, T] with F, +E, +R] extend
 			size = counter.count
 			res
 		}
-	override def inverse :FitIterable[E] = trie.foldRight(elements)(ValList.empty[E]) { (e, res) => e::res }
+	override def inverse :AptIterable[E] = trie.foldRight(elements)(ValList.empty[E]) { (e, res) => e::res }
 }
 
 
@@ -317,7 +317,7 @@ trait TriePotIterableSpecialization[+K, +F, +T <: TrieElements[K, F, T] with F, 
 		trie.copyToArray[U](elements)(xs, start, len)
 
 
-	override def iterator :FitIterator[E] = trie.iterator(elements)
+	override def iterator :AptIterator[E] = trie.iterator(elements)
 
 //	override def reverseIterator :FitIterator[E] = trie.reverseIterator(elements)
 }

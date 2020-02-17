@@ -4,9 +4,9 @@ import java.lang.System.arraycopy
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{breakOut, immutable, GenTraversableOnce}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.{concat, newArray, ofKnownSize, slowcopy, ItemTypes, FitBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, IterableFoundation, SpecializableIterable, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.{concat, newArray, ofKnownSize, slowcopy, ItemTypes, AptBuilder, RuntimeType}
 
 import scala.annotation.unspecialized
 
@@ -61,7 +61,7 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 		/** Ownership flag granting this instance the right to write to the backing array past its index range. Single use only.*/
 		private[this] var mutable :Boolean = false
 	)
-	extends IterableFoundation[E, ArrayPlus[E]] with CloneableIterable[E, ArrayPlus[E]] //with FitIndexedSeq[E] //enforce the desired linearization
+	extends IterableFoundation[E, ArrayPlus[E]] with CloneableIterable[E, ArrayPlus[E]] //with AptIndexedSeq[E] //enforce the desired linearization
 	   with ArrayView[E] with ArrayViewLike[E, ArrayPlus[E]] with SpecializableIterable[E, ArrayPlus]
 	   with StableSeq[E] with StableIndexedSeq[E] with StableIterableTemplate[E, ArrayPlus[E]]
 //	   with ArrayView[E] with ArrayViewLike[E, ArrayPlus[E]] with SpecializableIterable[E, ArrayPlus]
@@ -76,7 +76,7 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 	@unspecialized
 	override def toStableArray :StableArray[E] = StableArray.shared(new ArrayBounds[E](array, headIdx, length))
 
-	override def companion: FitCompanion[ArrayPlus] = ArrayPlus
+	override def companion: AptCompanion[ArrayPlus] = ArrayPlus
 
 
 
@@ -113,7 +113,7 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 			case spec :CanFitFrom[_, _, _] if spec.honorsBuilderFrom =>
 				prepend(elem, spec.elementType).asInstanceOf[That]
 			case _ => bf(this) match {
-				case builder :FitBuilder[_, _] if builder.origin eq ArrayPlus =>
+				case builder :AptBuilder[_, _] if builder.origin eq ArrayPlus =>
 					prepend(elem, builder.elementType).asInstanceOf[That]
 				case builder =>
 					builder sizeHint len + 1
@@ -130,7 +130,7 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 			case spec :CanFitFrom[_, _, _] if spec.honorsBuilderFrom =>
 				append(elem, spec.elementType).asInstanceOf[That]
 			case _ => bf(this) match {
-				case builder :FitBuilder[_, _] if builder.origin eq ArrayPlus =>
+				case builder :AptBuilder[_, _] if builder.origin eq ArrayPlus =>
 					append(elem, builder.elementType).asInstanceOf[That]
 				case builder =>
 					builder sizeHint len + 1
@@ -148,7 +148,7 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 			case own :CanFitFrom[_, _, _] if own.honorsBuilderFrom =>
 				append(that, own.elementType).asInstanceOf[That]
 			case _ => bf(this) match {
-				case own :FitBuilder[_, _] if own.origin eq ArrayPlus => //non-specialized cbf will produce an erased builder.
+				case own :AptBuilder[_, _] if own.origin eq ArrayPlus => //non-specialized cbf will produce an erased builder.
 					append(that, own.elementType).asInstanceOf[That]
 				case builder =>
 					concat(this, that.seq)(builder)
@@ -163,7 +163,7 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 			case own :CanFitFrom[_, _, _] if own.honorsBuilderFrom =>
 				prepend(that, own.elementType).asInstanceOf[That]
 			case _ => bf(this) match {
-				case own :FitBuilder[_, _] if own.origin eq ArrayPlus => //non-specialized cbf will produce an erased builder
+				case own :AptBuilder[_, _] if own.origin eq ArrayPlus => //non-specialized cbf will produce an erased builder
 					prepend(that, own.elementType).asInstanceOf[That]
 				case builder =>
 					concat(that.seq, this)(builder)

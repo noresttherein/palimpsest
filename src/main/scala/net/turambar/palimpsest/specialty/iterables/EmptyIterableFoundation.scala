@@ -1,16 +1,16 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.{?, Blank, RuntimeType}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{AptBuffer, AptSeq}
 
 import scala.collection.{GenIterable, GenTraversableOnce}
 import scala.collection.generic.CanBuildFrom
 
 
-trait EmptyIterableTemplate[+E, +Repr <: FitIterable[E]] extends IterableTemplate[E, Repr] with OfKnownSize {
+trait EmptyIterableTemplate[+E, +Repr <: AptIterable[E]] extends IterableTemplate[E, Repr] with OfKnownSize {
 //	def empty :Repr = repr
 
 	override def size = 0
@@ -33,8 +33,8 @@ trait EmptyIterableTemplate[+E, +Repr <: FitIterable[E]] extends IterableTemplat
 	override def tail :Repr = throw new UnsupportedOperationException(s"$this.tail")
 	override def init :Repr = throw new UnsupportedOperationException(s"$this.init")
 
-	override def tails :Iterator[Repr] = FitIterator.empty[Repr]
-	override def inits :Iterator[Repr] = FitIterator.empty[Repr]
+	override def tails :Iterator[Repr] = AptIterator.empty[Repr]
+	override def inits :Iterator[Repr] = AptIterator.empty[Repr]
 
 	//	override protected[this] def dropTake(from: Int, until: Int) = repr
 	override def slice(from: Int, until: Int) :Repr = repr
@@ -87,19 +87,19 @@ trait EmptyIterableTemplate[+E, +Repr <: FitIterable[E]] extends IterableTemplat
 
 
 
-	override def grouped(size: Int) :Iterator[Repr] = FitIterator.empty[Repr]
+	override def grouped(size: Int) :Iterator[Repr] = AptIterator.empty[Repr]
 //	override def sliding(size: Int) = FitIterator.empty[Repr]
-	override def sliding(size: Int, step: Int) :Iterator[Repr] = FitIterator.empty[Repr]
+	override def sliding(size: Int, step: Int) :Iterator[Repr] = AptIterator.empty[Repr]
 
-	override def iterator :FitIterator[E] = FitIterator.Empty
-	override def toIterator :FitIterator[E] = FitIterator.Empty
+	override def iterator :AptIterator[E] = AptIterator.Empty
+	override def toIterator :AptIterator[E] = AptIterator.Empty
 
 	override def reversed: List[E] = Nil
 
-	override def inverse :FitIterable[E] = repr //FitSeq.Empty
-	override def toFitSeq :FitSeq[E] = FitSeq.Empty
-	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] = FitBuffer.of[U]
-	override def toSeq :FitSeq[E] = FitSeq.Empty
+	override def inverse :AptIterable[E] = repr //AptSeq.Empty
+	override def toFitSeq :AptSeq[E] = AptSeq.Empty
+	override def toFitBuffer[U >: E : RuntimeType] :AptBuffer[U] = AptBuffer.of[U]
+	override def toSeq :AptSeq[E] = AptSeq.Empty
 
 	override def sameElements[U >: E](that: GenIterable[U]) :Boolean = that.isEmpty
 
@@ -113,5 +113,5 @@ trait EmptyIterableTemplate[+E, +Repr <: FitIterable[E]] extends IterableTemplat
 /**
   * @author Marcin Mościcki
   */
-abstract class EmptyIterableFoundation[+E, +Repr <: FitIterable[E]] extends IterableFoundation[E, Repr] with EmptyIterableTemplate[E, Repr]
+abstract class EmptyIterableFoundation[+E, +Repr <: AptIterable[E]] extends IterableFoundation[E, Repr] with EmptyIterableTemplate[E, Repr]
 

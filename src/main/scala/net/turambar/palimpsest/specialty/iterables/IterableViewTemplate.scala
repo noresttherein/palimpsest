@@ -4,8 +4,8 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.{breakOut, GenIterable, GenTraversableOnce}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
 import net.turambar.palimpsest.specialty.{?, RuntimeType}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{AptBuffer, AptSeq}
 
 
 
@@ -17,7 +17,7 @@ import net.turambar.palimpsest.specialty.seqs.{FitBuffer, FitSeq}
   */
 trait MappedIterableTemplate[+X, +E, +This] extends IterableTemplate[E, This] {
 	/** The collection, which elements after mapping comprise the elements of this collection. */
-	protected[this] def source :FitIterable[X]
+	protected[this] def source :AptIterable[X]
 
 	/** Adapt a function working on this collection's element types to one accepting the element type of the backing collection. */
 	protected[this] def forSource[@specialized(Boolean, Unit) O](f :E=>O) :X=>O
@@ -51,14 +51,14 @@ trait MappedIterableTemplate[+X, +E, +This] extends IterableTemplate[E, This] {
 	override def find_?(p :E=>Boolean, where :Boolean): ?[E] =
 		source.find_?(forSource(p), where).map(mine) //fitMap(mine)(specialization) //not worth specializing
 
-	override def iterator :FitIterator[E] = source.iterator.fitMap(mine)(specialization) //new MappedIterator(mine)(source.iterator)
+	override def iterator :AptIterator[E] = source.iterator.fitMap(mine)(specialization) //new MappedIterator(mine)(source.iterator)
 
-	override def toSeq :FitSeq[E] =  source.map(mine)(breakOut) /*todo: not specialized*/
+	override def toSeq :AptSeq[E] =  source.map(mine)(breakOut) /*todo: not specialized*/
 
-	override def toBuffer[U >: E] :FitBuffer[U] = source.map(mine)(breakOut)
+	override def toBuffer[U >: E] :AptBuffer[U] = source.map(mine)(breakOut)
 
-	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] =
-		(FitBuffer.builder[U].mapInput(mine) ++= source).result()
+	override def toFitBuffer[U >: E : RuntimeType] :AptBuffer[U] =
+		(AptBuffer.builder[U].mapInput(mine) ++= source).result()
 
 }
 
@@ -95,12 +95,12 @@ trait IterableViewTemplate[+E, +This] extends MappedIterableTemplate[E, E, This]
 	override def find(p: E => Boolean) :Option[E] = source.find(forSource(p)) //.map(mine)
 	override def find_?(p :E=>Boolean, where :Boolean): ?[E] = source.find_?(forSource(p), where)
 
-	override def iterator :FitIterator[E] = source.iterator
+	override def iterator :AptIterator[E] = source.iterator
 
 
-	override def toSeq :FitSeq[E] =  source.toSeq
-	override def toBuffer[U >: E] :FitBuffer[U] = source.toBuffer[U]
-	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] = source.toFitBuffer[U]
+	override def toSeq :AptSeq[E] =  source.toSeq
+	override def toBuffer[U >: E] :AptBuffer[U] = source.toBuffer[U]
+	override def toFitBuffer[U >: E : RuntimeType] :AptBuffer[U] = source.toFitBuffer[U]
 
 }
 
@@ -120,7 +120,7 @@ trait IterableViewTemplate[+E, +This] extends MappedIterableTemplate[E, E, This]
   * @tparam This self type of this collection
   * @author Marcin Mościcki
   */
-abstract class IterableMapping[X, +That <: FitIterable[X] with IterableSpecialization[X, That], +E, +This]
+abstract class IterableMapping[X, +That <: AptIterable[X] with IterableSpecialization[X, That], +E, +This]
 	extends MappedIterableTemplate[X, E, This]
 {
 
@@ -195,12 +195,12 @@ abstract class IterableMapping[X, +That <: FitIterable[X] with IterableSpecializ
 	/** Unspecialized mapped iterator asking for being overridden. */
 	//		override def iterator :FitIterator[E] = new MappedIterator(from)(source.iterator)
 
-	//	override protected[this] def newBuilder: FitBuilder[E, This] = source.fit
+	//	override protected[this] def newBuilder: AptBuilder[E, This] = source.fit
 
 }
 
 
-/** Base class for [[FitIterable]] implementations which act as adapters to another collection.
+/** Base class for [[AptIterable]] implementations which act as adapters to another collection.
   * It isn't specialized itself, but, as all its method delegate directly to the underlying `source` collection
   * and `This` constructor method [[IterableAdapter#fromSource]], they can safely remain generic.
   * Only [[IterableAdapter#head]] and [[IterableAdapter#last]] will benefit from specialized override.
@@ -292,7 +292,7 @@ abstract class IterableAdapter[+Source<:IterableSpecialization[E, Source], +E, +
 
 	override def sameElements[U >: E](that: GenIterable[U]) :Boolean = source.sameElements(that)
 
-	override def iterator :FitIterator[E] = source.iterator
+	override def iterator :AptIterator[E] = source.iterator
 
 	override def head :E = source.head
 	override def last :E = source.last
@@ -303,9 +303,9 @@ abstract class IterableAdapter[+Source<:IterableSpecialization[E, Source], +E, +
 
 
 
-	override def toSeq :FitSeq[E] = source.toSeq
+	override def toSeq :AptSeq[E] = source.toSeq
 
-	override def toFitBuffer[U >: E : RuntimeType] :FitBuffer[U] =
+	override def toFitBuffer[U >: E : RuntimeType] :AptBuffer[U] =
 		source.toFitBuffer[U]
 
 	override def copyToArray[U >: E](xs: Array[U], start: Int, len: Int) :Unit = source.copyToArray(xs, start, len)

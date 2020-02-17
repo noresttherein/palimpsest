@@ -4,7 +4,7 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.breakOut
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.{AptCompanion, SpecializableIterable}
 import net.turambar.palimpsest.testutil._
 import org.scalacheck.Prop._
 import org.scalacheck.Properties
@@ -13,20 +13,20 @@ import org.scalacheck.Properties
 /**
   * @author Marcin Mościcki
   */
-class FitSeqProps[+S[@specialized(ItemTypes) X] <: FitSeq[X] with SpecializableIterable[X, S]]
-		(companion :FitCompanion[S])
+class AptSeqProps[+S[@specialized(ItemTypes) X] <: AptSeq[X] with SpecializableIterable[X, S]]
+		(companion :AptCompanion[S])
 //	extends Properties(companion.toString)
 {
-	
+
 }
 
 
 
-object FitSeqProps extends App {
+object AptSeqProps extends App {
 
 	
 	
-	implicit class SharedArrayChecks[E](val seq :FitSeq[E]) extends AnyVal {
+	implicit class SharedArrayChecks[E](val seq :AptSeq[E]) extends AnyVal {
 		def sized(size :Int) = (seq.size ?= size) && (seq.length ?= size) :| s"size is $size"
 		
 		def contents(at :Int=>E) = ((seq :Seq[E]) ?= (0 until seq.length).map(at)) :| "correct elements"
@@ -39,12 +39,12 @@ object FitSeqProps extends App {
 		
 	}
 	
-	class BasicSeqProperties[E :RuntimeType](seq :FitSeq[E], values :Int=>E, size :Int, dummy :E) extends Properties(seq.toString) {
+	class BasicSeqProperties[E :RuntimeType](seq :AptSeq[E], values :Int=>E, size :Int, dummy :E) extends Properties(seq.toString) {
 		implicit def classTag = RuntimeType[E].classTag.asInstanceOf[ClassTag[E]]
 		
 		def valueSeq :Seq[E] = Stream.tabulate(size)(values)
 		
-		def this(seq :FitSeq[E], values :Seq[E], dummy :E) = this(seq, values, values.size, dummy)
+		def this(seq :AptSeq[E], values :Seq[E], dummy :E) = this(seq, values, values.size, dummy)
 		
 		property("size") = seq.sized(size)
 		property("indexing") = seq.contents(values)
@@ -60,7 +60,7 @@ object FitSeqProps extends App {
 		
 		property("tail") = (
 			if (size==0) seq.tail.throws[UnsupportedOperationException]
-			else seq.tail.toSeq ?= ((1 until size).map(values)(breakOut) :FitSeq[E])
+			else seq.tail.toSeq ?= ((1 until size).map(values)(breakOut) :AptSeq[E])
 			) :| "tail"
 		
 		

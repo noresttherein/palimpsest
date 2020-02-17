@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.tries
 
 import net.turambar.palimpsest.specialty.{?, ItemTypes, Var}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementOf, EmptyElements, LeafElement}
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie._
 import net.turambar.palimpsest.specialty.tries.Trie.{FoldPath, KeyTypes, MutableTrieOwner}
@@ -1132,10 +1132,10 @@ object GenericBinaryTrie {
 			}
 
 
-		override def iterator[@specialized(ItemTypes) E](elements :ElementOf[E, S]) :FitIterator[E] =
+		override def iterator[@specialized(ItemTypes) E](elements :ElementOf[E, S]) :AptIterator[E] =
 			new LeafElementIterator[E, K, S](elements, this, maxDepth)
 
-		override def reverseIterator[@specialized(ItemTypes) E](elements :ElementOf[E, S]) :FitIterator[E] =
+		override def reverseIterator[@specialized(ItemTypes) E](elements :ElementOf[E, S]) :AptIterator[E] =
 			new ReverseLeafElementIterator[E, K, S](elements, this, maxDepth)
 
 
@@ -1574,7 +1574,7 @@ object GenericBinaryTrie {
 	  */
 	abstract class BinaryTrieIterator[+E, K, +T <: BinaryTrie[K, T]](stack :Array[BinaryTrie[K, T]], private[this] var top :Int)
 		extends BaseIterator[E]
-	{ this :FitIterator[E] =>
+	{ this :AptIterator[E] =>
 
 		/** Initializes this iterator to traverse the whole trie given as its first argument.
  		  * @param trie trie to traverse
@@ -1628,7 +1628,7 @@ object GenericBinaryTrie {
 
 
 		//todo: is this really any better than looping skip() ? trie.size is O(n)
-		override final def drop(n: Int) :FitIterator[E] = {
+		override final def drop(n: Int) :AptIterator[E] = {
 			if (n > 0 && top >= 0) {
 				var left = n - 1
 				stack(top) = null
@@ -1681,7 +1681,7 @@ object GenericBinaryTrie {
 	  * @tparam T trie node type
 	  */
 	class LeafIterator[K, +T <: BinaryTrie[K, T]](path :Array[BinaryTrie[K, T]], top :Int)
-		extends BinaryTrieIterator[T, K, T](path, top) with FitIterator[T]
+		extends BinaryTrieIterator[T, K, T](path, top) with AptIterator[T]
 	{
 		def this(trie :T, depth :Int) = {
 			this(seedStack(trie, depth), 0)
@@ -1706,7 +1706,7 @@ object GenericBinaryTrie {
 	  * @tparam T trie node type
 	  */
 	class LeafKeyIterator[@specialized(Int, Long) K, +T<:BinaryTrie[K, T]](path :Array[BinaryTrie[K, T]], top :Int)
-		extends BinaryTrieIterator[K, K, T](path, top) with FitIterator[K]
+		extends BinaryTrieIterator[K, K, T](path, top) with AptIterator[K]
 	{
 		/** Initializes this iterator to traverse the whole trie given as its first argument.
 		  * @param trie trie to traverse
@@ -1740,7 +1740,7 @@ object GenericBinaryTrie {
 	  */
 	class LeafValueIterator[K, @specialized(ItemTypes) +V, +T <: BinaryTrie[K, T] with ValueTrie[K, V, T]]
 	                       (path :Array[BinaryTrie[K, T]], top :Int)
-		extends BinaryTrieIterator[V, K, T](path, top) with FitIterator[V]
+		extends BinaryTrieIterator[V, K, T](path, top) with AptIterator[V]
 	{
 		/** Initializes this iterator to traverse the whole trie given as its first argument.
 		  * @param trie trie to traverse
@@ -1773,7 +1773,7 @@ object GenericBinaryTrie {
 	  */
 	class LeafElementIterator[@specialized(ItemTypes) +E, K, +T <: BinaryTrie[K, T]]
 	                         (getter :ElementOf[E, T], path :Array[BinaryTrie[K, T]], top :Int)
-		extends BinaryTrieIterator[E, K, T](path, top) with FitIterator[E]
+		extends BinaryTrieIterator[E, K, T](path, top) with AptIterator[E]
 	{
 		/** Initializes this iterator to traverse the whole trie given as its first argument.
 		  * @param getter a function-like object returning an element for every trie leaf provided as its argument.
@@ -1810,7 +1810,7 @@ object GenericBinaryTrie {
 	abstract class ReverseBinaryTrieIterator[+E, K, +T <: BinaryTrie[K, T]]
 	                                        (stack :Array[BinaryTrie[K, T]], private[this] var top :Int)
 		extends BaseIterator[E]
-	{ this :FitIterator[E] =>
+	{ this :AptIterator[E] =>
 
 		/** Initializes this iterator to traverse the whole trie given as its first argument.
 		  * @param trie trie to traverse
@@ -1886,7 +1886,7 @@ object GenericBinaryTrie {
 	  */
 	class ReverseLeafElementIterator[@specialized(ItemTypes) +E, K, +T <: BinaryTrie[K, T]]
 	                                (getter :ElementOf[E, T], path :Array[BinaryTrie[K, T]], top :Int)
-		extends ReverseBinaryTrieIterator[E, K, T](path, top) with FitIterator[E]
+		extends ReverseBinaryTrieIterator[E, K, T](path, top) with AptIterator[E]
 	{
 		/** Initializes this iterator to traverse the whole trie given as its first argument.
 		  * @param getter a function-like object returning an element for every trie leaf provided as its argument.

@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.sets
 /*
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{FitBuilder, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{AptBuilder, FitTraversableOnce}
 import net.turambar.palimpsest.specialty.Specialized.Fun2
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableFoundation
 import net.turambar.palimpsest.specialty.sets.DirectLongSet.{BranchLike, Empty, Singleton, StableBranch, StableLongTrie, delimitedPrefix}
@@ -367,7 +367,7 @@ object MutableDirectLongSet {
 //	}
 
 	def empty :MutableSet[Long] = new MutableDirectLongSet()
-	def newBuilder :FitBuilder[Long, MutableSet[Long]] = new MutableDirectLongSet()
+	def newBuilder :AptBuilder[Long, MutableSet[Long]] = new MutableDirectLongSet()
 	def singleton(value :Long) :MutableSet[Long] = new MutableDirectLongSet() += value
 
 

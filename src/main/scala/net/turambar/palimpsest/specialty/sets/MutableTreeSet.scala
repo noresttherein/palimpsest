@@ -2,14 +2,14 @@ package net.turambar.palimpsest.specialty.sets
 
 import scala.annotation.unspecialized
 import scala.collection.generic.CanBuildFrom
-import net.turambar.palimpsest.specialty.{?, FitBuilder, ItemTypes, RuntimeType, Specialize}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{?, AptBuilder, ItemTypes, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.maps.RedBlackTree
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
 import net.turambar.palimpsest.specialty.Specialize.SpecializeSome
 import net.turambar.palimpsest.specialty.iterables.IterableOverrides
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.EntryLens
 import net.turambar.palimpsest.specialty.sets.MutableTreeSet.MutableTreeSetRange
 import net.turambar.palimpsest.specialty.sets.OrderedSet.OrderedSetRangeSpecialization
@@ -60,9 +60,9 @@ trait MutableTreeSet[@specialized(ItemTypes) E]
 		root.copyToArray(lens)(xs, start, total)
 
 
-	override def iterator :FitIterator[E] = root.iterator(lens)
+	override def iterator :AptIterator[E] = root.iterator(lens)
 
-	override def reverseIterator :FitIterator[E] = root.reverseIterator(lens)
+	override def reverseIterator :AptIterator[E] = root.reverseIterator(lens)
 
 
 	override def rangeImpl(from: ?[E], until: ?[E]) :MutableTreeSet[E] =
@@ -89,7 +89,7 @@ object MutableTreeSet extends OrderedSetFactoryImplicits[MutableTreeSet] {
 	override def empty[@specialized(ItemTypes) E](implicit ordering :ValOrdering[E]) :MutableTreeSet[E] =
 		Empty()(RuntimeType.specialized[E])(ordering)
 
-	override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, MutableTreeSet[E]] = empty[E]
+	override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :AptBuilder[E, MutableTreeSet[E]] = empty[E]
 
 
 	private type Constructor[X] = ValOrdering[X] => MutableTreeSet[X]

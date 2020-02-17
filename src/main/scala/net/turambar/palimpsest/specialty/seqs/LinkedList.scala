@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.seqs
 
 import net.turambar.palimpsest.SerializationVersion
 import net.turambar.palimpsest.specialty
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterators.BaseIterator
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, LinkedListBuilder, LinkedListIterator, NonEmpty, SerializedLinkedList}
 import specialty._
@@ -11,10 +11,10 @@ import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{LinearSeq, LinearSeqLike}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory}
-import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.AptIterable.{ElementDeserializer, ElementSerializer}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.AptSeq.SeqFoundation
 
 
 
@@ -28,7 +28,7 @@ import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
 @SerialVersionUID(SerializationVersion)
 sealed trait LinkedList[@specialized(ItemTypes) +E]
 	extends SeqFoundation[E, LinkedList[E]] with LinearSeq[E] with LinearSeqLike[E, LinkedList[E]]
-	   with FitSeq[E] with IterableSpecialization[E, LinkedList[E]] with SpecializableIterable[E, LinkedList]
+	   with AptSeq[E] with IterableSpecialization[E, LinkedList[E]] with SpecializableIterable[E, LinkedList]
 	   with CloneableIterable[E, LinkedList[E]] with Serializable
 {
 //	override def isEmpty = false
@@ -355,11 +355,11 @@ sealed trait LinkedList[@specialized(ItemTypes) +E]
 
 
 
-	override def iterator :FitIterator[E] = new LinkedListIterator(this)
+	override def iterator :AptIterator[E] = new LinkedListIterator(this)
 	@unspecialized
-	override def reverseIterator :FitIterator[E] = reverse.iterator
+	override def reverseIterator :AptIterator[E] = reverse.iterator
 
-	override def companion :FitCompanion[LinkedList] = LinkedList
+	override def companion :AptCompanion[LinkedList] = LinkedList
 	override protected[this] def newBuilder = new LinkedListBuilder[E]
 
 	override def typeStringPrefix = "LinkedList"
@@ -379,10 +379,10 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 	override def empty[@specialized(ItemTypes) E] :LinkedList[E] = new Empty[E]
 
-	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, LinkedList[E]] =
+	override def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, LinkedList[E]] =
 		new LinkedListBuilder[E]
 
-//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, LinkedList[E]] =
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: AptBuilder[E, LinkedList[E]] =
 //		new LinkedListBuilder[E]
 
 
@@ -471,7 +471,7 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 
 	private[seqs] class LinkedListIterator[@specialized(ItemTypes) E](private[this] var hd :LinkedList[E])
-		extends BaseIterator[E] with FitIterator[E]
+		extends BaseIterator[E] with AptIterator[E]
 	{
 		def head :E = hd.head
 		override def hasNext :Boolean = hd.nonEmpty
@@ -480,7 +480,7 @@ object LinkedList extends SpecializableIterableFactory[LinkedList] {
 
 	}
 
-	private[seqs] class LinkedListBuilder[@specialized(ItemTypes) E] extends FitBuilder[E, LinkedList[E]] {
+	private[seqs] class LinkedListBuilder[@specialized(ItemTypes) E] extends AptBuilder[E, LinkedList[E]] {
 		private[LinkedList] val hat = new NonEmpty[Any](null)
 		private[this] var coccyx = hat.asInstanceOf[NonEmpty[E]]
 

@@ -8,9 +8,9 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, IndexedSeqLike}
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable}
-import net.turambar.palimpsest.specialty.{arrayFill, newArray, ofKnownSize, ItemTypes, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, IterableFoundation, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{arrayFill, newArray, ofKnownSize, ItemTypes, Vals, RuntimeType}
 import net.turambar.palimpsest.specialty.seqs.SharedArrayBuffer.nextCapacity
 
 
@@ -30,7 +30,7 @@ import net.turambar.palimpsest.specialty.seqs.SharedArrayBuffer.nextCapacity
   */
 trait SharedArrayBuffer[@specialized(ItemTypes) E]
 //	extends ArrayBufferFoundation[E]
-	extends FitBuffer[E] with mutable.BufferLike[E, SharedArrayBuffer[E]]
+	extends AptBuffer[E] with mutable.BufferLike[E, SharedArrayBuffer[E]]
 	   with SharedArray[E] with ArrayViewLike[E, SharedArrayBuffer[E]] with SpecializableIterable[E, SharedArrayBuffer]//SharedArrayLike[E, SharedArrayBuffer] //with ArrayBufferLike[E, SharedArrayBuffer]
 	   with ValSeqLike[E, SharedArrayBuffer[E]] with CloneableIterable[E, SharedArrayBuffer[E]]
 {
@@ -57,7 +57,7 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 	override def ++=(xs: TraversableOnce[E]): this.type = xs match {
 		case _ if xs.isEmpty => this
 
-		case fit :FitTraversableOnce[E] =>
+		case fit :Vals[E] =>
 			this ++= fit
 
 		case _ if ofKnownSize(xs) =>
@@ -93,7 +93,7 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 	//can be extracted to unspecialized class
 	override def ++=:(xs: TraversableOnce[E]): this.type = xs match {
 		case _ if xs.isEmpty => this
-		case items :FitTraversableOnce[E] =>
+		case items :Vals[E] =>
 			items ++=: this
 		case _ if xs.isTraversableAgain && xs.hasDefiniteSize =>
 			val added = xs.size
@@ -159,7 +159,7 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 	}
 
 
-	protected[this] def appendAll(elems :FitTraversableOnce[E]) :Unit =
+	protected[this] def appendAll(elems :Vals[E]) :Unit =
 		if (elems.hasFastSize) {
 			directAppend(elems)
 		} else {
@@ -180,7 +180,7 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 			len = i - o
 		}
 
-	override def ++=(elems: FitTraversableOnce[E]): this.type = { appendAll(elems); this }
+	override def ++=(elems: Vals[E]): this.type = { appendAll(elems); this }
 
 
 	override def +=:(elem: E): this.type = {
@@ -202,9 +202,9 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 	}
 
 	override def -=(elem1: E, elem2: E, elems: E*): this.type =
-		minus(FitSeq.two(elem1, elem2), elems)
+		minus(AptSeq.two(elem1, elem2), elems)
 
-	override def --=(xs: TraversableOnce[E]): this.type = minus(FitSeq.Empty, xs)
+	override def --=(xs: TraversableOnce[E]): this.type = minus(AptSeq.Empty, xs)
 
 
 
@@ -228,7 +228,7 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 
 
 	@unspecialized
-	protected[this] def minus(elems1 :FitSeq[E], elems2 :TraversableOnce[E]) :this.type = {
+	protected[this] def minus(elems1 :AptSeq[E], elems2 :TraversableOnce[E]) :this.type = {
 		val removedIndices = indicesOf(elems1, elems2)
 		if (removedIndices.nonEmpty) {
 			val cuts = removedIndices.toFitSeq.sorted
@@ -239,7 +239,7 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 	}
 
 	@unspecialized
-	protected[this] def copyWithout(removedIndices :FitSeq[Int], toArray :Array[E], toOffset :Int) :Unit = {
+	protected[this] def copyWithout(removedIndices :AptSeq[Int], toArray :Array[E], toOffset :Int) :Unit = {
 		@tailrec def copy(fromEnd :Int, cutNo :Int, toEnd :Int) :Unit =
 			if (cutNo < 0) {
 				val hd = headIdx; val count = fromEnd - hd
@@ -458,7 +458,7 @@ trait SharedArrayBuffer[@specialized(ItemTypes) E]
 
 
 
-	override def companion: FitCompanion[SharedArrayBuffer] = SharedArrayBuffer
+	override def companion: AptCompanion[SharedArrayBuffer] = SharedArrayBuffer
 //
 	override protected[this] def typeStringPrefix = "ArrayBuffer"
 
@@ -593,7 +593,7 @@ trait DefaultArrayBuffer[@specialized(ItemTypes) E]
 
 
 
-	override protected[this] def minus(elems1: FitSeq[E], elems2: TraversableOnce[E]): this.type = {
+	override protected[this] def minus(elems1: AptSeq[E], elems2: TraversableOnce[E]): this.type = {
 		val removedIndices = indicesOf(elems1, elems2)
 		if (removedIndices.nonEmpty) {
 			val cuts = removedIndices.toFitSeq.sorted
@@ -615,13 +615,13 @@ trait DefaultArrayBuffer[@specialized(ItemTypes) E]
 
 
 
-	override def overwrite :FitBuffer[E] = {
+	override def overwrite :AptBuffer[E] = {
 		if (immutable)
 			realloc()
 		new LentArrayBuffer(array, headIdx, headIdx + len)
 	}
 
-	override def overwrite(start :Int, length :Int) :FitBuffer[E] =
+	override def overwrite(start :Int, length :Int) :AptBuffer[E] =
 		if (start < 0 || length < 0 || len - length < start)
 			throw new IndexOutOfBoundsException(s"$stringPrefix{$size}.overwrite($start, $length)")
 		else if (immutable) {

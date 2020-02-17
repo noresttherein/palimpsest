@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.sets
 /*
-import net.turambar.palimpsest.specialty.FitIterable.IterableAdapter
+import net.turambar.palimpsest.specialty.AptIterable.IterableAdapter
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate}
+import net.turambar.palimpsest.specialty.{AptBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, IterableTemplate}
 import net.turambar.palimpsest.specialty.tries.LongTrieKeys.{commonPath, flipSign, EmptyLongKeys, LongKeyBranch, LongKeyLeaf, MutableLongTrie}
 import net.turambar.palimpsest.specialty.tries.Trie.{MutableTrieRoot, ReplaceLeaf, TrieCombinator, AbstractTriePatch}
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, EmptyIterableTemplate, IterableFoundation, SingletonSpecialization}

@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.AVLTree
 import net.turambar.palimpsest.specialty.maps.AVLTree.EntryLens
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
@@ -52,9 +52,9 @@ private[sets] class StableLongTreeSet(protected val root :AVLTree[Long, Unit], e
 
 
 
-	override def keysIteratorFrom(start :Long) :FitIterator[Long] = {
+	override def keysIteratorFrom(start :Long) :AptIterator[Long] = {
 		val tree = root
-		if (tree == null) FitIterator.Empty
+		if (tree == null) AptIterator.Empty
 		else tree.iteratorFrom(this)(start)
 	}
 

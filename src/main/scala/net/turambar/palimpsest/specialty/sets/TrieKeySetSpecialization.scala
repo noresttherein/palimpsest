@@ -5,11 +5,11 @@ import net.turambar.palimpsest.specialty.tries.BinaryTrie.BinaryTriePatch
 import net.turambar.palimpsest.specialty.tries._
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
 import net.turambar.palimpsest.specialty.tries.TrieFriends.{KeySubset, SameKeys}
-import net.turambar.palimpsest.specialty.{FitBuilder, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{AptBuilder, Vals}
 import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.{SharingTrieOp, TrieKeyPatch}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.concat
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, StableIterable, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.{AptIterable, StableIterable, StableIterableTemplate}
 import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
 
 import scala.annotation.{tailrec, unspecialized}
@@ -43,7 +43,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 	protected[this] def patchTrie(t :T, element :E)(patch :BinaryTriePatch[K, F, T]) :T
 
-	protected[this] def patchTrie(t :T, elems :FitTraversableOnce[E])(patch :BinaryTriePatch[K, F, T]) :T = {
+	protected[this] def patchTrie(t :T, elems :Vals[E])(patch :BinaryTriePatch[K, F, T]) :T = {
 		var res = t; val it = elems.toIterator
 		while (it.hasNext)
 			res = patchTrie(res, it.next())(patch)
@@ -133,7 +133,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 		case own :CanFitFrom[_, _, _] if own.honorsBuilderFrom && own.runtimeType =%= specialization =>
 			++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
 		case _ => bf(repr) match {
-//			case builder :FitBuilder[_, _] if (builder.origin eq StableSet) && builder.specialization =%= specialization =>
+//			case builder :AptBuilder[_, _] if (builder.origin eq StableSet) && builder.specialization =%= specialization =>
 //				++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
 			case builder =>
 				concat(repr, that.seq)(builder)
@@ -144,7 +144,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 		case own :CanFitFrom[_, _, _] if own.honorsBuilderFrom && own.runtimeType =%= specialization =>
 			++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
 		case _ => bf(repr) match {
-//			case builder :FitBuilder[_, _] if (builder.origin eq StableSet) && builder.specialization =%= specialization =>
+//			case builder :AptBuilder[_, _] if (builder.origin eq StableSet) && builder.specialization =%= specialization =>
 //				++/--(that.asInstanceOf[GenTraversableOnce[E]])(ops.InsertKey).asInstanceOf[That]
 			case builder =>
 				concat(that.seq, repr)(builder)
@@ -170,13 +170,13 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 			case _ if hasFastSize =>
 				val feedback = patch.trackSize
 				elems match {
-					case fit :FitTraversableOnce[E] =>
+					case fit :Vals[E] =>
 						plant(patchTrie(trie, fit)(feedback), size + feedback.deltaSize)
 					case _ =>
 						plant(patchTrie(trie, elems)(feedback), size + feedback.deltaSize)
 				}
 			case _ => elems match {
-				case fit :FitTraversableOnce[E] =>
+				case fit :Vals[E] =>
 					plant(patchTrie(trie, fit)(patch))
 				case _ =>
 					plant(patchTrie(trie, elems)(patch))
@@ -186,13 +186,13 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 
 	@unspecialized
-	override def ++(elems :FitTraversableOnce[E]) :S = ++/--(elems)(ops.InsertKey)
+	override def ++(elems :Vals[E]) :S = ++/--(elems)(ops.InsertKey)
 
 	@unspecialized
-	override def --(elems :FitTraversableOnce[E]) :S = ++/--(elems)(ops.DeleteKey)
+	override def --(elems :Vals[E]) :S = ++/--(elems)(ops.DeleteKey)
 
 	@unspecialized
-	protected[this] def ++/--(elems :FitTraversableOnce[E])(patch :TrieKeyPatch[K, F, T]) :S =
+	protected[this] def ++/--(elems :Vals[E])(patch :TrieKeyPatch[K, F, T]) :S =
 		if (elems.isEmpty)
 			carbon
 		else friendTrie(elems) match {
@@ -281,7 +281,7 @@ trait TrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 			case Some(other) =>
 				(trie correlated other)(SameKeys)
 			case None => that match {
-				case fit :FitIterable[U] =>
+				case fit :AptIterable[U] =>
 					val count = unsureSize
 					(count < 0 || !fit.hasFastSize || count == fit.size) && iterator.sameElements(fit.iterator)
 				case _ =>
@@ -329,7 +329,7 @@ trait TraversableTrieKeySet[K, F <: BinaryTrie[K, F],
 	extends TrieKeySetSpecialization[K, F, T, E, S]
 {
 
-	override protected[this] def patchTrie(t :T, elems :FitTraversableOnce[E])(patch :BinaryTriePatch[K, F, T]) :T = {
+	override protected[this] def patchTrie(t :T, elems :Vals[E])(patch :BinaryTriePatch[K, F, T]) :T = {
 		var res = t
 		elems foreach { e => res = patchTrie(res, e)(patch) }
 		res
@@ -410,7 +410,7 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 			elems foreach { e => patchTrie(e)(patch) }
 	}
 
-	protected[this] def patchTrie(elems :FitTraversableOnce[E])(patch :BinaryTriePatch[K, F, T]) :Unit = {
+	protected[this] def patchTrie(elems :Vals[E])(patch :BinaryTriePatch[K, F, T]) :Unit = {
 		val it = elems.toIterator
 		while (it.hasNext)
 			patchTrie(it.next())(patch)
@@ -495,16 +495,16 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 
 
 	@unspecialized
-	override def ++=(xs :FitTraversableOnce[E]) :this.type = ++/--=(xs)(ops.InsertKey)
+	override def ++=(xs :Vals[E]) :this.type = ++/--=(xs)(ops.InsertKey)
 
 	@unspecialized
-	override def --=(xs :FitTraversableOnce[E]) :this.type = ++/--=(xs)(ops.DeleteKey)
+	override def --=(xs :Vals[E]) :this.type = ++/--=(xs)(ops.DeleteKey)
 
 	@unspecialized
 	override def ^=(xs :ValSet[E]) :this.type = ++/--=(xs)(ops.FlipKey)
 
 	@unspecialized
-	protected[this] def ++/--=(xs :FitTraversableOnce[E])(patch :TrieKeyPatch[K, F, T]) :this.type =
+	protected[this] def ++/--=(xs :Vals[E])(patch :TrieKeyPatch[K, F, T]) :this.type =
 		if (xs.isEmpty)
 			this
 		else friendTrie(xs) match {
@@ -560,14 +560,14 @@ trait MutableTrieKeySetSpecialization[K, F <: BinaryTrie[K, F],
 			case _ if hasFastSize =>
 				val count = patch.trackSize
 				xs match {
-					case fit :FitTraversableOnce[E] => patchTrie(fit)(count)
+					case fit :Vals[E] => patchTrie(fit)(count)
 					case _ => patchTrie(xs)(count)
 				}
 				size_+=(count.deltaSize)
 				this
 			case _ =>
 				xs match {
-					case fit :FitTraversableOnce[E] => patchTrie(fit)(patch)
+					case fit :Vals[E] => patchTrie(fit)(patch)
 					case _ => patchTrie(xs)(patch)
 				}
 				this

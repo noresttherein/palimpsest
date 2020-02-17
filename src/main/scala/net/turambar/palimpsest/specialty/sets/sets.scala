@@ -6,7 +6,7 @@ package object sets {
 	final val TrieSetElements = new Specializable.Group((Short, Int, Long, Char, Float, Double))
 
 
-	private[sets] def intersection[@specialized(ItemTypes) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :FitBuilder[E, R]) :R = {
+	private[sets] def intersection[@specialized(ItemTypes) E, R](set1 :ValSet[E], set2 :ValSet[E], builder :AptBuilder[E, R]) :R = {
 		val it = set1.iterator
 		while (it.hasNext) {
 			val e = it.next()

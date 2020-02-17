@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.iterators
 
 import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType, Specialize}
-import net.turambar.palimpsest.specialty.seqs.{FitSeq, ReverseSeq, SharedArray}
+import net.turambar.palimpsest.specialty.seqs.{AptSeq, ReverseSeq, SharedArray}
 import net.turambar.palimpsest.specialty.seqs.ArrayView.UnknownArrayView
 
 
@@ -15,7 +15,7 @@ import net.turambar.palimpsest.specialty.seqs.ArrayView.UnknownArrayView
   * @author Marcin Mościcki
   */
 class ArrayIterator[@specialized(ItemTypes) +E](array :Array[E], from :Int, until :Int)
-	extends IndexedIterator[E](from, until) with FitIterator[E]
+	extends IndexedIterator[E](from, until) with AptIterator[E]
 {
 
 
@@ -32,7 +32,7 @@ class ArrayIterator[@specialized(ItemTypes) +E](array :Array[E], from :Int, unti
 	
 	@inline final override def toIndexedSeq = toSeq.toIndexedSeq
 
-	@inline final override def toSeq :FitSeq[E] = new UnknownArrayView(array, index, end-index)
+	@inline final override def toSeq :AptSeq[E] = new UnknownArrayView(array, index, end-index)
 	
 	override def sameElements(that: Iterator[_]): Boolean = that match {
 		case i :ArrayIterator[_] if i.sameViewAs(array, index, end) => true
@@ -49,7 +49,7 @@ class ArrayIterator[@specialized(ItemTypes) +E](array :Array[E], from :Int, unti
 
 /** Iterator going down an array in the direction of decreasing indices. */
 class ReverseArrayIterator[@specialized(ItemTypes) +E](array :Array[E], from :Int, downto :Int)
-	extends ReverseIndexedIterator[E](from, downto) with FitIterator[E]
+	extends ReverseIndexedIterator[E](from, downto) with AptIterator[E]
 {
 	override def head: E = array(index)
 	
@@ -58,7 +58,7 @@ class ReverseArrayIterator[@specialized(ItemTypes) +E](array :Array[E], from :In
 	override def foreach[@specialized(Unit) U](f: (E) => U): Unit =
 		while(index>=end) { f(array(index)); index-=1 }
 	
-	override final def toSeq: FitSeq[E] = new ReverseSeq[E](SharedArray.view[E](array, end, size))
+	override final def toSeq: AptSeq[E] = new ReverseSeq[E](SharedArray.view[E](array, end, size))
 	
 	override final def toIndexedSeq = toSeq.toIndexedSeq
 }
@@ -92,20 +92,20 @@ class MutableArrayIterator[@specialized(ItemTypes) E](array :Array[E], from :Int
 
 
 object ArrayIterator {
-	def apply[E](array :Array[E]) :FitIterator[E] = Wrap(array)
+	def apply[E](array :Array[E]) :AptIterator[E] = Wrap(array)
 	
-	def apply[E](array :Array[E], start :Int, length :Int) :FitIterator[E] =
+	def apply[E](array :Array[E], start :Int, length :Int) :AptIterator[E] =
 		Wrap(array).drop(start).take(length)
 	
-	def apply[E](from :Int, array :Array[E], until :Int) :FitIterator[E] =
+	def apply[E](from :Int, array :Array[E], until :Int) :AptIterator[E] =
 		Wrap(array).take(until).drop(from)
 	
-	def reverse[E](array :Array[E]) :FitIterator[E] = Reversed(array)
+	def reverse[E](array :Array[E]) :AptIterator[E] = Reversed(array)
 	
-	def reverse[E](array :Array[E], start :Int, length :Int) :FitIterator[E] =
+	def reverse[E](array :Array[E], start :Int, length :Int) :AptIterator[E] =
 		Reversed(array).drop(array.length-start).take(length)
 	
-	def reverse[E](from :Int, array :Array[E], downto :Int) :FitIterator[E] =
+	def reverse[E](from :Int, array :Array[E], downto :Int) :AptIterator[E] =
 		Reversed(array).drop(array.length-from).take(from-downto)
 		
 	

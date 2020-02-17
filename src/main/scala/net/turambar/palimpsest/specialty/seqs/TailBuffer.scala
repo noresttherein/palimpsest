@@ -2,19 +2,19 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.annotation.unspecialized
 import net.turambar.palimpsest.specialty.iterables.IterableFoundation
-import net.turambar.palimpsest.specialty.{ItemTypes, FitTraversableOnce, RuntimeType}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.{ItemTypes, Vals, RuntimeType}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 
 /** A mutable view of the tail of a buffer which allows to modify its contents only past some specified index.
  *
   * @author Marcin Mościcki
   */
-class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :FitBuffer[E], offset :Int)
-		extends IterableFoundation[E, FitBuffer[E]] with FitBuffer[E] with SliceLike[E, FitBuffer[E]]
+class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :AptBuffer[E], offset :Int)
+		extends IterableFoundation[E, AptBuffer[E]] with AptBuffer[E] with SliceLike[E, AptBuffer[E]]
 {
 
-	def this(buffer :FitBuffer[E]) = this(buffer, buffer.length)
+	def this(buffer :AptBuffer[E]) = this(buffer, buffer.length)
 
 
 
@@ -25,24 +25,24 @@ class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :FitBuffer[E], 
 	override protected[this] def at(idx: Int): E = buffer.get(offset+idx)
 
 	@unspecialized
-	override protected def section(from: Int, until: Int): FitBuffer[E] =
+	override protected def section(from: Int, until: Int): AptBuffer[E] =
 		buffer.slice(offset + from, offset + until)
 //		sectionOf(buffer, offset + from, offset + until)
 
 
-	override def appender: FitBuffer[E] = new TailBuffer[E](buffer)
+	override def appender: AptBuffer[E] = new TailBuffer[E](buffer)
 
 	@unspecialized
-	override def overwrite: FitBuffer[E] = buffer.overwrite(offset, buffer.length-offset)
+	override def overwrite: AptBuffer[E] = buffer.overwrite(offset, buffer.length-offset)
 	
 	@unspecialized
-	override def overwrite(start: Int, length: Int): FitBuffer[E] =
+	override def overwrite(start: Int, length: Int): AptBuffer[E] =
 		if (start<0)
 			throw new IndexOutOfBoundsException(stringPrefix + s"($size).overwrite($start, $length)")
 		else buffer.overwrite(offset+start, length)
 
 	@unspecialized
-	override def toFitBuffer[U >: E : RuntimeType]: FitBuffer[U] =
+	override def toFitBuffer[U >: E : RuntimeType]: AptBuffer[U] =
 		buffer.drop(offset).toFitBuffer[U]
 
 
@@ -81,7 +81,7 @@ class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :FitBuffer[E], 
 	}
 	
 	@unspecialized
-	override def ++=(elems: FitTraversableOnce[E]): this.type = { buffer ++= elems; this }
+	override def ++=(elems: Vals[E]): this.type = { buffer ++= elems; this }
 	
 	
 	
@@ -101,11 +101,11 @@ class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :FitBuffer[E], 
 		else buffer.insertAll(offset+n, elems)
 	
 
-	override def -=(elem1: E, elem2: E, elems: E*): this.type = remove(FitSeq.two(elem1, elem2), elems)
+	override def -=(elem1: E, elem2: E, elems: E*): this.type = remove(AptSeq.two(elem1, elem2), elems)
 
-	override def --=(xs: TraversableOnce[E]): this.type = remove(FitSeq.Empty, xs)
+	override def --=(xs: TraversableOnce[E]): this.type = remove(AptSeq.Empty, xs)
 
-	private def remove(first :FitSeq[E], second :TraversableOnce[E]) :this.type = {
+	private def remove(first :AptSeq[E], second :TraversableOnce[E]) :this.type = {
 		val indices = indicesOf(first, second)
 		var oldPos=offset; var newPos=offset; val len = buffer.length
 		while(oldPos<len)
@@ -139,10 +139,10 @@ class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :FitBuffer[E], 
 	override def clear(): Unit = buffer.remove(offset, buffer.length-offset)
 
 	@unspecialized
-	override def iterator :FitIterator[E] = buffer.iterator.drop(offset)
+	override def iterator :AptIterator[E] = buffer.iterator.drop(offset)
 
 	@unspecialized
-	override def reverseIterator :FitIterator[E] = buffer.reverseIterator.take(buffer.length-offset)
+	override def reverseIterator :AptIterator[E] = buffer.reverseIterator.take(buffer.length-offset)
 
 
 	override protected[this] def debugPrefix: String = "TailBuffer"
@@ -150,8 +150,8 @@ class TailBuffer[@specialized(ItemTypes) E] private[seqs](buffer :FitBuffer[E], 
 
 
 object TailBuffer {
-	def apply[E](buffer :FitBuffer[E]) :FitBuffer[E] = new TailBuffer(buffer)
+	def apply[E](buffer :AptBuffer[E]) :AptBuffer[E] = new TailBuffer(buffer)
 
-	def apply[E](buffer :FitBuffer[E], offset :Int) :FitBuffer[E] =
+	def apply[E](buffer :AptBuffer[E], offset :Int) :AptBuffer[E] =
 		new TailBuffer(buffer, offset min buffer.length max 0)
 }

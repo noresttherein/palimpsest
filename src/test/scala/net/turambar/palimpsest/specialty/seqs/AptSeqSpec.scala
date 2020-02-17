@@ -5,6 +5,6 @@ import org.scalacheck.Properties
 /**
   * @author Marcin Mościcki
   */
-object FitSeqSpec extends Properties("FitSeq") {
+object FitSeqSpec extends Properties("AptSeq") {
 	
 }

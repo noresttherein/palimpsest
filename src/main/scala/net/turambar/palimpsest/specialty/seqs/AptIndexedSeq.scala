@@ -6,16 +6,16 @@ import scala.annotation.unspecialized
 import scala.collection.{immutable, GenSeq, IndexedSeqLike, SeqLike}
 import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.iterators.{IndexedIterator, ReverseIndexedIterator}
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, AptIterableFactory, InterfaceIterableFactory, IterableSpecialization, IterableTemplate, SpecializableIterable, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.collection.generic.CanBuildFrom
 
 
 
-trait FitIndexedSeqTemplate[+E, +S]
+trait AptIndexedSeqTemplate[+E, +S]
 	extends SeqLike[E, S] with IndexedSeqLike[E, S] with IterableTemplate[E, S] with SliceLike[E, S] with OfKnownSize
 {
 	override def indexOfSlice[U >: E](that: GenSeq[U], from: Int): Int = that match {
@@ -84,7 +84,7 @@ trait FitIndexedSeqTemplate[+E, +S]
 
 
 
-	override def iterator :FitIterator[E] = FitIterator.adapt(super[IndexedSeqLike].iterator)
+	override def iterator :AptIterator[E] = AptIterator.adapt(super[IndexedSeqLike].iterator)
 }
 
 
@@ -95,10 +95,10 @@ trait FitIndexedSeqTemplate[+E, +S]
   * @author Marcin Mościcki
   */
 //todo: delete this class
-trait FitIndexedSeq[@specialized(ItemTypes) +E]
-	extends IndexedSeq[E] with IndexedSeqLike[E, FitIndexedSeq[E]]
-	   with FitSeq[E] with IterableSpecialization[E, FitIndexedSeq[E]] with CloneableIterable[E, FitIndexedSeq[E]]
-	   with FitIndexedSeqTemplate[E, FitIndexedSeq[E]] with SpecializableIterable[E, FitIndexedSeq] with OfKnownSize
+trait AptIndexedSeq[@specialized(ItemTypes) +E]
+	extends IndexedSeq[E] with IndexedSeqLike[E, AptIndexedSeq[E]]
+	   with AptSeq[E] with IterableSpecialization[E, AptIndexedSeq[E]] with CloneableIterable[E, AptIndexedSeq[E]]
+	   with AptIndexedSeqTemplate[E, AptIndexedSeq[E]] with SpecializableIterable[E, AptIndexedSeq] with OfKnownSize
 { self =>
 	
 
@@ -164,17 +164,17 @@ trait FitIndexedSeq[@specialized(ItemTypes) +E]
 	
 	
 
-	override def iterator: FitIterator[E] = new ForwardIterator
+	override def iterator: AptIterator[E] = new ForwardIterator
 
-	override def reverseIterator: FitIterator[E] = new ReverseIterator
+	override def reverseIterator: AptIterator[E] = new ReverseIterator
 
-	override def inverse :FitSeq[E] = new ReverseSeq[E](toSeq)
+	override def inverse :AptSeq[E] = new ReverseSeq[E](toSeq)
 
-	override def toSeq :FitIndexedSeq[E] = this.asInstanceOf[FitIndexedSeq[E]]
+	override def toSeq :AptIndexedSeq[E] = this.asInstanceOf[AptIndexedSeq[E]]
 
 
 	//todo: inner classes are not specialized
-	protected class ForwardIterator extends IndexedIterator[E](0, length) with FitIterator[E] {
+	protected class ForwardIterator extends IndexedIterator[E](0, length) with AptIterator[E] {
 
 		override def head :E = at(index)
 		override def next() :E = { val res :E = at(index); index+=1; res }
@@ -189,13 +189,13 @@ trait FitIndexedSeq[@specialized(ItemTypes) +E]
 
 		override def toIndexedSeq :collection.immutable.IndexedSeq[E] = section(index, end).toIndexedSeq
 
-		override def toSeq :FitSeq[E] = self.section(index, end).asInstanceOf[FitSeq[E]]
+		override def toSeq :AptSeq[E] = self.section(index, end).asInstanceOf[AptSeq[E]]
 
 	}
 
 
 
-	protected class ReverseIterator extends ReverseIndexedIterator[E](length-1, 0) with FitIterator[E] {
+	protected class ReverseIterator extends ReverseIndexedIterator[E](length-1, 0) with AptIterator[E] {
 		override def head: E = at(index)
 		override def next() :E = { val res :E = at(index); index-=1; res }
 
@@ -207,11 +207,11 @@ trait FitIndexedSeq[@specialized(ItemTypes) +E]
 		override def toIndexedSeq :collection.immutable.IndexedSeq[E] = toSeq.toIndexedSeq
 
 		@unspecialized
-		override def toSeq :FitSeq[E] = self.section(end, index+1).asInstanceOf[FitSeq[E]].inverse
+		override def toSeq :AptSeq[E] = self.section(end, index+1).asInstanceOf[AptSeq[E]].inverse
 	}
 
 
-	override def companion :FitCompanion[FitIndexedSeq] = ArrayView
+	override def companion :AptCompanion[AptIndexedSeq] = ArrayView
 }
 
 
@@ -225,12 +225,12 @@ trait FitIndexedSeq[@specialized(ItemTypes) +E]
 
 trait StableIndexedSeq[+E]
 	extends immutable.IndexedSeq[E] with IndexedSeqLike[E, StableIndexedSeq[E]]
-		with FitIndexedSeq[E] with StableSeq[E] with StableIterableTemplate[E, StableIndexedSeq[E]]
+		with AptIndexedSeq[E] with StableSeq[E] with StableIterableTemplate[E, StableIndexedSeq[E]]
 		with IterableSpecialization[E, StableIndexedSeq[E]] with SpecializableIterable[E, StableIndexedSeq]
 		with SliceLike[E, StableIndexedSeq[E]] with CloneableIterable[E, StableIndexedSeq[E]]
 {
 	override def toSeq :StableIndexedSeq[E] = this
-	override def companion :FitCompanion[StableIndexedSeq] = StableIndexedSeq
+	override def companion :AptCompanion[StableIndexedSeq] = StableIndexedSeq
 }
 
 
@@ -238,7 +238,7 @@ trait StableIndexedSeq[+E]
 object StableIndexedSeq extends InterfaceIterableFactory[StableIndexedSeq] {
 	override protected[this] type RealType[@specialized(ItemTypes) +X] = ArrayPlus[X]
 
-	override protected def default :FitIterableFactory[RealType] = ArrayPlus
+	override protected def default :AptIterableFactory[RealType] = ArrayPlus
 
 	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[StableIndexedSeq[_], E, StableIndexedSeq[E]])
 			:CanBuildFrom[StableIndexedSeq[_], E, StableIndexedSeq[E]] =

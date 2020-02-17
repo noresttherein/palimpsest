@@ -1,11 +1,11 @@
 package net.turambar.palimpsest.specialty.sets
 /*
 
-import net.turambar.palimpsest.specialty.FitIterable.{IterableMapping}
+import net.turambar.palimpsest.specialty.AptIterable.{IterableMapping}
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1Res, Fun1Vals, Fun2, Fun2Vals}
 import net.turambar.palimpsest.specialty.sets.ValSet.Sorted
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, forceFit}
+import net.turambar.palimpsest.specialty.{AptBuilder, FitIterator, forceFit}
 
 
 /** A factory for immutable and mutable sets of `Short`s.
@@ -23,7 +23,7 @@ private[sets] object ShortSet {
 
 	def empty :StableSet[Short] = Empty
 
-	def newBuilder :FitBuilder[Short, StableSet[Short]] =
+	def newBuilder :AptBuilder[Short, StableSet[Short]] =
 		IntSet.newBuilder.mapInput(ShortToInt).mapResult(ints => new IntSet.ViewAs[Short](IntToShort, ShortToInt)(ints))
 
 	def singleton(value :Short) :StableSet[Short] = new IntSet.ViewAs[Short](IntToShort, ShortToInt)(IntSet.singleton(value.toInt))
@@ -33,7 +33,7 @@ private[sets] object ShortSet {
 
 	object Ordered {
 		final val Empty :StableOrderedSet[Short] = new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(IntSet.Sorted.Empty)
-		def newBuilder :FitBuilder[Short, StableOrderedSet[Short]] = IntSet.Sorted.newBuilder.mapInput(ShortToInt).mapResult(
+		def newBuilder :AptBuilder[Short, StableOrderedSet[Short]] = IntSet.Sorted.newBuilder.mapInput(ShortToInt).mapResult(
 			ints => new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(ints)
 		)
 		def singleton(value :Short) :StableOrderedSet[Short] = new IntSet.SortedViewAs[Short](IntToShort, ShortToInt)(IntSet.Sorted.singleton(value.toInt))

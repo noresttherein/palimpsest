@@ -2,10 +2,10 @@ package net.turambar.palimpsest.specialty
 
 package object maps {
 
-	/** Key types for which `FitMap` is specialized. */
+	/** Key types for which `AptMap` is specialized. */
 	final val KeyTypes = new Specializable.Group((/*Byte, Short, */Int, Long, Char, Float, Double))
 
-	/** Value types for which `FitMap` is specialized. */
+	/** Value types for which `AptMap` is specialized. */
 	final val ValueTypes = new Specializable.Group((/*Byte, Short, */Int, Long, Char, Float, Double))
 
 	private[maps] final val UnitAndValueTypes = new Specializable.Group((Int, Long, Char, Float, Double, Unit))

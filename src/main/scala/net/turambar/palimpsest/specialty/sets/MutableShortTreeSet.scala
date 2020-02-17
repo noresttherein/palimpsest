@@ -1,12 +1,12 @@
 package net.turambar.palimpsest.specialty.sets
 
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.RedBlackTree
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.{EntryLens, Node}
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.Node.IntSetNode
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 
 
 /**
@@ -39,7 +39,7 @@ private[sets] class MutableShortTreeSet(implicit val ordering :ValOrdering[Short
 
 
 	
-	override def keysIteratorFrom(start :Short) :FitIterator[Short] = iteratorFrom(this)(start)
+	override def keysIteratorFrom(start :Short) :AptIterator[Short] = iteratorFrom(this)(start)
 
 	
 	override def debugString = "MutableShortTreeSet"

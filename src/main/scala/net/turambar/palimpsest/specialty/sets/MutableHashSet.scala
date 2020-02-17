@@ -2,18 +2,18 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.io.{ObjectInputStream, ObjectOutputStream}
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.ItemTypes
 import net.turambar.palimpsest.specialty.sets.MutableHashSet.{FillFactorDenominator, MaxFillFactor, MinCapacity, MinFillFactor, MinSlots, Neighbourhood, Bitmap, FullBitmap, SerializedHashSet}
-import net.turambar.palimpsest.specialty.{FitBuilder, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, SpecializableIterableFactory}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.FitIterable.{IterableSerializer}
+import net.turambar.palimpsest.specialty.{AptBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{AptCompanion, SpecializableIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptIterable.{IterableSerializer}
 
 import scala.collection.generic.CanBuildFrom
 import java.lang.Integer.{numberOfTrailingZeros, reverseBytes}
 
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 
 /** A specialized hash set backed by an array using open addressing. The collisions are resolved using the hopscotch
   * algorithm with a neighbourhood size of 16, leading to good locality and overall pessimistic performance even
@@ -234,14 +234,14 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 		}
 	}
 
-	override def iterator :FitIterator[E] =
-		if (keys == 0) FitIterator.Empty
+	override def iterator :AptIterator[E] =
+		if (keys == 0) AptIterator.Empty
 		else new HopscotchHashSetIterator[E](slots, buckets, keys)
 
 	override def empty :MutableHashSet[E] =
 		new MutableHashSet[E](RuntimeType.arrayOf[E](MinSlots)(specialization), new Array[Bitmap](MinCapacity), 0)
 
-	override def companion :FitCompanion[MutableHashSet] = MutableHashSet
+	override def companion :AptCompanion[MutableHashSet] = MutableHashSet
 
 
 	private def writeReplace :AnyRef = new SerializedHashSet(this)
@@ -276,7 +276,7 @@ object MutableHashSet extends SpecializableIterableFactory[MutableHashSet] {
 		new MutableHashSet[E](RuntimeType.arrayOf[E](capacity + Neighbourhood - 1), new Array[Bitmap](capacity), 0)
 	}
 
-	@inline override def newBuilder[@specialized(ItemTypes) E] :FitBuilder[E, MutableHashSet[E]] = empty[E]
+	@inline override def newBuilder[@specialized(ItemTypes) E] :AptBuilder[E, MutableHashSet[E]] = empty[E]
 
 
 	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[MutableHashSet[_], E, MutableHashSet[E]])
@@ -308,7 +308,7 @@ object MutableHashSet extends SpecializableIterableFactory[MutableHashSet] {
 	                                               (@transient protected[this] override var self :MutableHashSet[E])
 		extends IterableSerializer[E, MutableHashSet[E]]
 	{
-		protected[this] override def builder :FitBuilder[E, MutableHashSet[E]] = empty[E]
+		protected[this] override def builder :AptBuilder[E, MutableHashSet[E]] = empty[E]
 	}
 }
 
@@ -319,7 +319,7 @@ object MutableHashSet extends SpecializableIterableFactory[MutableHashSet] {
 
 private[sets] class HopscotchHashSetIterator[@specialized(LargeSetElements) E](
 		slots :Array[E], usage :Array[Bitmap], private[this] var remaining :Int
-	) extends FitIterator[E]
+	) extends AptIterator[E]
 {
 	private[this] var hd :E = _  //head element
 	private[this] var slot = -1  //bucket index of the head element

@@ -1,10 +1,10 @@
 package net.turambar.palimpsest.specialty.sets
 /*
-import net.turambar.palimpsest.specialty.FitIterable.IterableMapping
+import net.turambar.palimpsest.specialty.AptIterable.IterableMapping
 import net.turambar.palimpsest.specialty.FitIterator.{BaseIterator, MappedIterator}
 import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
 import net.turambar.palimpsest.specialty.iterables.{EmptyIterableFoundation, IterableFoundation, SingletonFoundation, SingletonSpecialization}
-import net.turambar.palimpsest.specialty.{FitBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, Specialized}
+import net.turambar.palimpsest.specialty.{AptBuilder, FitIterator, FitTraversableOnce, IterableSpecialization, Specialized}
 import net.turambar.palimpsest.specialty.Specialized.{Fun1, Fun1Res, Fun1Vals, Fun2, Fun2Vals}
 import net.turambar.palimpsest.specialty.sets.ValSet.StableSetBuilder
 import net.turambar.palimpsest.specialty.sets.DirectLongSet.{Empty, LongTrieIterator, Singleton, StableBranch}
@@ -71,7 +71,7 @@ object DirectLongSet {
 
 	def apply(values :Long*) :StableSet[Long] = (empty /: values)(_ + _)
 
-	def newBuilder :FitBuilder[Long, StableSet[Long]] = new StableSetBuilder[Long, StableLongTrie](Empty)
+	def newBuilder :AptBuilder[Long, StableSet[Long]] = new StableSetBuilder[Long, StableLongTrie](Empty)
 
 	def singleton(value :Long) :StableSet[Long] = new Singleton(value)
 
@@ -981,7 +981,7 @@ object DirectLongSet {
 
 	object Mutable {
 		def empty :MutableSet[Long] = new MutableDirectLongSet()
-		def newBuilder :FitBuilder[Long, MutableSet[Long]] = new MutableDirectLongSet()
+		def newBuilder :AptBuilder[Long, MutableSet[Long]] = new MutableDirectLongSet()
 		def singleton(value :Long) :MutableSet[Long] = new MutableDirectLongSet() += value
 
 
@@ -1169,7 +1169,7 @@ object DirectLongSet {
 		private[DirectLongSet] final val Empty = new SortedTrie(DirectLongSet.Empty, DirectLongSet.Empty)
 		final val empty :StableOrderedSet[Long] = Empty
 
-		def newBuilder :FitBuilder[Long, StableOrderedSet[Long]] = new StableSetBuilder(empty)
+		def newBuilder :AptBuilder[Long, StableOrderedSet[Long]] = new StableSetBuilder(empty)
 
 	}
 

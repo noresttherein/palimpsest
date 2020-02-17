@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.maps
 
 import scala.collection.mutable.ArrayBuffer
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.{ElementLens, ItemTypes}
 
 
@@ -14,7 +14,7 @@ import net.turambar.palimpsest.specialty.{ElementLens, ItemTypes}
   * @author Marcin Mościcki
   */
 private[palimpsest] class BSTIterator[N >: Null <: BinaryTree[N], @specialized(ItemTypes) +T](stack :ArrayBuffer[N])(lens :ElementLens[N, T])
-	extends FitIterator[T]
+	extends AptIterator[T]
 {
 	def this(root :N)(lens :ElementLens[N, T]) = this(BSTIterator.initStack(root))(lens)
 
@@ -51,7 +51,7 @@ private[palimpsest] class BSTIterator[N >: Null <: BinaryTree[N], @specialized(I
 
 
 private[palimpsest] class ReverseBSTIterator[N <: BinaryTree[N], @specialized(ItemTypes) +T](stack :ArrayBuffer[N])(lens :ElementLens[N, T])
-	extends FitIterator[T]
+	extends AptIterator[T]
 {
 	def this(root :N)(lens :ElementLens[N, T]) = this(BSTIterator.reverseStack(root))(lens)
 

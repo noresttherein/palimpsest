@@ -1,9 +1,9 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
-import net.turambar.palimpsest.specialty.{?, Blank, FitTraversableOnce, Sure}
-import net.turambar.palimpsest.specialty.iterables.FitIterable
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
+import net.turambar.palimpsest.specialty.{?, Blank, Vals, Sure}
+import net.turambar.palimpsest.specialty.iterables.AptIterable
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.IntBitSet.BitmapSize
 
@@ -103,9 +103,9 @@ class IntBitSet private (bitmap :Array[Int], private[this] var bitcount :Int, pr
 		}
 	}
 
-	override def iterator :FitIterator[Int] = new IntBitSetIterator(bitmap)
+	override def iterator :AptIterator[Int] = new IntBitSetIterator(bitmap)
 
-	override def keysIteratorFrom(start :Int) :FitIterator[Int] = {
+	override def keysIteratorFrom(start :Int) :AptIterator[Int] = {
 		val neg = start ^ 0x80000000
 		val cell = neg >>> 5
 		val rem = neg & 0x1f
@@ -262,7 +262,7 @@ class IntBitSet private (bitmap :Array[Int], private[this] var bitcount :Int, pr
 
 
 	private class IntBitSetIterator(bitmap :Array[Int], private[this] var cell :Int = -1, private[this] var rem :Int = 31, version :Long = outer.version)
-		extends FitIterator[Int]
+		extends AptIterator[Int]
 	{
 		private[this] var last :Int = _
 		skip()
@@ -297,9 +297,9 @@ object IntBitSet {
 
 	def empty :IntBitSet = new IntBitSet(new Array[Int](BitmapSize), 0)
 
-	def apply(values :Int*) :IntBitSet = apply(FitIterator.adapt(values.iterator))
+	def apply(values :Int*) :IntBitSet = apply(AptIterator.adapt(values.iterator))
 
-	def apply(elements :FitTraversableOnce[Int]) :IntBitSet = {
+	def apply(elements :Vals[Int]) :IntBitSet = {
 		val res = new IntBitSet(new Array[Int](BitmapSize), 0)
 		elements foreach res.+= //{ i :Int => res += i }
 		res

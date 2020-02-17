@@ -2,12 +2,12 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.lang.Float.{floatToIntBits, intBitsToFloat}
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.RedBlackTree
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.{EntryLens, Node}
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.Node.IntSetNode
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 
 
 /**
@@ -40,7 +40,7 @@ private[sets] class MutableFloatTreeSet(implicit val ordering :ValOrdering[Float
 
 
 	
-	override def keysIteratorFrom(start :Float) :FitIterator[Float] = iteratorFrom(this)(floatToIntBits(start))
+	override def keysIteratorFrom(start :Float) :AptIterator[Float] = iteratorFrom(this)(floatToIntBits(start))
 
 	
 	override def debugString = "MutableFloatTreeSet"

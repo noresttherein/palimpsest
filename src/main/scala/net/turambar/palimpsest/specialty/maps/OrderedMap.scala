@@ -5,10 +5,10 @@ import scala.annotation.unspecialized
 import scala.collection.{SortedMap, SortedMapLike}
 import scala.collection.generic.SortedMapFactory
 
-import net.turambar.palimpsest.specialty.{?, FitBuilder, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, FitIterable, IterableFoundation, IterableSpecialization, MappedIterableTemplate}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.maps.FitMap.{FilteredKeysView, KeySetView, MappedValuesView}
+import net.turambar.palimpsest.specialty.{?, AptBuilder, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{AptCompanion, AptIterable, IterableFoundation, IterableSpecialization, MappedIterableTemplate}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.maps.AptMap.{FilteredKeysView, KeySetView, MappedValuesView}
 import net.turambar.palimpsest.specialty.maps.OrderedMap.{FilteredOrderedMapKeys, MappedOrderedMapValues, OrderedMapKeySet}
 import net.turambar.palimpsest.specialty.maps.StableOrderedMap.{MakesStableOrderedMaps, StableOrderedMapKeySet}
 import net.turambar.palimpsest.specialty.ordered.{OrderedBy, OrderedVals, ValOrdering}
@@ -41,9 +41,9 @@ trait OrderedMapKeySpecialization[@specialized(KeyTypes) K, +V,
 	override def mapValues[@specialized(ValueTypes) O](f :V => O) :OrderedMap[K, O] = new MappedOrderedMapValues(repr, f, mapEntryValue(f))
 
 
-	override def iteratorFrom(start :K) :FitIterator[(K, V)]
+	override def iteratorFrom(start :K) :AptIterator[(K, V)]
 
-	override def valuesIteratorFrom(start :K) :FitIterator[V]
+	override def valuesIteratorFrom(start :K) :AptIterator[V]
 }
 
 
@@ -59,12 +59,12 @@ abstract class OrderedMapFactory[
 
 	def empty[@specialized(KeyTypes) K :ValOrdering, @specialized(ValueTypes) V] :M[K, V] = ???
 
-	def newBuilder[@specialized(KeyTypes) K :ValOrdering, @specialized(ValueTypes) V] :FitBuilder[(K, V), M[K, V]] = ???
+	def newBuilder[@specialized(KeyTypes) K :ValOrdering, @specialized(ValueTypes) V] :AptBuilder[(K, V), M[K, V]] = ???
 
 
 	def of[K :ValOrdering :RuntimeType, V :RuntimeType] :M[K, V] = ???
 
-	def builder[K :ValOrdering :RuntimeType, V :RuntimeType] :FitBuilder[(K, V), M[K, V]] = ???
+	def builder[K :ValOrdering :RuntimeType, V :RuntimeType] :AptBuilder[(K, V), M[K, V]] = ???
 
 
 }
@@ -78,7 +78,7 @@ abstract class OrderedMapFactory[
   * @author Marcin Mościcki
   */
 trait OrderedMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V]
-	extends SortedMap[K, V] with FitMap[K, V]
+	extends SortedMap[K, V] with AptMap[K, V]
 	   with OrderedMapKeySpecialization[K, V, OrderedMap[K, V]] with SpecializableMap[K, V, OrderedMap]
 {
 	override def filterKeys(p :K => Boolean) :OrderedMap[K, V] = new FilteredOrderedMapKeys(repr, p)
@@ -115,14 +115,14 @@ object OrderedMap extends OrderedMapFactory[OrderedMap] {
 		@unspecialized
 		override def ordering :ValOrdering[K] = source.ordering
 
-		override def keysIteratorFrom(start :K) :FitIterator[K] =
+		override def keysIteratorFrom(start :K) :AptIterator[K] =
 			source.keysIteratorFrom(start).filter(filt)
 
-		override def iteratorFrom(start :K) :FitIterator[(K, V)] =
+		override def iteratorFrom(start :K) :AptIterator[(K, V)] =
 			source.iteratorFrom(start).filter(entryFilt)
 
-		override def valuesIteratorFrom(start :K) :FitIterator[V] =
-			source.iteratorFrom(start).filter(entryFilt).map(FitMap.entryValue)
+		override def valuesIteratorFrom(start :K) :AptIterator[V] =
+			source.iteratorFrom(start).filter(entryFilt).map(AptMap.entryValue)
 	}
 
 
@@ -132,7 +132,7 @@ object OrderedMap extends OrderedMapFactory[OrderedMap] {
 		   with OrderedMap[K, V] with FilteredOrderedKeysView[K, V, OrderedMap] //MakesStableOrderedMaps[K, V] with FilteredKeysView[K, V, OrderedMap]
 	{
 
-		protected[this] override val entryFilt = FitMap.entryFilter(filt)
+		protected[this] override val entryFilt = AptMap.entryFilter(filt)
 
 		override def rangeImpl(from : ?[K], until : ?[K]) :OrderedMap[K, V] =
 			new FilteredOrderedMapKeys(source.rangeImpl(from, until), filt)
@@ -152,10 +152,10 @@ object OrderedMap extends OrderedMapFactory[OrderedMap] {
 		override def rangeImpl(from : ?[K], until : ?[K]) :OrderedMap[K, T] =
 			new MappedOrderedMapValues(source.rangeImpl(from, until), forVal, forEntry)
 
-		override def iteratorFrom(start :K) :FitIterator[(K, T)] =
+		override def iteratorFrom(start :K) :AptIterator[(K, T)] =
 			source.iteratorFrom(start).map(mine)
 
-		override def valuesIteratorFrom(start :K) :FitIterator[T] =
+		override def valuesIteratorFrom(start :K) :AptIterator[T] =
 			source.valuesIteratorFrom(start).map(forVal)
 	}
 

@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, ItemTypes, FitTraversableOnce, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, MutableIterable, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{arrayFill, ItemTypes, Vals, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, AptIterableFactory, InterfaceIterableFactory, MutableIterable, SpecializableIterable}
 
 import scala.annotation.unspecialized
 
@@ -21,7 +21,7 @@ trait MutableSeq[@specialized(ItemTypes) E]
 
 //	override def seq: MutableSeq[E] = this
 
-	override def companion: FitCompanion[MutableSeq] = MutableSeq
+	override def companion: AptCompanion[MutableSeq] = MutableSeq
 	
 
 	
@@ -46,7 +46,7 @@ trait MutableSeq[@specialized(ItemTypes) E]
 	def update(idx :Int, elems :TraversableOnce[E]) :Unit
 
 	@unspecialized
-	def update(idx :Int, elems :FitTraversableOnce[E]) :Unit = update(idx, elems :TraversableOnce[E])
+	def update(idx :Int, elems :Vals[E]) :Unit = update(idx, elems :TraversableOnce[E])
 
 	/** Write the given element `count` number of times in the range of indices `&lt;fromIndex..fromIndex+count)`
 	  * in this sequence.
@@ -73,7 +73,7 @@ trait MutableSeq[@specialized(ItemTypes) E]
 	  * All append operations on the returned buffer trigger update of the corresponding elements in this sequence.
 	  * @return an empty specialized buffer backed by this sequence.
 	  */
-	def overwrite :FitBuffer[E] = overwrite(0, length)
+	def overwrite :AptBuffer[E] = overwrite(0, length)
 	
 	/** Treat a section of this sequence as space for a buffer.
 	  * Returned buffer will be initially empty and bound by range `start..(start+length) min this.length`
@@ -84,7 +84,7 @@ trait MutableSeq[@specialized(ItemTypes) E]
 	  * @param length maximum capacity of the buffer.
 	  * @return an empty specialized buffer using the given range to store all its data.
 	  */
-	def overwrite(start :Int, length :Int) :FitBuffer[E]
+	def overwrite(start :Int, length :Int) :AptBuffer[E]
 	
 	
 	
@@ -97,7 +97,7 @@ trait MutableSeq[@specialized(ItemTypes) E]
 object MutableSeq extends InterfaceIterableFactory[MutableSeq] {
 	protected[this] type RealType[@specialized(ItemTypes) X] = SharedArray[X]
 
-	override protected[this] final def default: FitIterableFactory[SharedArray] = SharedArray
+	override protected[this] final def default: AptIterableFactory[SharedArray] = SharedArray
 
 	def sized[E <: AnyVal :RuntimeType](size :Int) :MutableSeq[E] =
 		SharedArray(RuntimeType.arrayOf[E](size))

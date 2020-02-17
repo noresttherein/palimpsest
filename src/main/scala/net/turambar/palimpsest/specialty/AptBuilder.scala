@@ -6,8 +6,8 @@ import java.lang.Math
 import scala.annotation.tailrec
 import scala.collection.{GenTraversableOnce, LinearSeq, Traversable, TraversableLike, TraversableOnce}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1, Fun1Vals}
-import net.turambar.palimpsest.specialty.FitBuilder.{BuilderAdapter, BuilderWrapper}
-import net.turambar.palimpsest.specialty.seqs.{FitSeq, SharedArrayBuffer}
+import net.turambar.palimpsest.specialty.AptBuilder.{BuilderAdapter, BuilderWrapper}
+import net.turambar.palimpsest.specialty.seqs.{AptSeq, SharedArrayBuffer}
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable.Builder
@@ -15,38 +15,38 @@ import scala.collection.mutable.Builder
 
 
 /** Specialized version of [[scala.collection.mutable.Builder Builder]] (for any result type). */
-trait FitBuilder[@specialized(ItemTypes) -E, +To] extends Builder[E, To] with SpecializedGeneric {
+trait AptBuilder[@specialized(ItemTypes) -E, +To] extends Builder[E, To] with SpecializedGeneric {
 //	protected[this] def specialization :Specialized[E] = Specialized[E]
 
 
 
 	private[specialty] def addOne :E=>Unit = { elem :E => this += elem }
-	
+
 	//this is unspecialized :(
 	private[specialty] def addMany :TraversableOnce[E]=>Unit = { this ++= _ }
-	
+
 	def build :()=>To = () => result()
-	
-	def mapInput[@specialized(Fun1) X](f :X=>E) :FitBuilder[X, To] =
+
+	def mapInput[@specialized(Fun1) X](f :X=>E) :AptBuilder[X, To] =
 		new BuilderAdapter(this, { x :X => this += f(x) }, build)
 
-	def flatMapInput[@specialized(Fun1) X](f :X=>GenTraversableOnce[E]) :FitBuilder[X, To] =
+	def flatMapInput[@specialized(Fun1) X](f :X=>GenTraversableOnce[E]) :AptBuilder[X, To] =
 		new BuilderAdapter(this, { x: X => this ++= f(x).seq }, build, true)
 
-	override def mapResult[R](f :To=>R) :FitBuilder[E, R] =
+	override def mapResult[R](f :To=>R) :AptBuilder[E, R] =
 		new BuilderAdapter(this, addOne, addMany, () => f(result()), false)
-	
+
 	override def +=(elem1: E, elem2: E, elems: E*): this.type =
 		this += elem1 += elem2 ++= elems
 
-	def ++=(xs :FitTraversableOnce[E]) :this.type = {
+	def ++=(xs :Vals[E]) :this.type = {
 		val it = xs.toIterator
 		while(it.hasNext) this += it.next()
 		this
 	}
 
 	override def ++=(xs: TraversableOnce[E]): this.type = xs match {
-		case fit :FitTraversableOnce[E] =>
+		case fit :Vals[E] =>
 			this ++= fit
 		case list :LinearSeq[E] =>
 			@tailrec def loop(l :LinearSeq[E]=list) :Unit =
@@ -54,47 +54,47 @@ trait FitBuilder[@specialized(ItemTypes) -E, +To] extends Builder[E, To] with Sp
 					this += l.head; loop(l.tail)
 				}
 			loop(); this
-		
+
 		case _ => xs foreach addOne; this
 	}
-	
+
 	override def +=(elem: E): this.type
-	
-	
-	
-	
-//	/** Method used by most concatenation/summing methods of [[FitIterable]]. */
+
+
+
+
+//	/** Method used by most concatenation/summing methods of [[AptIterable]]. */
 //	def ++=(first :TraversableOnce[E], second :TraversableOnce[E]) :this.type =
 //		this ++= first ++= second
-	
+
 	override def result(): To
 
 	def result(first :TraversableOnce[E], second :TraversableOnce[E]) :To =
 		(this ++= first ++= second).result()
-	
+
 	override def sizeHint(expect: Int): Unit = ()
-	
+
 	override def sizeHint(coll: TraversableLike[_, _]): Unit =
 		if (ofKnownSize(coll)) sizeHint(coll.size)
-	
+
 	override def sizeHint(coll: TraversableLike[_, _], delta: Int): Unit =
 		if (ofKnownSize(coll)) sizeHint(coll.size + delta)
-	
+
 	override def sizeHintBounded(size: Int, boundingColl: TraversableLike[_, _]): Unit =
 		if (ofKnownSize(boundingColl)) sizeHint(size min boundingColl.size)
-	
-	
-//	def supressHints :FitBuilder[E, To] =
+
+
+//	def supressHints :AptBuilder[E, To] =
 //		new BuilderAdapter(new BuilderWrapper(this, build, true))
-	
+
 //	/** A builder which, in case of ordered collections, will produce the result in reversed order
 //	  * compared to this builder.
 // 	  * @return a builder such that `inverse.result() == this.result().reversed` if `To` is an ordered collection.
 //	  */
-//	def reverseResult :FitBuilder[E, To]
-	
-	
-	def typeHint[L<:E :RuntimeType] :FitBuilder[E, To] = this
+//	def reverseResult :AptBuilder[E, To]
+
+
+	def typeHint[L<:E :RuntimeType] :AptBuilder[E, To] = this
 
 
 
@@ -111,8 +111,8 @@ trait FitBuilder[@specialized(ItemTypes) -E, +To] extends Builder[E, To] with Sp
 	  * will return any other object (by default themselves). Comparison is performed as reference equality (`eq`).
 	  */
 	def origin :AnyRef = this
-	
-	
+
+
 }
 
 
@@ -124,42 +124,42 @@ trait FitBuilder[@specialized(ItemTypes) -E, +To] extends Builder[E, To] with Sp
 /**
   * @author Marcin Mościcki
   */
-object FitBuilder {
-	
-	def apply[E, To](builder :Builder[E, To]) :FitBuilder[E, To] = builder match {
-		case fit :FitBuilder[E, To] => fit
+object AptBuilder {
+
+	def apply[E, To](builder :Builder[E, To]) :AptBuilder[E, To] = builder match {
+		case fit :AptBuilder[E, To] => fit
 		case _ => new BuilderWrapper(builder)
 	}
-	
-//	def unapply[E, What](cbf :CanBuildFrom[_, E, What]) :Option[FitBuilder[E, What]] =
-	
+
+//	def unapply[E, What](cbf :CanBuildFrom[_, E, What]) :Option[AptBuilder[E, What]] =
+
 	private def mapper[@specialized(Fun1) X, @specialized(Fun1Vals) Y, To](b :Builder[Y, To])(f :X=>Y) :X=>Unit =
 		{ x :X => b += f(x) }
-	
+
 	private def traversed[@specialized(Fun1) X](appender :X=>Unit) :TraversableOnce[X]=>Unit =
 		{
-			case fit :FitTraversableOnce[X] => fit traverse appender
+			case fit :Vals[X] => fit traverse appender
 			case xs => xs foreach appender
 		}
 
-	
-	implicit def builderFilters[@specialized(Fun1) X, To](target :FitBuilder[X, To]) :BuilderFilter[X, To] =
-		new BuilderFilter(target)
-	
-	final class BuilderFilter[@specialized(Fun1) X, To](private val target :FitBuilder[X, To]) {
-		@deprecated("makes a false impression of a specialized method", "")
-		@inline def filterInput(p :X=>Boolean) :FitBuilder[X, To] = FitBuilder.filter(p, target)
-		@inline def filterInput(p :X=>Boolean, where :Boolean) :FitBuilder[X, To] = FitBuilder.filter(p, where, target)
-	}
-	
 
-	
-	private def filter[@specialized(Fun1) X, To](p :X=>Boolean, builder :FitBuilder[X, To]) :FitBuilder[X, To] = {
+	implicit def builderFilters[@specialized(Fun1) X, To](target :AptBuilder[X, To]) :BuilderFilter[X, To] =
+		new BuilderFilter(target)
+
+	final class BuilderFilter[@specialized(Fun1) X, To](private val target :AptBuilder[X, To]) {
+		@deprecated("makes a false impression of a specialized method", "")
+		@inline def filterInput(p :X=>Boolean) :AptBuilder[X, To] = AptBuilder.filter(p, target)
+		@inline def filterInput(p :X=>Boolean, where :Boolean) :AptBuilder[X, To] = AptBuilder.filter(p, where, target)
+	}
+
+
+
+	private def filter[@specialized(Fun1) X, To](p :X=>Boolean, builder :AptBuilder[X, To]) :AptBuilder[X, To] = {
 		val append = builder.addOne
 		new BuilderAdapter(builder, { x :X => if (p(x)) append(x) }, builder.build, true)
 	}
 
-	private def filter[@specialized(Fun1) X, To](p :X => Boolean, where :Boolean, builder :FitBuilder[X, To]) :FitBuilder[X, To] = {
+	private def filter[@specialized(Fun1) X, To](p :X => Boolean, where :Boolean, builder :AptBuilder[X, To]) :AptBuilder[X, To] = {
 		val append = builder.addOne
 		new BuilderAdapter(builder, { x :X => if (p(x) == where) append(x) }, builder.build, true)
 	}
@@ -172,120 +172,120 @@ object FitBuilder {
 	}
 
 	private class BuilderWrapper[-E, +To](vanilla :Builder[E, _], override val build :()=>To, supressHints :Boolean = false)
-		extends FitBuilder[E, To]
+		extends AptBuilder[E, To]
 	{
-		
+
 		def this(vanilla :Builder[E, To]) = this(vanilla, () => vanilla.result())
-		
+
 		override private[specialty] def addOne :E => Unit = e => vanilla += e
 
 		override private[specialty] def addMany :TraversableOnce[E]=>Unit = e => vanilla ++= e
-		
-		override def mapInput[@specialized(Fun1) X](f: (X) => E): FitBuilder[X, To] = {
+
+		override def mapInput[@specialized(Fun1) X](f: (X) => E): AptBuilder[X, To] = {
 			val map = mapper(vanilla)(f)
 			new BuilderAdapter(vanilla, map, traversed(map), build, supressHints)
 		}
-		
-		override def flatMapInput[@specialized(Fun1) X](f: X => GenTraversableOnce[E]): FitBuilder[X, To] = {
+
+		override def flatMapInput[@specialized(Fun1) X](f: X => GenTraversableOnce[E]): AptBuilder[X, To] = {
 			val fmap :X=>Unit = { x :X => vanilla ++= f(x).seq }
 			new BuilderAdapter(vanilla, fmap, traversed(fmap), build, true)
 		}
-		
-		override def mapResult[NewTo](f: To => NewTo): FitBuilder[E, NewTo] =
+
+		override def mapResult[NewTo](f: To => NewTo): AptBuilder[E, NewTo] =
 			new BuilderWrapper[E, NewTo](vanilla, () => f(build()))
-		
+
 		override def ++=(xs: TraversableOnce[E]): this.type = { vanilla ++= xs; this }
-		
+
 		override def +=(elem: E): this.type = { vanilla += elem; this }
-		
+
 		override def result(): To = build()
-		
+
 
 		override def clear(): Unit = vanilla.clear()
-		
+
 		override def sizeHint(expect: Int): Unit =
 			if (!supressHints)
 				vanilla.sizeHint(expect)
-		
+
 	}
-	
-	
-	
+
+
+
 	private class BuilderAdapter[@specialized(Fun1) X, +To](
 			target :Builder[_, _],
 			override val addOne :X=>Unit,
 			override val addMany :TraversableOnce[X]=>Unit,
 			override val build :()=>To,
 			supressHints :Boolean
-		) extends FitBuilder[X, To]
+		) extends AptBuilder[X, To]
 	{
 		def this(target :Builder[_, _], addOne :X=>Unit, build :()=>To, supressHints :Boolean=false) =
 			this(target, addOne, traversed(addOne), build, supressHints)
-		
+
 //		def this(target :Builder[_, To], addOne :X=>Unit, supressHints :Boolean=false) =
 //			this(target, addOne, traversed(addOne), () => target.result(), supressHints)
-		
-		def this(target :FitBuilder[X, To]) = this(target, target.addOne, target.addMany, target.build, false)
-		
-		override def mapInput[@specialized(Fun1) E](f: E => X): FitBuilder[E, To] = {
+
+		def this(target :AptBuilder[X, To]) = this(target, target.addOne, target.addMany, target.build, false)
+
+		override def mapInput[@specialized(Fun1) E](f: E => X): AptBuilder[E, To] = {
 			val addE = { e :E => addOne(f(e)) }
 			new BuilderAdapter[E, To](target, addE, traversed(addE), build, supressHints)
 		}
-		
-		override def flatMapInput[@specialized(Fun1) E](f: (E) => GenTraversableOnce[X]): FitBuilder[E, To] =
+
+		override def flatMapInput[@specialized(Fun1) E](f: (E) => GenTraversableOnce[X]): AptBuilder[E, To] =
 			new BuilderAdapter[E, To](target, { e :E => addMany(f(e).seq) }, build, true)
-		
+
 		override def ++=(xs: TraversableOnce[X]): this.type = { addMany(xs); this }
-		
+
 		override def +=(elem: X): this.type = { addOne(elem); this }
-		
+
 		override def result(): To = build()
-		
-		
+
+
 		override def clear(): Unit = target.clear()
-		
+
 		override def sizeHint(coll: TraversableLike[_, _]): Unit =
 			if (!supressHints && ofKnownSize(coll))
 				target.sizeHint(coll.size)
-		
+
 		override def sizeHint(coll: TraversableLike[_, _], delta: Int): Unit =
 			if (!supressHints && ofKnownSize(coll))
 				target.sizeHint(coll.size + delta)
-		
+
 		override def sizeHintBounded(size: Int, boundingColl: TraversableLike[_, _]): Unit =
 			if (!supressHints && ofKnownSize(boundingColl))
 				target.sizeHint(Math.min(size, boundingColl.size))
-		
+
 		override def sizeHint(size :Int) :Unit =
 			if (!supressHints)
 				target.sizeHint(size)
-		
-		override def mapResult[NewTo](f: To => NewTo): FitBuilder[X, NewTo] =
+
+		override def mapResult[NewTo](f: To => NewTo): AptBuilder[X, NewTo] =
 			new BuilderAdapter(target, addOne, addMany, () => f(build()), supressHints)
-		
-		
+
+
 		/*
-				override def reverseResult: FitBuilder[X, To] = target match {
-					case fit :FitBuilder[Y, _] => new BuilderAdapter(fit.reverseResult, addOne, addMany, build)
+				override def reverseResult: AptBuilder[X, To] = target match {
+					case fit :AptBuilder[Y, _] => new BuilderAdapter(fit.reverseResult, addOne, addMany, build)
 					case _ =>
 						val buffer = FitList.newBuilder[X].reverseResult //it better had dedicated implementation!
 						val res = { () => addMany(buffer.result()); build() }
 						new BuilderAdapter(target, buffer.addOne, buffer.addMany, res)
 				}
 		*/
-		
+
 	}
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
 	/** A useful idiot, unspecialized builder which doesn't do any real work, but stores all appended elements
-	  * internally as-is (including collections as whole), and requires implementing classes to provide a [[RetardedFitBuilder#realBuilder]]
-	  * to do the real work when [[RetardedFitBuilder#result]] is eventually called.
+	  * internally as-is (including collections as whole), and requires implementing classes to provide a [[RetardedAptBuilder#realBuilder]]
+	  * to do the real work when [[RetardedAptBuilder#result]] is eventually called.
 	  */
-	abstract class RetardedFitBuilder[-E, +To] extends FitBuilder[E, To] {
+	abstract class RetardedAptBuilder[-E, +To] extends AptBuilder[E, To] {
 		private[this] final var chunks :List[TraversableOnce[E]] = Nil
 		private[this] final var singles :SharedArrayBuffer[E] = SharedArrayBuffer.Empty.asInstanceOf[SharedArrayBuffer[E]]
 		private[this] final var hint :Int = Int.MinValue
@@ -293,7 +293,7 @@ object FitBuilder {
 
 		override def sizeHint(expect: Int): Unit = hint = expect
 
-//		override def typeHint[L <: E](expect :RuntimeType[L]) :FitBuilder[E, To]
+//		override def typeHint[L <: E](expect :RuntimeType[L]) :AptBuilder[E, To]
 //		protected[this] def inOrder :List[TraversableOnce[E]] = chunks.reverse
 
 		@tailrec protected[this] final def guessSize(soFar :Int=singles.length, remaining :List[TraversableOnce[E]]=chunks) :Int =
@@ -307,14 +307,14 @@ object FitBuilder {
 			@tailrec def rec(soFar :RuntimeType[E], remaining :List[TraversableOnce[E]]) :RuntimeType[E] =
 				remaining match {
 					case Nil => soFar
-					case FitTraversableOnce(col)::rest if col.runtimeType == soFar =>
+					case Vals(col)::rest if col.runtimeType == soFar =>
 						rec(soFar, rest)
 					case hd::rest if hd.isEmpty => rec(soFar, rest)
 					case _ => RuntimeType.erased
 				}
 			chunks = singles::chunks
 			chunks match {
-				case (col :FitTraversableOnce[E])::rest if col.runtimeType != RuntimeType.erased =>
+				case (col :Vals[E])::rest if col.runtimeType != RuntimeType.erased =>
 					rec(col.runtimeType.asInstanceOf[RuntimeType[E]], rest)
 				case _ => RuntimeType.erased[E]
 			}
@@ -353,7 +353,7 @@ object FitBuilder {
 			builder.result()
 		}
 
-		protected[this] def resultBuilder(implicit runtimeType :RuntimeType[E]) :FitBuilder[E, To]
+		protected[this] def resultBuilder(implicit runtimeType :RuntimeType[E]) :AptBuilder[E, To]
 	}
 
 
@@ -378,11 +378,11 @@ object FitBuilder {
 	  * @tparam E declared element type of the built collection.
 	  * @tparam To built collection type.
 	  */
-	class OptimisticFitBuilder[@specialized(ItemTypes) O <: E, E, To <: Traversable[E]](optimist :FitBuilder[O, To], pessimist :FitBuilder[E, To])
-		extends FitBuilder[E, To]
+	class OptimisticAptBuilder[@specialized(ItemTypes) O <: E, E, To <: Traversable[E]](optimist :AptBuilder[O, To], pessimist :AptBuilder[E, To])
+		extends AptBuilder[E, To]
 	{
-		private[this] var target :FitBuilder[E, To] = try {
-			optimist.asInstanceOf[FitBuilder[E, To]]
+		private[this] var target :AptBuilder[E, To] = try {
+			optimist.asInstanceOf[AptBuilder[E, To]]
 		} catch {
 			case _ :Exception => pessimist
 		}
@@ -450,8 +450,8 @@ object FitBuilder {
 
 
 /*
-	class OldOptimisticFitBuilder[@specialized(Elements) E, To<:TraversableOnce[E]](optimist :FitBuilder[E, To], pessimist :FitBuilder[E, To])
-		extends FitBuilder[E, To]
+	class OldOptimisticFitBuilder[@specialized(Elements) E, To<:TraversableOnce[E]](optimist :AptBuilder[E, To], pessimist :AptBuilder[E, To])
+		extends AptBuilder[E, To]
 	{
 		private[this] var target = optimist
 
@@ -473,7 +473,7 @@ object FitBuilder {
 						val collected = target.result()
 						target = pessimist
 						target ++= collected
-						//							throw new Exception(s"OptimisticFitBuilder[${specialization}] failed to add $col;")
+						//							throw new Exception(s"OptimisticAptBuilder[${specialization}] failed to add $col;")
 						target ++= col.toIterator.drop(added)
 						count = target.count
 						this
@@ -502,7 +502,7 @@ object FitBuilder {
 		override def clear(): Unit = target.clear()
 		
 
-//		override def reverseResult: FitBuilder[E, To] = b.reverseResult
+//		override def reverseResult: AptBuilder[E, To] = b.reverseResult
 	}
 */
 

@@ -2,11 +2,11 @@ package net.turambar.palimpsest.specialty.iterables
 
 import java.lang.Math
 
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.{?, ofKnownSize, Blank, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{FitSeq, StableSeq}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{AptSeq, StableSeq}
 
 import scala.collection.{mutable, GenIterable, GenTraversableOnce, LinearSeq}
 import scala.collection.generic.CanBuildFrom
@@ -161,8 +161,8 @@ trait DoubletonTemplate[+E, +This] extends IterableTemplate[E, This] with OfKnow
 
 
 	override def sameElements[U >: E](that: GenIterable[U]) :Boolean = that match {
-//		case fit :FitIterable[U] if fit.specialization == specialization =>
-//			sameElements(fit.asInstanceOf[FitIterable[E]])
+//		case fit :AptIterable[U] if fit.specialization == specialization =>
+//			sameElements(fit.asInstanceOf[AptIterable[E]])
 		case s :IndexedSeq[_] => s.size==2 && s.head==head && s(1)==last
 		case s :LinearSeq[_] => s.nonEmpty && s.head==head && {
 			val tail = s.tail; tail.nonEmpty && tail.head==last && tail.tail.isEmpty
@@ -203,7 +203,7 @@ trait DoubletonSpecialization[@specialized(ItemTypes) +E, +This]
 //		else if (p(last) == where) Sure(last)
 //		else Blank
 
-	override def iterator: FitIterator[E] = FitIterator.two(head, last)
+	override def iterator: AptIterator[E] = AptIterator.two(head, last)
 
 	override def foldLeft[@specialized(Fun2) O](z: O)(op: (O, E) => O) :O =
 		op(op(z, head), last)
@@ -222,7 +222,7 @@ trait DoubletonSpecialization[@specialized(ItemTypes) +E, +This]
 
 	override def copyToBuffer[B >: E](dest: mutable.Buffer[B]) :Unit = dest += head
 
-	override def toSeq :FitSeq[E] = FitSeq.two(head, last)
+	override def toSeq :AptSeq[E] = AptSeq.two(head, last)
 }
 
 

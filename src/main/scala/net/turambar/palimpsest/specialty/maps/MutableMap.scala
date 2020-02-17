@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.maps
 
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, FitIterable, IterableFoundation, IterableSpecialization, MutableIterable, SpecializableIterable}
-import net.turambar.palimpsest.specialty.{FitBuilder, FitTraversableOnce, Sure}
-import net.turambar.palimpsest.specialty.maps.FitMap.{MapWithDefaultView}
+import net.turambar.palimpsest.specialty.iterables.{AptCompanion, AptIterable, IterableFoundation, IterableSpecialization, MutableIterable, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{AptBuilder, Vals, Sure}
+import net.turambar.palimpsest.specialty.maps.AptMap.{MapWithDefaultView}
 import net.turambar.palimpsest.specialty.maps.MutableMap.MutableMapWithDefault
 import scala.annotation.unchecked.uncheckedVariance
 import scala.annotation.unspecialized
@@ -15,8 +15,8 @@ import scala.collection.{mutable, GenTraversableOnce}
   */
 trait MutableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V]
 	extends mutable.Map[K, V] with mutable.MapLike[K, V, MutableMap[K, V]] //with IsMutable[(K, V)]
-	   with FitIterable[(K, V)] /*with IterableSpecialization[(K, V), MutableMap[K, V]]*/ with MutableIterable[(K, V)]
-	   with FitMap[K, V] with SpecializableMap[K, V, MutableMap] with FitBuilder[(K, V), MutableMap[K, V]]
+	   with AptIterable[(K, V)] /*with IterableSpecialization[(K, V), MutableMap[K, V]]*/ with MutableIterable[(K, V)]
+	   with AptMap[K, V] with SpecializableMap[K, V, MutableMap] with AptBuilder[(K, V), MutableMap[K, V]]
 { outer =>
 
 	@unspecialized
@@ -25,7 +25,7 @@ trait MutableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V]
 	@unspecialized
 	override def newBuilder :MutableMap[K, V] = MutableMap.empty(keyType, valueSpecialization)
 
-	override def companion :FitCompanion[MutableIterable] = MutableIterable
+	override def companion :AptCompanion[MutableIterable] = MutableIterable
 
 
 
@@ -62,7 +62,7 @@ trait MutableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V]
 
 	override def withDefault(d :K => V) :MutableMap[K, V] = new MutableMapWithDefault[K, V](this, d)
 
-	override def withDefaultValue(d :V) :MutableMap[K, V] = withDefault(FitMap.defaultValue(d))
+	override def withDefaultValue(d :V) :MutableMap[K, V] = withDefault(AptMap.defaultValue(d))
 
 
 	override def transform(f :(K, V) => V) :this.type = {
@@ -100,7 +100,7 @@ object MutableMap extends SpecializableMapFactory[MutableMap] {
 
 		override def +=(elem :(K, V)) :this.type = { source += elem; this }
 
-		override def ++=(xs :FitTraversableOnce[(K, V)]) :this.type = { source ++= xs; this }
+		override def ++=(xs :Vals[(K, V)]) :this.type = { source ++= xs; this }
 
 		override def ++=(xs :TraversableOnce[(K, V)]) :this.type = { source ++= xs; this }
 

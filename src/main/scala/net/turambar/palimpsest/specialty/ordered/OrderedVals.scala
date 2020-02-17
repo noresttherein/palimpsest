@@ -1,8 +1,8 @@
 package net.turambar.palimpsest.specialty.ordered
 
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitIterable, IterableSpecialization}
-import net.turambar.palimpsest.specialty.{?, ItemTypes, FitBuilder}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptIterable, IterableSpecialization}
+import net.turambar.palimpsest.specialty.{?, ItemTypes, AptBuilder}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.collection.GenTraversableOnce
 
@@ -37,11 +37,11 @@ trait OrderedAs[@specialized(ItemTypes) K, +This <: OrderedAs[K, This]]
 //	}
 
 
-	def iteratorFrom(start :K) :FitIterator[K] = keysIteratorFrom(start)
+	def iteratorFrom(start :K) :AptIterator[K] = keysIteratorFrom(start)
 
-	override def keysIterator :FitIterator[K] = iterator
-//	override protected[this] def newBuilder :FitBuilder[K, This] =
-//		FitBuffer.newBuilder.mapResult { buffer :FitBuffer[K] => empty ++ buffer }
+	override def keysIterator :AptIterator[K] = iterator
+//	override protected[this] def newBuilder :AptBuilder[K, This] =
+//		AptBuffer.newBuilder.mapResult { buffer :AptBuffer[K] => empty ++ buffer }
 }
 
 
@@ -75,7 +75,7 @@ object OrderedAs {
   * @author Marcin Mościcki
   */
 trait OrderedVals[@specialized(ItemTypes) E]
-	extends FitIterable[E] with OrderedAs[E, OrderedVals[E]]
+	extends AptIterable[E] with OrderedAs[E, OrderedVals[E]]
 {
 //	type This <: OrderedVals[E]
 //	type This = Self
@@ -84,14 +84,14 @@ trait OrderedVals[@specialized(ItemTypes) E]
 	override def lastKey: E = last
 
 
-	def reverseIterator :FitIterator[E]
+	def reverseIterator :AptIterator[E]
 //	override def reverseKeyIterator :FitIterator[E] = reverseIterator
 //	def iteratorFrom(start :E) :FitIterator[E]
 //	def +(elem :E) :Self
 //	def +(elem1 :E, elem2 :E, elems :E*) :Self// = this + elem1 + elem2 ++ elems
 //
 //	def ++(elems :GenTraversableOnce[E]) :Self
-	override protected[this] def newBuilder :FitBuilder[E, OrderedVals[E]] = OrderedSeq.newBuilder
+	override protected[this] def newBuilder :AptBuilder[E, OrderedVals[E]] = OrderedSeq.newBuilder
 
 //	override def stringPrefix :String = typeStringPrefix + "[" + specialization.classTag + "]"
 }

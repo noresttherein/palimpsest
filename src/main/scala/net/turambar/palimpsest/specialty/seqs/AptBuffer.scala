@@ -2,9 +2,9 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce, IndexedSeqLike}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{arrayFill, ItemTypes, FitTraversableOnce, RuntimeType}
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterableFactory, InterfaceIterableFactory, SpecializableIterable}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{arrayFill, ItemTypes, Vals, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, AptIterableFactory, InterfaceIterableFactory, SpecializableIterable}
 
 import scala.annotation.unspecialized
 import scala.reflect.ClassTag
@@ -21,17 +21,17 @@ trait FitBufferLike[E, +Repr<:FitBufferLike[E, Repr]]
 
 
 
-/** A `@specialized` version of [[mutable.Buffer]] extending also [[FitSeq]].
+/** A `@specialized` version of [[mutable.Buffer]] extending also [[AptSeq]].
   *
   * @author Marcin Mościcki
   */
-trait FitBuffer[@specialized(ItemTypes) E]
-	extends mutable.Buffer[E] with mutable.BufferLike[E, FitBuffer[E]]
-	   with MutableSeq[E] with ValSeqLike[E, FitBuffer[E]] with CloneableIterable[E, FitBuffer[E]]
-	   with SpecializableIterable[E, FitBuffer]
+trait AptBuffer[@specialized(ItemTypes) E]
+	extends mutable.Buffer[E] with mutable.BufferLike[E, AptBuffer[E]]
+	   with MutableSeq[E] with ValSeqLike[E, AptBuffer[E]] with CloneableIterable[E, AptBuffer[E]]
+	   with SpecializableIterable[E, AptBuffer]
 {
 //	import Specialized.Fun1
-	
+
 /*
 	//todo: this is here till we find a better place for Subtractable implementatoin
 	protected[seqs] def indicesOf(elems1 :Traversable[E], elems2 :GenTraversableOnce[E]) :mutable.Set[Int] = {
@@ -49,12 +49,12 @@ trait FitBuffer[@specialized(ItemTypes) E]
 	}
 */
 
-	
-	
-	
-	def appender :FitBuffer[E] = new TailBuffer(this)
 
-//	def overwrite(offset :Int) :FitBuffer[E]
+
+
+	def appender :AptBuffer[E] = new TailBuffer(this)
+
+//	def overwrite(offset :Int) :AptBuffer[E]
 
 	override def +=(elem: E): this.type
 
@@ -63,19 +63,19 @@ trait FitBuffer[@specialized(ItemTypes) E]
 
 
 	override def ++=(xs: TraversableOnce[E]) :this.type = xs match {
-		case fit :FitTraversableOnce[E] => this ++= fit
+		case fit :Vals[E] => this ++= fit
 		case _ => xs.foreach (this += _); this
 
 	}
 
-	def ++=(elems :FitTraversableOnce[E]) :this.type = {
+	def ++=(elems :Vals[E]) :this.type = {
 		val it = elems.toIterator
 		while(it.hasNext) this += it.next()
 		this
 	}
 
 	override def +=:(elem: E): this.type
-	
+
 
 	override def -=(x: E): this.type = {
 		val i = indexOf(x)
@@ -89,8 +89,8 @@ trait FitBuffer[@specialized(ItemTypes) E]
 		this --= elems
 	}
 
-		
-	
+
+
 
 	override def remove(n: Int): E
 
@@ -99,7 +99,7 @@ trait FitBuffer[@specialized(ItemTypes) E]
 //		else trimEnd(length - toSize)
 
 
-	override def companion: FitCompanion[FitBuffer] = FitBuffer
+	override def companion: AptCompanion[AptBuffer] = AptBuffer
 
 	override protected[this] def typeStringPrefix = "Buffer"
 }
@@ -110,34 +110,34 @@ trait FitBuffer[@specialized(ItemTypes) E]
 /** Factory for [[mutable.Buffer]]s specialized on their element type.
   * Default implementation is that of a [[SharedArrayBuffer]].
   */
-object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqFactory[FitBuffer] {
+object AptBuffer extends InterfaceIterableFactory[AptBuffer] { //SpecializedSeqFactory[AptBuffer] {
 
 	override protected[this] type RealType[@specialized(ItemTypes) X] = SharedArrayBuffer[X]
-	override protected[this] def default: FitIterableFactory[SharedArrayBuffer] = SharedArrayBuffer
+	override protected[this] def default: AptIterableFactory[SharedArrayBuffer] = SharedArrayBuffer
 
-	@inline def emptyOf[E :RuntimeType](sizeHint :Int) :FitBuffer[E] = SharedArrayBuffer.ofCapacity[E](sizeHint)
+	@inline def emptyOf[E :RuntimeType](sizeHint :Int) :AptBuffer[E] = SharedArrayBuffer.ofCapacity[E](sizeHint)
 
 
-	@inline def sized[E <: AnyVal :RuntimeType](size :Int) :FitBuffer[E] = SharedArrayBuffer.ofSize(size)
+	@inline def sized[E <: AnyVal :RuntimeType](size :Int) :AptBuffer[E] = SharedArrayBuffer.ofSize(size)
 
-	@inline def fill[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :FitBuffer[E] =
+	@inline def fill[E](size :Int, value :E)(implicit elements :ClassTag[E] = ClassTag(RuntimeType.UnboxedClass(value.getClass))) :AptBuffer[E] =
 		SharedArrayBuffer.fill(size, value)
 
 
 
-	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitBuffer[_], E, FitBuffer[E]]): CanBuildFrom[FitBuffer[_], E, FitBuffer[E]] =
+	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[AptBuffer[_], E, AptBuffer[E]]): CanBuildFrom[AptBuffer[_], E, AptBuffer[E]] =
 		fit.cbf
 
 	
 	
 /*
-	trait ProxyFitBuffer[@specialized(Elements) E] extends FitBuffer[E] {
-		protected[this] def target :FitBuffer[E]
-		protected def proxy(buf :FitBuffer[E]) :FitBuffer[E] = buf
+	trait ProxyFitBuffer[@specialized(Elements) E] extends AptBuffer[E] {
+		protected[this] def target :AptBuffer[E]
+		protected def proxy(buf :AptBuffer[E]) :AptBuffer[E] = buf
 		
 		override def length: Int = target.length
 		
-		override protected def section(from: Int, until: Int): FitBuffer[E] = proxy(target.section(from, until))
+		override protected def section(from: Int, until: Int): AptBuffer[E] = proxy(target.section(from, until))
 		
 		override protected[this] def at(idx: Int): E = target.get(idx)
 		
@@ -162,7 +162,7 @@ object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqF
 		
 		override def remove(n: Int): E = target.remove(n)
 		
-		override def overwrite(start: Int, length: Int): FitBuffer[E] = proxy(target.overwrite(start, length))
+		override def overwrite(start: Int, length: Int): AptBuffer[E] = proxy(target.overwrite(start, length))
 
 		override def clear(): Unit = target.clear()
 		
@@ -170,12 +170,12 @@ object FitBuffer extends InterfaceIterableFactory[FitBuffer] { //SpecializedSeqF
 	}
 	
 	
-	class OptimisticFitBuffer[@specialized(Elements) E](fit :FitBuffer[E], unfit : =>FitBuffer[E]) extends ProxyFitBuffer[E] {
+	class OptimisticAptBuffer[@specialized(Elements) E](fit :AptBuffer[E], unfit : =>AptBuffer[E]) extends ProxyFitBuffer[E] {
 		protected[this] final var target = fit
 		private[this] var optimistic = true
 		
-		override protected def proxy(buf: FitBuffer[E]): FitBuffer[E] =
-			if (optimistic) new OptimisticFitBuffer(fit, unfit)
+		override protected def proxy(buf: AptBuffer[E]): AptBuffer[E] =
+			if (optimistic) new OptimisticAptBuffer(fit, unfit)
 			else buf
 		
 		

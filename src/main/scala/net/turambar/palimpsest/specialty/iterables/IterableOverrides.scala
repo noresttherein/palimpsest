@@ -1,17 +1,17 @@
 package net.turambar.palimpsest.specialty.iterables
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, ItemTypes, Sure}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.{?, Blank, AptBuilder, ItemTypes, Sure}
 import net.turambar.palimpsest.specialty
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterables.FitIterable.{FilterIterable, SpecializedFilter}
+import net.turambar.palimpsest.specialty.iterables.AptIterable.{FilterIterable, SpecializedFilter}
 
 import scala.collection.GenTraversableOnce
 import scala.collection.generic.CanBuildFrom
 
 
 
-/** An implementation trait for `FitIterable` which redefines methods defined in
+/** An implementation trait for `AptIterable` which redefines methods defined in
  * [[net.turambar.palimpsest.specialty.iterables.IterableTemplate IterableTemplate]] to their default implementations,
  * generally delegating to the corresponding method of this collection's iterator.
  * The reason for this duplication is that for some specific implementations of various collection interfaces,
@@ -47,14 +47,14 @@ trait IterableOverridesTemplate[+E, +Repr] extends IterableTemplate[E, Repr] {
 
 
 	override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]): That = {
-		val b = FitBuilder(bf(repr)).mapInput(f)
+		val b = AptBuilder(bf(repr)).mapInput(f)
 		b.sizeHint(this)
 		b ++= this
 		b.result()
 	}
 
 	override def flatMap[U, That](f: E => GenTraversableOnce[U])(implicit bf: CanBuildFrom[Repr, U, That]): That = {
-		val b = FitBuilder(bf(repr)).flatMapInput(f)
+		val b = AptBuilder(bf(repr)).flatMapInput(f)
 		b ++= this
 		b.result()
 	}
@@ -90,7 +90,7 @@ trait IterableOverridesTemplate[+E, +Repr] extends IterableTemplate[E, Repr] {
 
 
 
-/** An implementation trait for `FitIterable` which redefines methods defined in
+/** An implementation trait for `AptIterable` which redefines methods defined in
  * [[net.turambar.palimpsest.specialty.iterables.IterableSpecialization IterableSpecialization]]
  * to their default implementations, generally delegating to the corresponding method of this collection's iterator.
  * The reason for this duplication is that for some specific implementations of various collection interfaces,

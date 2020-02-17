@@ -3,8 +3,8 @@ package net.turambar.palimpsest.specialty.seqs
 import java.lang.Math
 
 import net.turambar.palimpsest.SerializationVersion
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.seqs.AptSeq.SeqFoundation
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.seqs.LinkedList.{Empty, NonEmpty}
 
@@ -13,11 +13,11 @@ import scala.collection.LinearSeqLike
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun2
-import net.turambar.palimpsest.specialty.iterables.FitIterable.{ElementDeserializer, ElementSerializer}
+import net.turambar.palimpsest.specialty.iterables.AptIterable.{ElementDeserializer, ElementSerializer}
 import net.turambar.palimpsest.specialty.iterators.CountdownIterator
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.seqs.ListSlice.{ListSliceBuilder, ListSliceIterator, SerializedListSlice}
 
 /**
@@ -269,9 +269,9 @@ class ListSlice[@specialized(ItemTypes) +E] private[seqs] (start :LinkedList[E],
 		count
 	}
 
-	override def iterator :FitIterator[E] = new ListSliceIterator(start, length)
+	override def iterator :AptIterator[E] = new ListSliceIterator(start, length)
 	
-	@unspecialized override def reverseIterator :FitIterator[E] = reverse.iterator
+	@unspecialized override def reverseIterator :AptIterator[E] = reverse.iterator
 
 	override def typeStringPrefix = "ListSlice"
 	
@@ -294,10 +294,10 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 		fit.cbf
 
 
-	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, ListSlice[E]] =
+	override def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, ListSlice[E]] =
 		new ListSliceBuilder
 
-//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, ListSlice[E]] =
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: AptBuilder[E, ListSlice[E]] =
 //		new ListSliceBuilder(new NonEmpty(Specialized[E].Null))
 	
 	override def empty[@specialized(ItemTypes) E] :ListSlice[E] =
@@ -305,7 +305,7 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 
 
 	private[seqs] class ListSliceIterator[@specialized(ItemTypes) +E](private[this] var hd :LinkedList[E], max :Int)
-		extends CountdownIterator[E](max) with FitIterator[E] 
+		extends CountdownIterator[E](max) with AptIterator[E]
 	{
 		override def head: E = hd.head
 
@@ -322,7 +322,7 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 	
 	private[seqs] class ListSliceBuilder[@specialized(ItemTypes) E](
 			private var hat :NonEmpty[E], private var coccyx :NonEmpty[E])
-		extends FitBuilder[E, ListSlice[E]] 
+		extends AptBuilder[E, ListSlice[E]]
 	{
 		def this(handle :NonEmpty[E] = new NonEmpty(RuntimeType[E].default)) =
 			this(handle, handle)
@@ -353,7 +353,7 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 
 		}
 
-		override def ++=(xs: FitTraversableOnce[E]) :ListSliceBuilder.this.type = xs match {
+		override def ++=(xs: Vals[E]) :ListSliceBuilder.this.type = xs match {
 			case _ if xs.isEmpty => this
 				
 			case l :ListSlice[E] => ++=(l)
@@ -391,7 +391,7 @@ object ListSlice extends SpecializableIterableFactory[ListSlice] {
 	private[seqs] class ReverseListSliceBuilder[@specialized(ItemTypes) E](
 			private[this] var res :LinkedList[E]=LinkedList.Empty, 
 			private[this] var length :Int=0) 
-		extends FitBuilder[E, ListSlice[E]] 
+		extends AptBuilder[E, ListSlice[E]]
 	{
 		
 		override def +=(elem: E): this.type = {

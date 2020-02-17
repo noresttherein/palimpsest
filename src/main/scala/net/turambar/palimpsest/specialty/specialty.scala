@@ -5,9 +5,8 @@ import java.util
 import scala.collection.{mutable, BitSetLike, GenTraversableOnce, IndexedSeqLike, SetLike}
 import scala.reflect.ClassTag
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun2, Primitives}
-import net.turambar.palimpsest.specialty.iterables.{FitIterable, IterableTemplate}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.FitList
+import net.turambar.palimpsest.specialty.iterables.{AptIterable, IterableTemplate}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.ListSet
@@ -56,7 +55,7 @@ package object specialty {
 	@inline
 	private[palimpsest] final def ofKnownSize[T](col :GenTraversableOnce[T]) =  col match {
 		//todo: growing/shrinking collections' size can change during append; should they count as having fast size?
-		case fit :FitTraversableOnce[T] => fit.hasFastSize
+		case fit :Vals[T] => fit.hasFastSize
 		case _ :IndexedSeqLike[_, _] => true // ListSet is primarily used for hash collisions
 		case list :ListSet[_] => list.isEmpty || list.tail.isEmpty || list.tail.tail.isEmpty || list.tail.tail.tail.isEmpty
 		case _ :BitSetLike[_] => false
@@ -66,14 +65,14 @@ package object specialty {
 
 
 
-	private[specialty] def concat[E, R](first :FitTraversableOnce[E], second :TraversableOnce[E])(builder :Builder[E, R]) :R = {
+	private[specialty] def concat[E, R](first :Vals[E], second :TraversableOnce[E])(builder :Builder[E, R]) :R = {
 		if (first.hasFastSize && ofKnownSize(second))
 			builder sizeHint first.size + second.size
 		builder ++= first ++= second
 		builder.result()
 	}
 
-	private[specialty] def concat[E, R](first :TraversableOnce[E], second :FitTraversableOnce[E])(builder :Builder[E, R]) :R = {
+	private[specialty] def concat[E, R](first :TraversableOnce[E], second :Vals[E])(builder :Builder[E, R]) :R = {
 		if (second.hasFastSize && ofKnownSize(first))
 			builder sizeHint first.size + second.size
 		builder ++= first ++= second
@@ -83,14 +82,14 @@ package object specialty {
 
 
 	private[specialty] def span[@specialized(ItemTypes) E, R]
-	                           (src :FitIterator[E], prefix :FitBuilder[E, R], suffix :FitBuilder[E, R])(p :E => Boolean) :(R, R) =
+	(src :AptIterator[E], prefix :AptBuilder[E, R], suffix :AptBuilder[E, R])(p :E => Boolean) :(R, R) =
 	{
 		while (src.hasNext && p(src.head)) prefix += src.next()
 		while (src.hasNext) suffix += src.next()
 		(prefix.result(), suffix.result())
 	}
 
-	private[specialty] def filter[@specialized(ItemTypes) E, R](src :FitIterator[E], builder :FitBuilder[E, R])
+	private[specialty] def filter[@specialized(ItemTypes) E, R](src :AptIterator[E], builder :AptBuilder[E, R])
 	                                                           (p :E => Boolean, neoTruth :Boolean = true) :R =
 	{
 		while (src.hasNext) {
@@ -102,7 +101,7 @@ package object specialty {
 	}
 
 	private[specialty] def partition[@specialized(ItemTypes) E, R]
-	                                (src :FitIterator[E], whereTrue :FitBuilder[E, R], whereFalse :FitBuilder[E, R])
+	                                (src :AptIterator[E], whereTrue :AptBuilder[E, R], whereFalse :AptBuilder[E, R])
 	                                (p :E => Boolean) :(R, R) =
 	{
 		while (src.hasNext) {

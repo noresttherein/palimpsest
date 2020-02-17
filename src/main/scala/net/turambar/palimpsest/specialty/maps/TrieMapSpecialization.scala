@@ -4,7 +4,7 @@ import net.turambar.palimpsest.specialty.sets.{SetSpecialization, ValSet}
 import net.turambar.palimpsest.specialty.tries.TrieElements.{ElementCounter, ElementOf}
 import net.turambar.palimpsest.specialty.tries.{BinaryTrie, GenericBinaryTrie, TrieElements, TrieFriends, TriePotIterableFoundation, TriePotIterableSpecialization, ValueTrie}
 import net.turambar.palimpsest.specialty.tries.GenericBinaryTrie.BinaryTriePatch
-import net.turambar.palimpsest.specialty.{?, FitTraversableOnce}
+import net.turambar.palimpsest.specialty.{?, Vals}
 import net.turambar.palimpsest.specialty.tries.BinaryTrieKeySetFactory.SharingTrieOp
 
 import scala.annotation.unspecialized
@@ -16,7 +16,7 @@ import scala.collection.{GenTraversableOnce, LinearSeq}
   */
 trait TrieMapSpecialization[K, TK, +V, F <: BinaryTrie[TK, F] with ValueTrie[TK, V, F],
                             T <: GenericBinaryTrie[TK, F, T] with TrieFriends[TK, F, F] with TrieElements[TK, F, T] with F,
-                            +M <: FitMap[K, V] with MapKeySpecialization[K, V, M]]
+                            +M <: AptMap[K, V] with MapKeySpecialization[K, V, M]]
 	extends TriePotIterableFoundation[TK, F, T, (K, V), M] with MapKeySpecialization[K, V, M]
 	   with TriePotIterableSpecialization[TK, F, T, (K, V), M] with ElementOf[(K, V), F]
 {
@@ -37,7 +37,7 @@ trait TrieMapSpecialization[K, TK, +V, F <: BinaryTrie[TK, F] with ValueTrie[TK,
 
 	protected[this] def patchTrie(t :T, mapKey :K)(patch :BinaryTriePatch[TK, F, T]) :T
 
-	protected[this] def patchTrie(t :T, elems :FitTraversableOnce[(K, V)])(patch :((K, V)) => BinaryTriePatch[TK, F, T]) :T = {
+	protected[this] def patchTrie(t :T, elems :Vals[(K, V)])(patch :((K, V)) => BinaryTriePatch[TK, F, T]) :T = {
 		var res = t; val it = elems.toIterator
 		while (it.hasNext) {
 			val kv = it.next()

@@ -2,8 +2,8 @@ package net.turambar.palimpsest.specialty.seqs
 
 import scala.collection.generic.CanBuildFrom
 import scala.reflect._
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableFoundation, SpecializableIterable, SpecializableIterableFactory}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, IterableFoundation, SpecializableIterable, SpecializableIterableFactory}
 import net.turambar.palimpsest.specialty._
 import net.turambar.palimpsest.specialty.iterators.ArrayIterator
 
@@ -19,8 +19,8 @@ import scala.collection.{IndexedSeqOptimized, LinearSeq, LinearSeqLike}
   * as ''views'' on the parent sequence - any modifications made to one collection will be visible in the other.
   */
 trait ArrayView[@specialized(ItemTypes) +E]
-	extends LinearSeq[E] with LinearSeqLike[E, ArrayView[E]] with IndexedSeqOptimized[E, ArrayView[E]] //generic interface extracted so it doesn't override FitIndexedSeq methods
-	   with FitIndexedSeq[E] with ArrayViewLike[E, ArrayView[E]] with CloneableIterable[E, ArrayView[E]]
+	extends LinearSeq[E] with LinearSeqLike[E, ArrayView[E]] with IndexedSeqOptimized[E, ArrayView[E]] //generic interface extracted so it doesn't override AptIndexedSeq methods
+	   with AptIndexedSeq[E] with ArrayViewLike[E, ArrayView[E]] with CloneableIterable[E, ArrayView[E]]
 	   with SpecializableIterable[E, ArrayView]
 {
 	@unspecialized override protected[this] def thisCollection :ArrayView[E] = this
@@ -44,7 +44,7 @@ trait ArrayView[@specialized(ItemTypes) +E]
 	
 	
 	
-	override def companion: FitCompanion[ArrayView] = ArrayView
+	override def companion: AptCompanion[ArrayView] = ArrayView
 
 
 	protected[this] def writeReplace :AnyRef =
@@ -271,7 +271,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
       * @tparam E element type of the built sequence
       * @return a builder for `S[E]` specialized according to the variant of this method.
 	  */
-	@inline override final def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, S[E]] =
+	@inline override final def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, S[E]] =
 		new ArrayViewBuilder[E](RuntimeType[E].emptyArray.asInstanceOf[Array[E]])
 
 
@@ -284,7 +284,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 	  * @param specialization implicit specialization information used to determine both
 	  *                       proper specialized variant of this sequence and backing array component type.
 	  */
-	@inline final override def builder[E](implicit specialization :RuntimeType[E]) :FitBuilder[E, S[E]] =
+	@inline final override def builder[E](implicit specialization :RuntimeType[E]) :AptBuilder[E, S[E]] =
 		specialization.call(SpecificBuilder)
 	//todo: rename ^this to build[E]
 
@@ -302,7 +302,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 //	  * @tparam E element type of the sequence
 //	  * @return a specialized builder proper for the given element type.
 //	  */
-//	@inline final def buildAs[E](implicit elementType :ClassTag[E]) :FitBuilder[E, S[E]] =
+//	@inline final def buildAs[E](implicit elementType :ClassTag[E]) :AptBuilder[E, S[E]] =
 //		SpecificBuilder[E]()
 
 	/** Builder for a sequence backed by an array of the given component type. Returned builder - and built sequence -
@@ -310,14 +310,14 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 	  * @param elementType component type of the array used by the builder and the final sequence.
 	  * @return a specialized builder proper for the given element type.
 	  */
-	@inline final def buildAsClass[E](elementType :Class[E]) :FitBuilder[E, S[E]] =
+	@inline final def buildAsClass[E](elementType :Class[E]) :AptBuilder[E, S[E]] =
 		RuntimeType.ofClass(elementType).call(SpecificBuilder)
 
 
 
-	@inline final def newReverseBuilder[@specialized(ItemTypes) E] :FitBuilder[E, S[E]] = new ReverseArrayViewBuilder[E]()
+	@inline final def newReverseBuilder[@specialized(ItemTypes) E] :AptBuilder[E, S[E]] = new ReverseArrayViewBuilder[E]()
 
-	@inline final def buildReversed[E](ofType :RuntimeType[E]) :FitBuilder[E, S[E]] = ofType.call(NewReverseBuilder)
+	@inline final def buildReversed[E](ofType :RuntimeType[E]) :AptBuilder[E, S[E]] = ofType.call(NewReverseBuilder)
 
 	protected[this] final val NewReverseBuilder :Specialize[SpecializedBuilder] = new Specialize[SpecializedBuilder] {
 		override def specialized[@specialized E : RuntimeType]: SpecializedBuilder[E] = newReverseBuilder[E]
@@ -332,10 +332,10 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 
 	protected class CanBuildRefArray[E :RuntimeType] extends CanBuildSpecialized[E] {
 
-		override def apply(from: S[_]): FitBuilder[E, S[E]] =
+		override def apply(from: S[_]): AptBuilder[E, S[E]] =
 			from.builder[E](specialization)
 
-		override def apply(): FitBuilder[E, S[E]] = //newBuilder[E]
+		override def apply(): AptBuilder[E, S[E]] = //newBuilder[E]
 			new ArrayViewBuilder[E](runtimeType.emptyArray.asInstanceOf[Array[E]])
 
 
@@ -352,7 +352,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 
 
 	protected sealed class ArrayViewBuilder[@specialized(ItemTypes) E](protected[this] final var array :Array[E])
-		extends IterableFoundation[E, SharedArrayBuffer[E]] with FitBuilder[E, S[E]] with DefaultArrayBuffer[E]
+		extends IterableFoundation[E, SharedArrayBuffer[E]] with AptBuilder[E, S[E]] with DefaultArrayBuffer[E]
 	{
 		def this()(implicit elementType :ClassTag[E]) = this(new Array[E](0))
 
@@ -365,7 +365,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 			if (targetSize>array.length)
 				reserve(targetSize-array.length)
 
-		override def typeHint[L <: E](implicit specialization: RuntimeType[L]): FitBuilder[E, S[E]] =
+		override def typeHint[L <: E](implicit specialization: RuntimeType[L]): AptBuilder[E, S[E]] =
 			if (length>0 || specialization =:= specialization)
 				this
 			else if (specialization.isValueType)
@@ -376,7 +376,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 
 
 		@unspecialized
-		override def ++=(elems: FitTraversableOnce[E]) :this.type = { appendAll(elems); this }
+		override def ++=(elems: Vals[E]) :this.type = { appendAll(elems); this }
 
 
 		override def result(): S[E] = { //todo: verify this is properly specialized
@@ -396,7 +396,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 
 
 	protected final class ReverseArrayViewBuilder[@specialized(ItemTypes) E](buffer :GrowingArrayBuffer[E] = new GrowingArrayBuffer[E]())
-		extends FitBuilder[E, S[E]]
+		extends AptBuilder[E, S[E]]
 	{
 
 		override def addOne :E=>Unit = { e :E => e +=: buffer }
@@ -421,7 +421,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 	}
 	
 /*
-	private class InverseArrayBuilder[@specialized(Elements) E](buffer :GrowingArrayBuffer[E]) extends FitBuilder[E, S[E]] {
+	private class InverseArrayBuilder[@specialized(Elements) E](buffer :GrowingArrayBuffer[E]) extends AptBuilder[E, S[E]] {
 		override val addOne :E=>Unit = { e :E => e +=: buffer }
 		
 		override def ++=(xs: TraversableOnce[E]): this.type = xs match {
@@ -439,7 +439,7 @@ abstract class ArrayViewFactory[S[@specialized(ItemTypes) X] <: ArrayView[X] wit
 			res
 		}
 		
-		override def reverseResult: FitBuilder[E, S[E]] = new Array
+		override def reverseResult: AptBuilder[E, S[E]] = new Array
 
 		override def size: Int = ???
 		

@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.sets
 
 import java.lang.Double.{doubleToLongBits, longBitsToDouble}
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.AVLTree
 import net.turambar.palimpsest.specialty.maps.AVLTree.EntryLens
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
@@ -57,9 +57,9 @@ private[sets] class StableDoubleTreeSet(protected val root :AVLTree[Long, Unit],
 
 
 
-	override def keysIteratorFrom(start :Double) :FitIterator[Double] = {
+	override def keysIteratorFrom(start :Double) :AptIterator[Double] = {
 		val tree = root
-		if (tree == null) FitIterator.Empty
+		if (tree == null) AptIterator.Empty
 		else tree.iteratorFrom(this)(doubleToLongBits(start))(keyOrdering)
 	}
 

@@ -4,30 +4,33 @@ import scala.annotation.{tailrec, unspecialized}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.LinearSeq
 import scala.collection.{mutable, GenSeq, LinearSeqLike, SeqLike}
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
-import net.turambar.palimpsest.specialty.iterators.{CountdownIterator, FitIterator}
-import net.turambar.palimpsest.specialty.seqs.FitList.{FitListBuilder, FitListIterator, FullLink, Link, Terminus}
-import net.turambar.palimpsest.specialty.seqs.FitSeq.SeqFoundation
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, IterableSpecialization, SpecializableIterable, SpecializableIterableFactory, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterators.{CountdownIterator, AptIterator}
+import net.turambar.palimpsest.specialty.seqs.AptList.{AptListBuilder, AptListIterator, FullLink, Link, Terminus}
+import net.turambar.palimpsest.specialty.seqs.AptSeq.SeqFoundation
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized
+
+
+
 
 /** Specialized linked list with O(1) `length` and O(1) `take` operations.
   * Random indexing and `drop` still take O(n), though.
-  * In line with [[FitSeq]] philosophy, slicing tries to share the contents and return view on
+  * In line with [[AptSeq]] philosophy, slicing tries to share the contents and return view on
   * the parent sequence which will prevent 'dropped' tails from garbage collection -
   * make a copy if you want to store one for longer and suspect it's only a fragment of a larger structure.
   *
   * @author Marcin Mościcki
   */
-class FitList[@specialized(ItemTypes) +E] private[seqs] (
+class AptList[@specialized(ItemTypes) +E] private[seqs](
 		override val length :Int,
 		start :Link[E]
-	) extends SeqFoundation[E, FitList[E]] with LinearSeq[E] with LinearSeqLike[E, FitList[E]]
-	     with IterableSpecialization[E, FitList[E]] with StableSeq[E] with SliceLike[E, FitList[E]]
-	     with SpecializableIterable[E, FitList]
-	     with StableIterableTemplate[E, FitList[E]] with CloneableIterable[E, FitList[E]] with OfKnownSize
+	) extends SeqFoundation[E, AptList[E]] with LinearSeq[E] with LinearSeqLike[E, AptList[E]]
+	     with IterableSpecialization[E, AptList[E]] with StableSeq[E] with SliceLike[E, AptList[E]]
+	     with SpecializableIterable[E, AptList]
+	     with StableIterableTemplate[E, AptList[E]] with CloneableIterable[E, AptList[E]] with OfKnownSize
 {
 	import Specialized.Fun2Vals
 
@@ -41,10 +44,10 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 		if (n<=0) l
 		else dropped(n-1, l.tail)
 
-	override protected def section(from: Int, until: Int): FitList[E] =
-		new FitList(until - from, dropped(from))
+	override protected def section(from: Int, until: Int): AptList[E] =
+		new AptList(until - from, dropped(from))
 
-	override protected[this] def empty: FitList[E] = FitList.Empty
+	override protected[this] def empty: AptList[E] = AptList.Empty
 
 	override protected[this] def at(idx: Int): E = dropped(idx).head
 //	override def apply(idx :Int) :E =
@@ -54,7 +57,7 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 
 	override def head: E =
 		if (length>0) start.head
-		else throw new NoSuchElementException(s"FitList().head")
+		else throw new NoSuchElementException(s"AptList().head")
 
 	override def head_? : ?[E] =
 		if (length > 0) Sure(start.head)
@@ -66,7 +69,7 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 
 	override def last :E =
 		if (length>0) dropped(length-1).head
-		else throw new NoSuchElementException(s"FitList().last")
+		else throw new NoSuchElementException(s"AptList().last")
 
 	override def lastOption :Option[E] =
 		if (length>0) Some(dropped(length-1).head)
@@ -74,15 +77,15 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 
 	/************** Slicing methods ***************/
 
-	override def tail :FitList[E] =
-		if (length==0) throw new UnsupportedOperationException(s"FitList().tail")
-		else new FitList(length-1, start.tail)
+	override def tail :AptList[E] =
+		if (length==0) throw new UnsupportedOperationException(s"AptList().tail")
+		else new AptList(length-1, start.tail)
 
 
-	override def dropWhile(p: E => Boolean): FitList[E] = {
+	override def dropWhile(p: E => Boolean): AptList[E] = {
 		var len=length; var elems=start
 		while(len>0 && p(elems.head)) { len-=1; elems=elems.tail }
-		new FitList(len, elems)
+		new AptList(len, elems)
 	}
 
 
@@ -212,7 +215,7 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 
 
 
-	override def filter(p :E => Boolean, value :Boolean) :FitList[E] = {
+	override def filter(p :E => Boolean, value :Boolean) :AptList[E] = {
 		val builder = newBuilder
 		var i = 0; val l = length; var link = start
 		while (i < l) {
@@ -227,22 +230,22 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 
 
 	@unspecialized
-	override def reverse: FitList[E] = inverse
+	override def reverse: AptList[E] = inverse
 
-	override def inverse: FitList[E] = {
+	override def inverse: AptList[E] = {
 		var l = length; var tail :Link[E] = Terminus; var elem = start
 		while(l>0) {
 			tail = new FullLink[E](elem.head, tail)
 			elem = elem.tail
 			l -= 1
 		}
-		new FitList[E](length, tail)
+		new AptList[E](length, tail)
 	}
 
-	override def iterator: FitIterator[E] = new FitListIterator(start, length)
+	override def iterator: AptIterator[E] = new AptListIterator(start, length)
 
 	@unspecialized
-	override def reverseIterator: FitIterator[E] = inverse.iterator
+	override def reverseIterator: AptIterator[E] = inverse.iterator
 
 
 
@@ -258,24 +261,24 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 	}
 	
 	
-//	override protected[this] def defaultImpl: SeqLike[E, FitList[E]] = new LinearSeq[E] with SeqLike[E, FitList[E]] {
-//		override def seq: LinearSeq[E] = FitList.this
-//		override def length: Int = FitList.this.length
-//		override def apply(idx: Int): E = FitList.this.apply(idx)
-//		override protected[this] def newBuilder: mutable.Builder[E, FitList[E]] = FitList.this.newBuilder
+//	override protected[this] def defaultImpl: SeqLike[E, AptList[E]] = new LinearSeq[E] with SeqLike[E, AptList[E]] {
+//		override def seq: LinearSeq[E] = AptList.this
+//		override def length: Int = AptList.this.length
+//		override def apply(idx: Int): E = AptList.this.apply(idx)
+//		override protected[this] def newBuilder: mutable.Builder[E, AptList[E]] = AptList.this.newBuilder
 //	}
 	
-	override def companion: FitCompanion[FitList] = FitList
+	override def companion: AptCompanion[AptList] = AptList
 	
 	
-	override protected[this] def newBuilder: FitBuilder[E, FitList[E]] =
-		new FitListBuilder
+	override protected[this] def newBuilder: AptBuilder[E, AptList[E]] =
+		new AptListBuilder
 	
-	override def seq :FitList[E] = this
-	override protected[this] def thisCollection :FitList[E] = this
-	protected[this] override def toCollection(repr: FitList[E]): FitList[E] = repr
+	override def seq :AptList[E] = this
+	override protected[this] def thisCollection :AptList[E] = this
+	protected[this] override def toCollection(repr: AptList[E]): AptList[E] = repr
 	
-	override protected[this] def typeStringPrefix: String = "FitList"
+	override protected[this] def typeStringPrefix: String = "AptList"
 }
 
 
@@ -283,61 +286,61 @@ class FitList[@specialized(ItemTypes) +E] private[seqs] (
 
 
 
-object FitList extends SpecializableIterableFactory[FitList] {
+object AptList extends SpecializableIterableFactory[AptList] {
 
-	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitList[_], E, FitList[E]]): CanBuildFrom[FitList[_], E, FitList[E]] =
+	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[AptList[_], E, AptList[E]]): CanBuildFrom[AptList[_], E, AptList[E]] =
 		fit.cbf
 
 
 	final val Empty = empty[Nothing]
 
-	override def empty[@specialized(ItemTypes) E]: FitList[E] = new FitList(0, Terminus)
+	override def empty[@specialized(ItemTypes) E]: AptList[E] = new AptList(0, Terminus)
 	
-//	override def specializedBuilder[@specialized(Elements) E: Specialized]: FitBuilder[E, FitList[E]] =
-//		new FitListBuilder[E]
+//	override def specializedBuilder[@specialized(Elements) E: Specialized]: AptBuilder[E, AptList[E]] =
+//		new AptListBuilder[E]
 	
-	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, FitList[E]] = new FitListBuilder[E]
+	override def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, AptList[E]] = new AptListBuilder[E]
 
-	def newReverseBuilder[@specialized(ItemTypes) E] :FitBuilder[E, FitList[E]] = new ReverseFitListBuilder[E]
-	
-	def reverseBuilder[E :RuntimeType] :ReverseFitListBuilder[E] = ReverseBuilder()
-	
-	private[this] final val ReverseBuilder = new Specialize[ReverseFitListBuilder] {
-		override def specialized[@specialized E : RuntimeType] = new ReverseFitListBuilder[E]
+	def newReverseBuilder[@specialized(ItemTypes) E] :AptBuilder[E, AptList[E]] = new ReverseAptListBuilder[E]
+
+	def reverseBuilder[E :RuntimeType] :ReverseAptListBuilder[E] = ReverseBuilder()
+
+	private[this] final val ReverseBuilder = new Specialize[ReverseAptListBuilder] {
+		override def specialized[@specialized E : RuntimeType] = new ReverseAptListBuilder[E]
 	}
-	
+
 
 	private[seqs] sealed trait Link[@specialized(ItemTypes) +E] {
 		def head :E
 		def tail :Link[E]
 	}
-	
+
 	private[seqs] object Terminus extends Link[Nothing] {
-		override def head: Nothing = throw new NoSuchElementException("FitList().head")
-		override def tail: Link[Nothing] = throw new UnsupportedOperationException("FitList().tail")
+		override def head: Nothing = throw new NoSuchElementException("AptList().head")
+		override def tail: Link[Nothing] = throw new UnsupportedOperationException("AptList().tail")
 	}
-	
-	private[seqs] final class FullLink[@specialized(ItemTypes) E](override val head :E, private[FitList] var t :Link[E]=Terminus) extends Link[E] {
+
+	private[seqs] final class FullLink[@specialized(ItemTypes) E](override val head :E, private[AptList] var t :Link[E]=Terminus) extends Link[E] {
 		override def tail = t
 	}
-	
-	
-	private[seqs] class FitListIterator[@specialized(ItemTypes) E] private[seqs]
+
+
+	private[seqs] class AptListIterator[@specialized(ItemTypes) E] private[seqs]
 			(private[this] final var contents :Link[E], max :Int)
-		extends CountdownIterator[E](max) with FitIterator[E]
+		extends CountdownIterator[E](max) with AptIterator[E]
 	{
 		override def head: E = contents.head
-		
+
 		override def next(): E = {
 			val res = contents.head
 			contents = contents.tail
 			limit -= 1
 			res
 		}
-		
+
 		override def skip(): Unit = { contents = contents.tail; limit -=1 }
-		
-		
+
+
 		override protected[this] def specializedCopy(xs: Array[E], start: Int, len: Int): Unit = {
 			val total = math.min(len, limit)
 			var i = start; val e = start + total
@@ -349,21 +352,21 @@ object FitList extends SpecializableIterableFactory[FitList] {
 			limit -= total
 		}
 	}
-	
-	
-	private[seqs] class FitListBuilder[@specialized(ItemTypes) E] extends FitBuilder[E, FitList[E]] {
+
+
+	private[seqs] class AptListBuilder[@specialized(ItemTypes) E] extends AptBuilder[E, AptList[E]] {
 		private[this] var length :Int=0
 		private[this] var tail :FullLink[E] = new FullLink(RuntimeType[E].default)
 		private[this] var head :FullLink[E] = tail
-		
+
 
 		override def addOne :E=>Unit = { e :E =>
 			val last = new FullLink(e)
 			tail.t = last; tail = last
 			length += 1
 		}
-		
-		
+
+
 		override def +=(elem: E): this.type = {
 			val last = new FullLink(elem)
 			tail.t = last
@@ -371,22 +374,22 @@ object FitList extends SpecializableIterableFactory[FitList] {
 			length += 1
 			this
 		}
-		
-		override def result(): FitList[E] = {
+
+		override def result(): AptList[E] = {
 			val res = head
 			head = new FullLink(RuntimeType[E].default)
 			tail = head
 			length = 0
-			new FitList(length, res)
+			new AptList(length, res)
 		}
-			
-		
+
+
 		override def clear(): Unit = {
 			head = new FullLink(RuntimeType[E].default); tail = head; length=0
 		}
 	}
-	
-	private[seqs] class ReverseFitListBuilder[@specialized(ItemTypes) E] extends FitBuilder[E, FitList[E]] {
+
+	private[seqs] class ReverseAptListBuilder[@specialized(ItemTypes) E] extends AptBuilder[E, AptList[E]] {
 		private[this] var length :Int=0
 		private[this] var head :Link[E] = Terminus
 		
@@ -400,7 +403,7 @@ object FitList extends SpecializableIterableFactory[FitList] {
 			this
 		}
 		
-		override def result(): FitList[E] = new FitList[E](length, head)
+		override def result(): AptList[E] = new AptList[E](length, head)
 		
 		override def clear(): Unit = {
 			length = 0; head = Terminus

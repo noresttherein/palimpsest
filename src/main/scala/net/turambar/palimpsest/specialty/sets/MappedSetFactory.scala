@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, FitBuilder, Sure}
-import net.turambar.palimpsest.specialty.iterators.FitIterator.MappedIterator
+import net.turambar.palimpsest.specialty.{?, Blank, ItemTypes, AptBuilder, Sure}
+import net.turambar.palimpsest.specialty.iterators.AptIterator.MappedIterator
 import net.turambar.palimpsest.specialty.iterables.EmptyIterableFoundation
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Res, Fun2}
 
@@ -25,7 +25,7 @@ abstract class MappedSetFactory[@specialized(Int, Long) X, @specialized(Byte, Sh
 
 	def empty = Empty
 
-	def newBuilder :FitBuilder[Y, StableSet[Y]] =
+	def newBuilder :AptBuilder[Y, StableSet[Y]] =
 		impl.newBuilder.mapInput(To).mapResult(ints => new MappedSet(ints))
 
 	override def Singleton(value :Y) :StableSet[Y] = new MappedSet(impl.Singleton(To(value)))

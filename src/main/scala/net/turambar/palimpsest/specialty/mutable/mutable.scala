@@ -6,14 +6,14 @@ import net.turambar.palimpsest.specialty.sets.{MutableOrderedSet, MutableSet, Mu
 import net.turambar.palimpsest.specialty.maps.{KeyTypes, MutableMap, MutableOrderedMap, ValueTypes}
 
 package object mutable {
-	type FitIterable[@specialized(ItemTypes) E] = MutableIterable[E]
-	final val FitIterable = MutableIterable
+	type AptIterable[@specialized(ItemTypes) E] = MutableIterable[E]
+	final val AptIterable = MutableIterable
 
-	type FitSeq[@specialized(ItemTypes) E] = MutableSeq[E]
-	final val FitSeq = MutableSeq
+	type AptSeq[@specialized(ItemTypes) E] = MutableSeq[E]
+	final val AptSeq = MutableSeq
 
-//	type FitIndexedSeq[@specialized(ItemTypes) +E] = MutableIndexedSeq[E]
-//	final val FitIndexedSeq = MutableIndexedSeq
+//	type AptIndexedSeq[@specialized(ItemTypes) +E] = MutableIndexedSeq[E]
+//	final val AptIndexedSeq = MutableIndexedSeq
 
 	type ValSeq[@specialized(ItemTypes) E] = seqs.ValSeq[E] with MutableSeq[E]
 
@@ -28,8 +28,8 @@ package object mutable {
 	final val TreeSet = MutableTreeSet
 
 
-	type FitMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V] = MutableMap[K, V]
-	final val FitMap = MutableMap
+	type AptMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V] = MutableMap[K, V]
+	final val AptMap = MutableMap
 
 	type OrderedMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V] = MutableOrderedMap[K, V]
 	final val OrderedMap = MutableOrderedMap

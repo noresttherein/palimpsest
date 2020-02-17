@@ -3,7 +3,7 @@ package net.turambar.palimpsest.specialty.maps
 import scala.annotation.unspecialized
 import scala.collection.{mutable, GenTraversableOnce, SortedMap}
 
-import net.turambar.palimpsest.specialty.FitBuilder
+import net.turambar.palimpsest.specialty.AptBuilder
 
 
 /**
@@ -13,7 +13,7 @@ trait MutableOrderedMap[@specialized(KeyTypes) K, @specialized(ValueTypes) V]
 	extends mutable.Map[K, V] with mutable.MapLike[K, V, MutableOrderedMap[K, V]]
 	   with OrderedMap[K, V] with OrderedMapKeySpecialization[K, V, MutableOrderedMap[K, V]]
 	   with MutableMap[K, V] with SpecializableMap[K, V, MutableOrderedMap]
-	   with FitBuilder[(K, V), MutableOrderedMap[K, V]]
+	   with AptBuilder[(K, V), MutableOrderedMap[K, V]]
 {
 	@unspecialized
 	override def empty :MutableOrderedMap[K, V] = MutableOrderedMap.of[K, V](ordering, keyType, valueSpecialization)

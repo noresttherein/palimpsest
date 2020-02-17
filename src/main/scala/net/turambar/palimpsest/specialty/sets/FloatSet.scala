@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.FitBuilder
+import net.turambar.palimpsest.specialty.AptBuilder
 
 /*
 /**
@@ -16,7 +16,7 @@ object FloatSet {
 	
 	def empty :StableSet[Float] = Empty
 	
-	def newBuilder :FitBuilder[Float, StableSet[Float]] =
+	def newBuilder :AptBuilder[Float, StableSet[Float]] =
 		IntSet.newBuilder.mapInput(FloatToInt).mapResult(ints => new IntSet.ViewAs[Float](IntToFloat, FloatToInt)(ints))
 
 	def singleton(value :Float) :StableSet[Float] = new IntSet.ViewAs[Float](IntToFloat, FloatToInt)(IntSet.singleton(floatToRawIntBits(value)))
@@ -26,7 +26,7 @@ object FloatSet {
 //
 //	object Sorted {
 //		final val Empty :SortedFitSet[Float] = new IntSet.SortedViewAs[Float](IntToFloat, FloatToInt)(IntSet.Sorted.Empty)
-//		def newBuilder :FitBuilder[Float, SortedFitSet[Float]] = IntSet.Sorted.newBuilder.mapInput(FloatToInt).mapResult(
+//		def newBuilder :AptBuilder[Float, SortedFitSet[Float]] = IntSet.Sorted.newBuilder.mapInput(FloatToInt).mapResult(
 //			ints => new IntSet.SortedViewAs[Float](IntToFloat, FloatToInt)(ints)
 //		)
 //		def Singleton(value :Float) :SortedFitSet[Float] = new IntSet.SortedViewAs[Float](IntToFloat, FloatToInt)(IntSet.Sorted.Singleton(value))

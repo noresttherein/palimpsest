@@ -5,14 +5,14 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.IndexedSeq
 import scala.collection.{GenIterable, GenSeq, GenTraversableOnce, IndexedSeqLike, IndexedSeqOptimized, SeqLike, immutable, mutable}
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterators.{IndexedIterator, ReverseIndexedIterator}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1Vals
-import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, RuntimeType, ofKnownSize}
+import net.turambar.palimpsest.specialty.{ItemTypes, AptBuilder, RuntimeType, ofKnownSize}
 
 
 /** An interface base trait for sequence-like collections which provide reasonably efficient slicing
-  * operations. Serves as the highest upper bound for specialized `Seq`s (all `FitSeq` implementations),
+  * operations. Serves as the highest upper bound for specialized `Seq`s (all `AptSeq` implementations),
   * but isn't specialized itself. Instead, it provides reasonable defaults for all methods that
   * can be implemented without specialization and attempts to minimise the number of specialized
   * methods required of subclasses.
@@ -25,8 +25,8 @@ import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, RuntimeType, of
   *	  - [[SliceLike#splitAt]] and [[SliceLike#span]] (optionally, if arbitrary `section` operations aren't effective)
   *
   * @tparam E    specialized element type
-  * @tparam Repr a specialized collection, assumed to be a subclass of [[FitSeq]]
-  * @see [[FitSeq]]
+  * @tparam Repr a specialized collection, assumed to be a subclass of [[AptSeq]]
+  * @see [[AptSeq]]
   * @author Marcin Mościcki
   */
 trait SliceLike[+E, +Repr] extends SeqLike[E, Repr] with SeqTemplate[E, Repr] { //SeqLike for super calls

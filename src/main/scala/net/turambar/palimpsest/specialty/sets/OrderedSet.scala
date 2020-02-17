@@ -1,12 +1,12 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.{?, FitBuilder, ItemTypes, RuntimeType, Specialize}
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, StableIterableTemplate}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.{?, AptBuilder, ItemTypes, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.iterables.{AptCompanion, StableIterableTemplate}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{immutable, mutable, GenTraversableOnce, SortedSet, SortedSetLike}
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.ordered.{OrderedAs, OrderedVals, ValOrdering}
 import net.turambar.palimpsest.specialty.sets.ValSet.{ConvertingSet, StableSetBuilder}
 import scala.annotation.unspecialized
@@ -32,7 +32,7 @@ trait OrderedSetTemplate[E, +This<:OrderedSetTemplate[E, This] with OrderedSet[E
 	extends SortedSetLike[E, This] with OrderedAs[E, This] with SetSpecialization[E, This]
 {
 
-	override def iteratorFrom(start: E) :FitIterator[E] = keysIteratorFrom(start)
+	override def iteratorFrom(start: E) :AptIterator[E] = keysIteratorFrom(start)
 
 
 	def +(elem :E) :This
@@ -90,7 +90,7 @@ trait OrderedSet[@specialized(ItemTypes) E] //todo: mix-in order of OrderedVals 
 
 	override def factory :OrderedSetFactory[OrderedSet] = OrderedSet
 
-	override def reverseIterator: FitIterator[E] = inverse.iterator
+	override def reverseIterator: AptIterator[E] = inverse.iterator
 
 
 //	@unspecialized
@@ -101,7 +101,7 @@ trait OrderedSet[@specialized(ItemTypes) E] //todo: mix-in order of OrderedVals 
 		else new OrderedSetRange[E](this, from, until)
 
 	/** Overriden due to inheriting double declarations: from `SortedSetLike` and `OrderedAs`. */
-	@inline final override def iteratorFrom(start: E) :FitIterator[E] = keysIteratorFrom(start)
+	@inline final override def iteratorFrom(start: E) :AptIterator[E] = keysIteratorFrom(start)
 
 
 
@@ -177,9 +177,9 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SpecializableOrdere
 
 	def one[@specialized(ItemTypes) E :ValOrdering](singleton :E) :S[E] = (newBuilder[E] += singleton).result()
 
-	def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, S[E]] = new StableSetBuilder[E, S[E]](empty)
+	def newBuilder[@specialized(ItemTypes) E :ValOrdering] :AptBuilder[E, S[E]] = new StableSetBuilder[E, S[E]](empty)
 
-	def builder[E :ValOrdering :RuntimeType] :FitBuilder[E, S[E]] = Builder(ValOrdering[E])
+	def builder[E :ValOrdering :RuntimeType] :AptBuilder[E, S[E]] = Builder(ValOrdering[E])
 
 
 
@@ -189,7 +189,7 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SpecializableOrdere
 		override def specialized[@specialized E :RuntimeType](param :ValOrdering[E]) = empty[E](param)
 	}
 
-	private[this] type Builder[E] = FitBuilder[E, S[E]]
+	private[this] type Builder[E] = AptBuilder[E, S[E]]
 
 	private[this] final val Builder :Specialize.With[Builder, ValOrdering] = new Specialize.With[Builder, ValOrdering] {
 		override def specialized[@specialized E :RuntimeType](param :ValOrdering[E]) = newBuilder(param)
@@ -202,9 +202,9 @@ abstract class OrderedSetFactory[+S[E] <: OrderedSet[E] with SpecializableOrdere
 	{
 		override def specialization :RuntimeType[E] = RuntimeType.specialized[E]
 
-		override def apply(from :S[_]) :FitBuilder[E, S[E]] = newBuilder[E]
+		override def apply(from :S[_]) :AptBuilder[E, S[E]] = newBuilder[E]
 
-		override def apply() :FitBuilder[E, S[E]] = newBuilder[E]
+		override def apply() :AptBuilder[E, S[E]] = newBuilder[E]
 
 	}
 
@@ -275,7 +275,7 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 			(source :OrderedSetTemplate[E, S]).rangeImpl(min, max)
 		}
 
-		override def iterator :FitIterator[E] = {
+		override def iterator :AptIterator[E] = {
 			val iter =
 				if (minKey.isEmpty) source.iterator
 				else source.iteratorFrom(minKey.get)
@@ -288,7 +288,7 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 			}
 		}
 
-		override def reverseIterator :FitIterator[E] = {
+		override def reverseIterator :AptIterator[E] = {
 			val ord = source.ordering
 			var iter = source.reverseIterator
 			if (maxKey.isDefined)
@@ -298,7 +298,7 @@ object OrderedSet extends OrderedSetFactoryImplicits[OrderedSet] {
 			iter
 		}
 
-		override def keysIteratorFrom(start :E) :FitIterator[E] = {
+		override def keysIteratorFrom(start :E) :AptIterator[E] = {
 			val ord = source.ordering
 			val iter =
 				if (minKey.isEmpty) source.iteratorFrom(start)
@@ -355,7 +355,7 @@ object MutableOrderedSet extends OrderedSetFactoryImplicits[MutableOrderedSet] {
 
 	override def empty[@specialized(ItemTypes) E :ValOrdering] :MutableOrderedSet[E] = MutableTreeSet.empty[E]
 
-	override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :FitBuilder[E, MutableOrderedSet[E]] = empty[E]
+	override def newBuilder[@specialized(ItemTypes) E :ValOrdering] :AptBuilder[E, MutableOrderedSet[E]] = empty[E]
 
 
 	private[sets] class MutableOrderedSetRange[@specialized(ItemTypes) E](

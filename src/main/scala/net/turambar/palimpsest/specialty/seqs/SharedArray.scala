@@ -3,9 +3,9 @@ package net.turambar.palimpsest.specialty.seqs
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitCompanion, FitIterable, IterableFoundation, MutableIterable, SpecializableIterable}
-import net.turambar.palimpsest.specialty.{arrayFill, ofKnownSize, ItemTypes, FitTraversableOnce, RuntimeType}
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptCompanion, AptIterable, IterableFoundation, MutableIterable, SpecializableIterable}
+import net.turambar.palimpsest.specialty.{arrayFill, ofKnownSize, ItemTypes, Vals, RuntimeType}
 import scala.collection.mutable
 
 import net.turambar.palimpsest.specialty.seqs.ArrayPlus.shared
@@ -28,9 +28,9 @@ trait SharedArray[@specialized(ItemTypes) E]
 
 	override protected[palimpsest] def arr :Array[E] = array
 	
-	override def overwrite: FitBuffer[E] = LentArrayBuffer.upon(array, headIdx, length)
+	override def overwrite: AptBuffer[E] = LentArrayBuffer.upon(array, headIdx, length)
 	
-	override def overwrite(start: Int, length: Int): FitBuffer[E] =
+	override def overwrite(start: Int, length: Int): AptBuffer[E] =
 		if (start<0 || length<0 || start > this.length - length)
 			throw new IndexOutOfBoundsException(s"$stringPrefix{$size}.overwrite($start, $length)")
 		else new LentArrayBuffer[E](array, headIdx + start, headIdx + length)
@@ -102,7 +102,7 @@ trait SharedArray[@specialized(ItemTypes) E]
 	}
 
 
-	override def companion: FitCompanion[SharedArray] = SharedArray
+	override def companion: AptCompanion[SharedArray] = SharedArray
 	
 	override protected[this] def typeStringPrefix = "SharedArray"
 }
@@ -143,7 +143,7 @@ object SharedArray extends ArrayViewFactory[SharedArray] {
 		override protected def section(from: Int, until: Int): SharedArray[E] =
 			new MutableArrayView[E](array, headIdx + from, until-from)
 
-		override def companion: FitCompanion[SharedArray] = SharedArray
+		override def companion: AptCompanion[SharedArray] = SharedArray
 	}
 	
 }

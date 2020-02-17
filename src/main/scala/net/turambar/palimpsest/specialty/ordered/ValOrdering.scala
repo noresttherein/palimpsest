@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.ordered
 
 import net.turambar.palimpsest.specialty.{ItemTypes, RuntimeType, Specialize}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Fun1
-import net.turambar.palimpsest.specialty.iterables.FitIterable
+import net.turambar.palimpsest.specialty.iterables.AptIterable
 import net.turambar.palimpsest.specialty.ordered.ValOrdering.GenericOrdering
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.Numbers
@@ -198,8 +198,8 @@ object ValOrdering extends FallbackOrderingImplicits {
 
 
 
-	implicit class IterableOrdering[@specialized(ItemTypes) E](elems :ValOrdering[E]) extends ValOrdering[FitIterable[E]] {
-		override def compare(x: FitIterable[E], y: FitIterable[E]): Int = {
+	implicit class IterableOrdering[@specialized(ItemTypes) E](elems :ValOrdering[E]) extends ValOrdering[AptIterable[E]] {
+		override def compare(x: AptIterable[E], y: AptIterable[E]): Int = {
 			val xi = x.iterator; val yi = y.iterator
 			while (xi.hasNext && yi.hasNext) {
 				val diff = elems.compare(xi.next(), yi.next())

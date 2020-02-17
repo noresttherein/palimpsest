@@ -1,7 +1,7 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.{?, Blank, FitBuilder, FitTraversableOnce, RuntimeType, Sure, Var}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.{?, Blank, AptBuilder, Vals, RuntimeType, Sure, Var}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 import net.turambar.palimpsest.specialty.sets.StableLongSet.{flipSign, LongElementCounter}
 import net.turambar.palimpsest.specialty.sets.ValSet.ValSetBuilder
@@ -117,7 +117,7 @@ sealed trait LongSetLike[T <: LongTrieKeys[LongTrie, T] with LongTrie, S <: Orde
 			if (until.isDefined) plant(trie.untilKey(flipSign(until.get)), -1)
 			else (this  :SetSpecialization[Long, S]).clone()
 
-	override def keysIteratorFrom(start :Long) :FitIterator[Long] = trie.iteratorFrom(this)(flipSign(start))
+	override def keysIteratorFrom(start :Long) :AptIterator[Long] = trie.iteratorFrom(this)(flipSign(start))
 
 
 
@@ -227,7 +227,7 @@ class MutableLongSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 	override protected def patchTrie(elem :Long)(patch :BinaryTriePatch[Long, LongTrie, MutableLongTrie]) :Boolean =
 		trie.patchKey(patch, this)(elem ^ 0x8000000000000000L)
 
-	override protected def patchTrie(elems :FitTraversableOnce[Long])(patch :BinaryTriePatch[Long, LongTrie, MutableLongTrie]) :Unit =
+	override protected def patchTrie(elems :Vals[Long])(patch :BinaryTriePatch[Long, LongTrie, MutableLongTrie]) :Unit =
 		elems foreach { elem => trie.patchKey(patch, this)(elem ^ 0x8000000000000000L) }
 
 
@@ -238,7 +238,7 @@ class MutableLongSet private[sets] (keys :MutableLongTrie, keyCount :Int = -1)
 //	override def mutable :MutableLongSet = new MutableLongSet(trie.copy, unsureSize)
 
 	override def origin :AnyRef = MutableLongSet
-//	override def newBuilder :FitBuilder[Long, MutableLongSet] = empty
+//	override def newBuilder :AptBuilder[Long, MutableLongSet] = empty
 
 	protected[this] override def debugPrefix = "MutableLongSet"
 

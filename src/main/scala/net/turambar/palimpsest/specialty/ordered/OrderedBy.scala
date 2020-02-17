@@ -5,7 +5,7 @@ import scala.annotation.unspecialized
 import net.turambar.palimpsest.specialty.sets.{OrderedSet, ValSet}
 import net.turambar.palimpsest.specialty.{?, some_?, Blank, Sure}
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.MultiValue
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import scala.collection.generic.Sorted
 
 
@@ -47,9 +47,9 @@ trait OrderedBy[+T <: OrderedBy[T, K], @specialized(MultiValue) K] extends Sorte
 	}
 
 //	def reverseKeyIterator :FitIterator[K]
-	override def keysIteratorFrom(start :K) :FitIterator[K]
+	override def keysIteratorFrom(start :K) :AptIterator[K]
 
-	def keysIterator :FitIterator[K]
+	def keysIterator :AptIterator[K]
 
 	def empty :T
 
@@ -78,7 +78,7 @@ object OrderedBy {
 		override def keyAt(n: Int): K = throw new IndexOutOfBoundsException(s"empty $this.keyAt($n)")
 
 //		override def reverseKeyIterator: FitIterator[K] = FitIterator.empty
-		override def keysIteratorFrom(start: K): FitIterator[K] = FitIterator.empty
+		override def keysIteratorFrom(start: K): AptIterator[K] = AptIterator.empty
 
 		override def from(from: K) :T = this.asInstanceOf[T]
 		override def until(until: K) :T = this.asInstanceOf[T]
@@ -122,9 +122,9 @@ object OrderedBy {
 
 //		override def reverseKeyIterator: FitIterator[K] = FitIterator(key)
 
-		override def keysIteratorFrom(key :K) :FitIterator[K] =
-			if (lte(key, firstKey)) FitIterator.one(key)
-			else FitIterator.empty
+		override def keysIteratorFrom(key :K) :AptIterator[K] =
+			if (lte(key, firstKey)) AptIterator.one(key)
+			else AptIterator.empty
 
 		override def keySet :OrderedSet[K] = OrderedSet.one(firstKey)
 	}
@@ -145,7 +145,7 @@ object OrderedBy {
 
 //		override def contains(key :K) :Boolean = source.contains(key)
 
-		override def keysIteratorFrom(start :K) :FitIterator[K] = source.keysIteratorFrom(start)
+		override def keysIteratorFrom(start :K) :AptIterator[K] = source.keysIteratorFrom(start)
 
 		@unspecialized
 		override def keySet :OrderedSet[K] = source.keySet

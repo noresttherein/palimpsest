@@ -2,7 +2,7 @@ package net.turambar.palimpsest.specialty.maps
 
 import scala.annotation.{tailrec, unspecialized}
 import net.turambar.palimpsest.specialty.{?, maps, Blank, ItemTypes, Sure, Var}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.{Black, Color, EntryLens, Negative, Node, Positive, Red, RedBlackIterator, ReverseRedBlackIterator}
 
 import scala.collection.mutable.ArrayBuffer
@@ -221,7 +221,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 
 
-	def iterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :FitIterator[T] = {
+	def iterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :AptIterator[T] = {
 		//the stack will contain all the nodes on the path to the smallest key
 		val stack = new ArrayBuffer[Node[K, V]]
 		val sign = fillIteratorStack(stack)
@@ -253,7 +253,7 @@ private[palimpsest] sealed trait RedBlackTreeBase[K, V] { root :RedBlackTree[K, 
 
 
 
-	def reverseIterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :FitIterator[T] = {
+	def reverseIterator[@specialized(ItemTypes) T](lens :EntryLens[K, V, T]) :AptIterator[T] = {
 		//the stack will contain all the nodes on the path to the smallest key
 		val stack = new ArrayBuffer[Node[K, V]]
 		val sign = fillReverseIteratorStack(stack)
@@ -297,7 +297,7 @@ private[palimpsest] sealed trait RedBlackTreeKeySpecialization[@specialized(RawK
 
 
 
-	def iteratorFrom[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(start :K) :FitIterator[T] = {
+	def iteratorFrom[@specialized(ItemTypes) T](lens :EntryLens[K, V, T])(start :K) :AptIterator[T] = {
 		val stack = new ArrayBuffer[Node[K, V]]
 		val sign = iteratorFromStack(start, stack)
 		new RedBlackIterator[K, V, T](stack, sign)(lens)
@@ -693,9 +693,9 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 
 
 
-	def rawKeysIterator :FitIterator[K] = iterator(keys)
+	def rawKeysIterator :AptIterator[K] = iterator(keys)
 
-	def rawKeysIteratorFrom(start :K) :FitIterator[K] = iteratorFrom(keys)(start)
+	def rawKeysIteratorFrom(start :K) :AptIterator[K] = iteratorFrom(keys)(start)
 
 
 
@@ -957,7 +957,7 @@ private[palimpsest] object RedBlackTree {
 
 	private[maps] class RedBlackIterator[K, V, @specialized(ItemTypes) +T](stack :ArrayBuffer[Node[K, V]], private[this] var sign :Int)
                                                             (lens :EntryLens[K, V, T])
-		extends FitIterator[T]
+		extends AptIterator[T]
 	{
 
 		private[this] var last :Node[K, V] = _
@@ -1001,7 +1001,7 @@ private[palimpsest] object RedBlackTree {
 	private[maps] class ReverseRedBlackIterator[K, V, @specialized(ItemTypes) +T]
 	                                           (stack :ArrayBuffer[Node[K, V]], private[this] var sign :Int)
 		                                       (lens :EntryLens[K, V, T])
-		extends FitIterator[T]
+		extends AptIterator[T]
 	{
 
 		private[this] var last :Node[K, V] = _

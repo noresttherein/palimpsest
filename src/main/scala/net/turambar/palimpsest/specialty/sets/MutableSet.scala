@@ -1,11 +1,11 @@
 package net.turambar.palimpsest.specialty.sets
 
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.sets.ValSet.SetAdapter
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.{FitCompanion, FitIterableFactory, InterfaceIterableFactory, MutableIterable, SpecializableIterableFactory}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterables.{AptCompanion, AptIterableFactory, InterfaceIterableFactory, MutableIterable, SpecializableIterableFactory}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
 
 import scala.annotation.unspecialized
@@ -15,7 +15,7 @@ import scala.collection.{mutable, GenSet, GenTraversableOnce}
 
 
 trait MutableSetSpecialization[@specialized(ItemTypes) E, +This <: MutableSet[E] with MutableSetSpecialization[E, This]]
-	extends mutable.SetLike[E, This] with FitBuilder[E, This] with SetSpecialization[E, This] //with IsMutable[E]
+	extends mutable.SetLike[E, This] with AptBuilder[E, This] with SetSpecialization[E, This] //with IsMutable[E]
 {
 
 	override def +(elem :E) :This = carbon += elem
@@ -33,9 +33,9 @@ trait MutableSetSpecialization[@specialized(ItemTypes) E, +This <: MutableSet[E]
 
 	override def --(xs :GenTraversableOnce[E]) :This = carbon --= xs.seq
 
-	override def ++(elems :FitTraversableOnce[E]) :This = carbon ++= elems
+	override def ++(elems :Vals[E]) :This = carbon ++= elems
 
-	override def --(elems :FitTraversableOnce[E]) :This = carbon --= elems
+	override def --(elems :Vals[E]) :This = carbon --= elems
 
 	override def ^(elems :GenSet[E]) :This = carbon ^= elems
 
@@ -87,11 +87,11 @@ trait MutableSetSpecialization[@specialized(ItemTypes) E, +This <: MutableSet[E]
 	}
 
 	override def --=(xs :TraversableOnce[E]) :this.type = xs match {
-		case vals :FitTraversableOnce[E] => this --= vals
+		case vals :Vals[E] => this --= vals
 		case _ => xs foreach -=; this
 	}
 
-	def --=(xs :FitTraversableOnce[E]) :this.type = {
+	def --=(xs :Vals[E]) :this.type = {
 		val it = xs.toIterator
 		while (it.hasNext && nonEmpty) this -= it.next()
 		this
@@ -155,7 +155,7 @@ trait MutableSetSpecialization[@specialized(ItemTypes) E, +This <: MutableSet[E]
 
 
 	/** Default mutable builder simply repurposing `this.empty`. Should be good for all set implementations. */
-	override def newBuilder :FitBuilder[E, This] = (this :SetSpecialization[E, This]).empty
+	override def newBuilder :AptBuilder[E, This] = (this :SetSpecialization[E, This]).empty
 
 }
 
@@ -171,7 +171,7 @@ trait MutableSet[@specialized(ItemTypes) E]
 	   with ValSet[E] with MutableSetSpecialization[E, MutableSet[E]] with SpecializableSet[E, MutableSet]
 	   with MutableIterable[E]
 {
-	override def companion :FitCompanion[MutableSet] = MutableSet
+	override def companion :AptCompanion[MutableSet] = MutableSet
 
 	override def origin :AnyRef = companion
 
@@ -189,7 +189,7 @@ object MutableSet extends InterfaceIterableFactory[MutableSet] {
 
 
 	override protected[this] type RealType[@specialized(ItemTypes) E] = MutableHashSet[E]
-	override protected[this] def default :FitIterableFactory[MutableHashSet] = MutableHashSet
+	override protected[this] def default :AptIterableFactory[MutableHashSet] = MutableHashSet
 
 	/** Creates a mutable wrapper over another specialized set. This is especially useful if {{immutable}} is
 	  * an immutable set, but it isn't required. Result of concurrent modifications done to the argument and
@@ -215,7 +215,7 @@ object MutableSet extends InterfaceIterableFactory[MutableSet] {
 	private[sets] trait MutableSetAdapterTemplate[
 				+Source <: ValSet[E] with SetSpecialization[E, Source],
 				@specialized(ItemTypes) E,
-				+This <: MutableSet[E] with MutableSetSpecialization[E, This] with FitBuilder[E, This]
+				+This <: MutableSet[E] with MutableSetSpecialization[E, This] with AptBuilder[E, This]
 			]
 		extends SetAdapter[Source, E, This] with MutableSetSpecialization[E, This] //with MutableSet[E] with SetSpecialization[E, This]
 	{
@@ -250,13 +250,13 @@ object MutableSet extends InterfaceIterableFactory[MutableSet] {
 		override def ++=(xs: TraversableOnce[E]) :this.type = { source = source ++ xs; this }
 
 		@unspecialized
-		override def ++=(xs: FitTraversableOnce[E]) :this.type = { source = source ++ xs; this }
+		override def ++=(xs: Vals[E]) :this.type = { source = source ++ xs; this }
 
 		@unspecialized
 		override def --=(xs: TraversableOnce[E]) :this.type = { source = source -- xs; this }
 
 		@unspecialized
-		override def newBuilder :FitBuilder[E, This] = fromSource((source :SetSpecialization[E, Source]).empty)
+		override def newBuilder :AptBuilder[E, This] = fromSource((source :SetSpecialization[E, Source]).empty)
 
 		@unspecialized
 		override def clone() :This = fromSource(source.clone())
@@ -308,7 +308,7 @@ object MutableSet extends InterfaceIterableFactory[MutableSet] {
 		override def rangeImpl(from: ?[E], until: ?[E]): MutableOrderedSet[E] =
 			fromSource(source.rangeImpl(from, until))
 
-		override def keysIteratorFrom(start: E): FitIterator[E] = source.keysIteratorFrom(start)
+		override def keysIteratorFrom(start: E): AptIterator[E] = source.keysIteratorFrom(start)
 
 
 		override def +=(elem: E): this.type = { source += elem; this }

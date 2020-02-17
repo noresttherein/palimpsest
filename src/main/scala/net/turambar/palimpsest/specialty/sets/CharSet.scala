@@ -1,6 +1,6 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.FitBuilder
+import net.turambar.palimpsest.specialty.AptBuilder
 /*
 
 /** Factory for sets of characters, not to be confused with charsets - character code mappings.
@@ -19,7 +19,7 @@ private[sets] object CharSet {
 	def empty :StableSet[Char] = Empty
 
 	/** A builder for immutable sets of characters creating an `IntSet` and wrapping it with [[IntSet.ViewAs]] at the end. */
-	def newBuilder :FitBuilder[Char, StableSet[Char]] =
+	def newBuilder :AptBuilder[Char, StableSet[Char]] =
 		IntSet.newBuilder.mapInput(CharToInt).mapResult(ints => new IntSet.ViewAs[Char](IntToChar, CharToInt)(ints))
 
 	def singleton(value :Char) :StableSet[Char] = new IntSet.ViewAs[Char](IntToChar, CharToInt)(IntSet.singleton(value.toInt))
@@ -31,7 +31,7 @@ private[sets] object CharSet {
 		final val Empty :StableOrderedSet[Char] = new IntSet.SortedViewAs[Char](IntToChar, CharToInt)(IntSet.Sorted.Empty)
 
 		/** A builder for immutable, ordered sets creating an `IntSet` and wrapping it with [[IntSet.SortedViewAs]] at the end. */
-		def newBuilder :FitBuilder[Char, StableOrderedSet[Char]] = IntSet.Sorted.newBuilder.mapInput(CharToInt).mapResult(
+		def newBuilder :AptBuilder[Char, StableOrderedSet[Char]] = IntSet.Sorted.newBuilder.mapInput(CharToInt).mapResult(
 			ints => new IntSet.SortedViewAs[Char](IntToChar, CharToInt)(ints)
 		)
 		def singleton(value :Char) :StableOrderedSet[Char] = new IntSet.SortedViewAs[Char](IntToChar, CharToInt)(IntSet.Sorted.singleton(value.toInt))

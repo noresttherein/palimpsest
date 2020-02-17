@@ -1,15 +1,15 @@
 package net.turambar.palimpsest.specialty.maps
 
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.maps.FitMap.{FilteredKeysView, FilteredMapKeys, KeySetView, MapKeySet, MappedMapValues, MappedValuesView, MapValues}
+import net.turambar.palimpsest.specialty.maps.AptMap.{FilteredKeysView, FilteredMapKeys, KeySetView, MapKeySet, MappedMapValues, MappedValuesView, MapValues}
 
 import scala.collection.{GenTraversableOnce, MapLike}
 import net.turambar.palimpsest.specialty.sets.ValSet
-import net.turambar.palimpsest.specialty.iterators.FitIterator.MappedIterator
-import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, FitIterable, IterableSpecialization}
+import net.turambar.palimpsest.specialty.iterators.AptIterator.MappedIterator
+import net.turambar.palimpsest.specialty.iterables.{CloneableIterable, AptIterable, IterableSpecialization}
 import net.turambar.palimpsest.specialty.Specialize.SpecializeSome
 import net.turambar.palimpsest.specialty.SpecializePair.{Curry, SpecializeSomePairs}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.annotation.unspecialized
@@ -25,8 +25,8 @@ trait MapInterfaceLike[K, +V, +M[K, V]] {
 
 
 
-trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: FitMap[K, V] with MapKeySpecialization[K, V, M]]
-	extends MapLike[K, V, M] with MapInterfaceLike[K, V, FitMap] with IterableSpecialization[(K, V), M] with CloneableIterable[(K, V), M]
+trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: AptMap[K, V] with MapKeySpecialization[K, V, M]]
+	extends MapLike[K, V, M] with MapInterfaceLike[K, V, AptMap] with IterableSpecialization[(K, V), M] with CloneableIterable[(K, V), M]
 {
 
 	protected[this] override def specialization :RuntimeType[(K, V)] = RuntimeType.erased
@@ -51,10 +51,10 @@ trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: FitMap[K, V] with
 
 
 	//todo: not specialized on values
-	override def filterKeys(p :K => Boolean) :FitMap[K, V] = new FilteredMapKeys[K, V](repr, p)
+	override def filterKeys(p :K => Boolean) :AptMap[K, V] = new FilteredMapKeys[K, V](repr, p)
 
 	//somewhat counterintuitively, we define it here to avoid mind-boggling specializing on K, V, O. This is enough
-	override def mapValues[@specialized(ValueTypes) O](f :V => O) :FitMap[K, O] =
+	override def mapValues[@specialized(ValueTypes) O](f :V => O) :AptMap[K, O] =
 		new MappedMapValues[K, V, O](repr, f, mapEntryValue(f))
 
 	protected[this] def mapEntryValue[@specialized(ValueTypes) O](f :V => O) :((Any, V)) => O
@@ -64,12 +64,12 @@ trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: FitMap[K, V] with
 	override def keySet :ValSet[K] = new MapKeySet[K](repr)
 
 	@unspecialized
-	override def keys :FitIterable[K] = keySet
+	override def keys :AptIterable[K] = keySet
 
-	override def keysIterator :FitIterator[K] = new MappedIterator[(K, V), K](FitMap.entryKey)(iterator)
+	override def keysIterator :AptIterator[K] = new MappedIterator[(K, V), K](AptMap.entryKey)(iterator)
 
 
-	protected[this] override def newBuilder :FitBuilder[(K, V), M] = new FitMapBuilder[K, V, M](empty)
+	protected[this] override def newBuilder :AptBuilder[(K, V), M] = new AptMapBuilder[K, V, M](empty)
 
 }
 
@@ -79,7 +79,7 @@ trait MapKeySpecialization[@specialized(KeyTypes) K, +V, +M <: FitMap[K, V] with
 /**
   * @author Marcin Mościcki marcin@moscicki.net
   */
-trait SpecializableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V, +M[X, Y] <: FitMap[X, Y] with SpecializableMap[X, Y, M]]
+trait SpecializableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V, +M[X, Y] <: AptMap[X, Y] with SpecializableMap[X, Y, M]]
 	extends MapLike[K, V, M[K, V] @uncheckedVariance] with MapKeySpecialization[K, V, M[K, V] @uncheckedVariance]
 {
 
@@ -106,28 +106,28 @@ trait SpecializableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V, +M
 		((this.asInstanceOf[M[K, U]]) /: xs.seq)(_.asInstanceOf[M[K, U]] + _)
 
 
-	override def filterKeys(p :K => Boolean) :FitMap[K, V] = new FilteredMapKeys[K, V](repr, p)
+	override def filterKeys(p :K => Boolean) :AptMap[K, V] = new FilteredMapKeys[K, V](repr, p)
 
 
 	override protected[this] def mapEntryValue[@specialized(ValueTypes) O](f :V => O) :((Any, V)) => O = kv => f(kv._2)
 
 
 
-	override def valuesIterator :FitIterator[V] = new MappedIterator[(K, V), V](FitMap.entryValue)(iterator)
+	override def valuesIterator :AptIterator[V] = new MappedIterator[(K, V), V](AptMap.entryValue)(iterator)
 
 
-	override def values :FitIterable[V] = new MapValues[V](repr)
+	override def values :AptIterable[V] = new MapValues[V](repr)
 
 
 
 //	override def empty :M[K, V @uncheckedVariance] = factory.empty[K, V]
 
-//	protected[this] override def newBuilder :FitBuilder[(K, V), M[K, V]] = new FitMapBuilder[K, V, M](empty)
+//	protected[this] override def newBuilder :AptBuilder[(K, V), M[K, V]] = new AptMapBuilder[K, V, M](empty)
 
 	//no factory possible for ordered maps
 //	protected[this] def factory :SpecializableMapFactory[M]
 
-	//	override def toSeq :FitSeq
+	//	override def toSeq :AptSeq
 }
 
 
@@ -140,7 +140,7 @@ trait SpecializableMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V, +M
 
 
 abstract class SpecializableMapFactory[
-	+M[@specialized(KeyTypes) K, @specialized(ValueTypes) V] <: FitMap[K, V] with SpecializableMap[K, V, M]
+	+M[@specialized(KeyTypes) K, @specialized(ValueTypes) V] <: AptMap[K, V] with SpecializableMap[K, V, M]
 ]{
 
 
@@ -157,11 +157,11 @@ abstract class SpecializableMapFactory[
 	private[this] final val Empty :M[Any, Any] = empty[Any, Any]
 
 
-	def newBuilder[@specialized(KeyTypes) K, @specialized(ValueTypes) V] :FitBuilder[(K, V), M[K, V]] =
-		new FitMapBuilder[K, V, M[K, V]](empty[K, V])
+	def newBuilder[@specialized(KeyTypes) K, @specialized(ValueTypes) V] :AptBuilder[(K, V), M[K, V]] =
+		new AptMapBuilder[K, V, M[K, V]](empty[K, V])
 
-	def builder[K :RuntimeType, V :RuntimeType] :FitBuilder[(K, V), M[K, V]] =
-		new FitMapBuilder[K, V, M[K, V]](of[K, V])
+	def builder[K :RuntimeType, V :RuntimeType] :AptBuilder[(K, V), M[K, V]] =
+		new AptMapBuilder[K, V, M[K, V]](of[K, V])
 
 
 
@@ -193,14 +193,14 @@ abstract class SpecializableMapFactory[
 
 
 
-private[maps] class FitMapBuilder[K, V, +M <: FitMap[K, V] with MapLike[K, V, M]](empty :M)
-	extends FitBuilder[(K, V), M]
+private[maps] class AptMapBuilder[K, V, +M <: AptMap[K, V] with MapLike[K, V, M]](empty :M)
+	extends AptBuilder[(K, V), M]
 {
 	private[this] var elems = empty
 
 	override def +=(elem :(K, V)) :this.type = { elems = (elems + elem).asInstanceOf[M]; this }
 
-	override def ++=(xs :FitTraversableOnce[(K, V)]) :this.type = { elems = (elems ++ xs).asInstanceOf[M]; this}
+	override def ++=(xs :Vals[(K, V)]) :this.type = { elems = (elems ++ xs).asInstanceOf[M]; this}
 
 	override def ++=(xs :TraversableOnce[(K, V)]) :this.type = { elems = (elems ++ xs).asInstanceOf[M]; this }
 
@@ -210,10 +210,10 @@ private[maps] class FitMapBuilder[K, V, +M <: FitMap[K, V] with MapLike[K, V, M]
 }
 
 /*
-private[maps] class FitMapBuilder[K, V,
-                                  +M[X, Y] <: FitMap[X, Y] with SpecializableMap[X, Y, M]]
+private[maps] class AptMapBuilder[K, V,
+                                  +M[X, Y] <: AptMap[X, Y] with SpecializableMap[X, Y, M]]
                                  (empty :M[K, V])
-	extends FitBuilder[(K, V), M[K, V]]
+	extends AptBuilder[(K, V), M[K, V]]
 {
 	private[this] var elems = empty
 

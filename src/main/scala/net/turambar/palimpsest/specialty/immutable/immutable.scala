@@ -6,17 +6,17 @@ import net.turambar.palimpsest.specialty.sets.{StableOrderedSet, StableSet, Stab
 import net.turambar.palimpsest.specialty.maps.{KeyTypes, StableMap, StableOrderedMap, ValueTypes}
 
 package object immutable {
-	type FitIterable[@specialized(ItemTypes) +E] = StableIterable[E]
-	final val FitIterable = StableIterable
+	type AptIterable[@specialized(ItemTypes) +E] = StableIterable[E]
+	final val AptIterable = StableIterable
 
-	type FitSeq[@specialized(ItemTypes) +E] = StableSeq[E]
-	final val FitSeq = StableSeq
+	type AptSeq[@specialized(ItemTypes) +E] = StableSeq[E]
+	final val AptSeq = StableSeq
 
 	type ValSeq[@specialized(ItemTypes) E] = seqs.ValSeq[E] with StableSeq[E]
 //	final val ValSeq
 
-	type FitIndexedSeq[@specialized(ItemTypes) +E] = StableIndexedSeq[E]
-	final val FitIndexedSeq = StableIndexedSeq
+	type AptIndexedSeq[@specialized(ItemTypes) +E] = StableIndexedSeq[E]
+	final val AptIndexedSeq = StableIndexedSeq
 
 
 
@@ -30,8 +30,8 @@ package object immutable {
 	final val TreeSet = StableTreeSet
 
 
-	type FitMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V] = StableMap[K, V]
-	final val FitMap = StableMap
+	type AptMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V] = StableMap[K, V]
+	final val AptMap = StableMap
 
 	type OrderedMap[@specialized(KeyTypes) K, @specialized(ValueTypes) +V] = StableOrderedMap[K, V]
 	final val OrderedMap = StableOrderedMap

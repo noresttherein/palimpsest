@@ -1,9 +1,9 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.iterables._
-import net.turambar.palimpsest.specialty.{ItemTypes, FitBuilder, RuntimeType, Specialize}
-import net.turambar.palimpsest.specialty.seqs.FitSeq
+import net.turambar.palimpsest.specialty.{ItemTypes, AptBuilder, RuntimeType, Specialize}
+import net.turambar.palimpsest.specialty.seqs.AptSeq
 import net.turambar.palimpsest.specialty.sets.ValSet.{StableSetBuilder, ValSetBuilder}
 
 import scala.collection.generic.CanBuildFrom
@@ -19,7 +19,7 @@ trait StableSet[@specialized(ItemTypes) E]
 	   with ValSet[E] with SpecializableSet[E, StableSet]
 	   with StableIterable[E] with StableIterableTemplate[E, StableSet[E]]
 {
-	override def companion :FitCompanion[StableSet] = StableSet
+	override def companion :AptCompanion[StableSet] = StableSet
 
 	protected[this] override def debugPrefix = "StableSet"
 }
@@ -47,7 +47,7 @@ object StableSet extends SpecializableIterableFactory[StableSet] {
 
 
 
-	override def newBuilder[@specialized(ItemTypes) E]: FitBuilder[E, StableSet[E]] = Builder()
+	override def newBuilder[@specialized(ItemTypes) E]: AptBuilder[E, StableSet[E]] = Builder()
 
 
 
@@ -67,7 +67,7 @@ object StableSet extends SpecializableIterableFactory[StableSet] {
 	}
 
 
-	private type Builder[E] = FitBuilder[E, StableSet[E]]
+	private type Builder[E] = AptBuilder[E, StableSet[E]]
 
 
 	/**  Specialized factory for builders returning a new builder for a set implementation best fitting
@@ -107,7 +107,7 @@ object StableSet extends SpecializableIterableFactory[StableSet] {
 		override def mutable :MutableSet[E] = MutableSet.empty[E]
 
 		//todo: conflict with damn SetLike
-		override def toSeq :FitSeq[E] = FitSeq.empty[E]
+		override def toSeq :AptSeq[E] = AptSeq.empty[E]
 	}
 
 
@@ -131,7 +131,7 @@ object StableSet extends SpecializableIterableFactory[StableSet] {
 		override def mutable :MutableSet[E] = MutableSet.empty[E] += head
 
 		//todo: resolve this override conflict
-		override def toSeq :FitSeq[E] = FitSeq.one(head)
+		override def toSeq :AptSeq[E] = AptSeq.one(head)
 	}
 
 
@@ -155,7 +155,7 @@ object StableSet extends SpecializableIterableFactory[StableSet] {
 		override def mutable :MutableSet[E] = MutableSet.empty[E] += head += last
 
 		//todo resolve this override
-		override def toSeq :FitSeq[E] = FitSeq.two(head, last)
+		override def toSeq :AptSeq[E] = AptSeq.two(head, last)
 	}
 
 

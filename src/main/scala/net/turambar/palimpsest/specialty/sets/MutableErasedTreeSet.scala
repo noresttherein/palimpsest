@@ -1,11 +1,11 @@
 package net.turambar.palimpsest.specialty.sets
 
-import net.turambar.palimpsest.specialty.iterators.FitIterator
+import net.turambar.palimpsest.specialty.iterators.AptIterator
 import net.turambar.palimpsest.specialty.maps.RedBlackTree
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.{EntryLens, Node}
 import net.turambar.palimpsest.specialty.maps.RedBlackTree.Node.{AnySetNode}
 import net.turambar.palimpsest.specialty.ordered.ValOrdering
-import net.turambar.palimpsest.specialty.FitTraversableOnce.OfKnownSize
+import net.turambar.palimpsest.specialty.Vals.OfKnownSize
 
 
 /** A generic variant of Red-Black tree implementation. We can't use the default optimizations introduced
@@ -49,7 +49,7 @@ private[sets] class MutableErasedTreeSet[E](implicit val ordering :ValOrdering[E
 
 
 	
-	override def keysIteratorFrom(start :E) :FitIterator[E] = iteratorFrom(this)(start)
+	override def keysIteratorFrom(start :E) :AptIterator[E] = iteratorFrom(this)(start)
 
 	
 	override def debugString = "MutableErasedTreeSet"

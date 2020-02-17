@@ -3,10 +3,10 @@ package net.turambar.palimpsest.specialty.iterables
 import java.io.{ObjectInputStream, ObjectOutputStream}
 
 import net.turambar.palimpsest.specialty._
-import net.turambar.palimpsest.specialty.iterables.FitCompanion.CanFitFrom
+import net.turambar.palimpsest.specialty.iterables.AptCompanion.CanFitFrom
 import net.turambar.palimpsest.specialty.RuntimeType.Specialized.{Fun1Vals, Fun2}
-import net.turambar.palimpsest.specialty.iterators.FitIterator
-import net.turambar.palimpsest.specialty.seqs.{ArrayPlus, FitBuffer, FitList, FitSeq, SharedArray}
+import net.turambar.palimpsest.specialty.iterators.AptIterator
+import net.turambar.palimpsest.specialty.seqs.{ArrayPlus, AptBuffer, AptList, AptSeq, SharedArray}
 
 import scala.annotation.unspecialized
 import scala.collection.{breakOut, immutable, mutable, GenIterable, GenTraversableOnce}
@@ -21,34 +21,34 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
   * from specialization and delegates even more of them directly to their iterator counterparts.
   * @author Marcin Mościcki
   */
-trait FitIterable[@specialized(ItemTypes) +E]
-	extends FitTraversableOnce[E] with Iterable[E] with SpecializableIterable[E, FitIterable]
-	   with IterableSpecialization[E, FitIterable[E]] with CloneableIterable[E, FitIterable[E]]
+trait AptIterable[@specialized(ItemTypes) +E]
+	extends Vals[E] with Iterable[E] with SpecializableIterable[E, AptIterable]
+	   with IterableSpecialization[E, AptIterable[E]] with CloneableIterable[E, AptIterable[E]]
 {
 
-	override def companion: FitCompanion[FitIterable] = FitIterable
+	override def companion: AptCompanion[AptIterable] = AptIterable
 }
 
 
 
 
 
-object FitIterable extends InterfaceIterableFactory[FitIterable] {
-	override protected[this] type RealType[@specialized(ItemTypes) X] = FitList[X]
+object AptIterable extends InterfaceIterableFactory[AptIterable] {
+	override protected[this] type RealType[@specialized(ItemTypes) X] = AptList[X]
 
-	override protected[this] def default :FitIterableFactory[FitList] = FitList
+	override protected[this] def default :AptIterableFactory[AptList] = AptList
 
 
-	def unapply[E](col :GenTraversableOnce[E]) :Option[FitIterable[E]] = col match {
-		case it :FitIterable[E] => Some(it)
+	def unapply[E](col :GenTraversableOnce[E]) :Option[AptIterable[E]] = col match {
+		case it :AptIterable[E] => Some(it)
 		case arr :mutable.WrappedArray[E] => Some(SharedArray(arr.array))
 		case _ => None
 	}
 
-	def from[@specialized(ItemTypes) E](newIterator :() => FitIterator[E]) :FitIterable[E] = new FromIterator(newIterator)
+	def from[@specialized(ItemTypes) E](newIterator :() => AptIterator[E]) :AptIterable[E] = new FromIterator(newIterator)
 
 
-	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[FitIterable[_], E, FitIterable[E]]): CanBuildFrom[FitIterable[_], E, FitIterable[E]] =
+	@inline override implicit def canBuildFrom[E](implicit fit: CanFitFrom[AptIterable[_], E, AptIterable[E]]): CanBuildFrom[AptIterable[_], E, AptIterable[E]] =
 		fit.cbf
 
 
@@ -60,13 +60,13 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 	abstract class FilterIterable[+E, +Repr] extends FilterMonadic[E, Repr] {
 		//todo: mapInput calls are not specialized here
 		override def map[@specialized(Fun1Vals) O, That](f: E => O)(implicit bf: CanBuildFrom[Repr, O, That]): That =  {
-			val b = FitBuilder(bf(from)).mapInput(f).filterInput(predicate)
+			val b = AptBuilder(bf(from)).mapInput(f).filterInput(predicate)
 			b ++= iterable
 			b.result()
 		}
 
 		override def flatMap[O, That](f: E => GenTraversableOnce[O])(implicit bf: CanBuildFrom[Repr, O, That]): That = {
-			val b = FitBuilder(bf(from)).flatMapInput(f).filterInput(predicate)
+			val b = AptBuilder(bf(from)).flatMapInput(f).filterInput(predicate)
 			b ++= iterable
 			b.result()
 		}
@@ -144,20 +144,20 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 
 	/** Base trait for serializer proxies of specialized collections. Subclasses need to provide an appropriate builder
-	  * for deserialization and declare a `@transient` field holding the serialised iterable. Concrete `FitIterable`
+	  * for deserialization and declare a `@transient` field holding the serialised iterable. Concrete `AptIterable`
 	  * implementations should declare a `writeReplace :AnyRef` method passing their self reference to a new instance
 	  * of this serializer and returning it.
 	  * @tparam E element type of the serialized collection
 	  */
-	trait IterableSerializer[@specialized(ItemTypes) E, This <: FitIterable[E]] extends Serializable {
+	trait IterableSerializer[@specialized(ItemTypes) E, This <: AptIterable[E]] extends Serializable {
 		import java.io.{ObjectInputStream => IS, ObjectOutputStream => OS}
 		@transient
 		protected[this] var self :This
-		protected[this] def builder :FitBuilder[E, This]
+		protected[this] def builder :AptBuilder[E, This]
 
 		private def writeObject(os :OS) :Unit = writeIterable(os, self)
 
-		protected[this] def writeIterable(os :OS, iterable :FitIterable[E]) :Unit = {
+		protected[this] def writeIterable(os :OS, iterable :AptIterable[E]) :Unit = {
 			os.defaultWriteObject()
 			val serializer = ElementSerializer[E]()
 			var count = iterable.size
@@ -195,16 +195,16 @@ object FitIterable extends InterfaceIterableFactory[FitIterable] {
 
 
 
-	private[palimpsest] class FromIterator[@specialized(ItemTypes) +E](newIterator :() => FitIterator[E]) extends FitIterable[E] {
+	private[palimpsest] class FromIterator[@specialized(ItemTypes) +E](newIterator :() => AptIterator[E]) extends AptIterable[E] {
 		@unspecialized
 		override protected def reverseForeach(f :E => Unit) :Unit = reversed.foreach(f)
 
 		@unspecialized
-		override def iterator :FitIterator[E] = newIterator()
+		override def iterator :AptIterator[E] = newIterator()
 	}
 
 
-} //object FitIterable
+} //object AptIterable
 
 
 
@@ -234,22 +234,22 @@ trait StableIterableTemplate[+E, +Repr <: StableIterable[E]] extends CloneableIt
 
 
 /** Base trait for all immutable collection classes. Note that it is not specialized regarding its parameter unlike
-  * the base `FitIterable`. This doesn't impact specialization of actual implementations, as the proper version
-  * of each specialized `FitIterable` method will be executed, providing subclasses extend the specialized version
-  * of `FitIterable` separately. The only consequence for client code is that having this trait as part of method
+  * the base `AptIterable`. This doesn't impact specialization of actual implementations, as the proper version
+  * of each specialized `AptIterable` method will be executed, providing subclasses extend the specialized version
+  * of `AptIterable` separately. The only consequence for client code is that having this trait as part of method
   * signature doesn't make it a candidate for specialization. In order to enforce specialization of such methods, other
   * specialized interfaces must be included either as parameters or the result type.  The limitation for implementing
-  * classes on the other hand is the requirement of having `FitIterable` and its specialized base traits before
+  * classes on the other hand is the requirement of having `AptIterable` and its specialized base traits before
   * this trait in the linearization of each class. In order not to separate a specialized version of any trait from its
   * generic supertype, which would break the wirering of synthetic specialized methods, each extending trait and class
-  * must mix this trait ''after'' `FitIterable` (or some of its derived specialized traits), which will ensure that
+  * must mix this trait ''after'' `AptIterable` (or some of its derived specialized traits), which will ensure that
   * all specialized base traits of this trait precede it in linearization.
   */
 trait StableIterable[+E]
 	extends immutable.Iterable[E] with StableIterableTemplate[E, StableIterable[E]]
-	   with FitIterable[E] with IterableSpecialization[E, StableIterable[E]] with SpecializableIterable[E, StableIterable]
+	   with AptIterable[E] with IterableSpecialization[E, StableIterable[E]] with SpecializableIterable[E, StableIterable]
 {
-	override def companion :FitCompanion[StableIterable] = StableIterable
+	override def companion :AptCompanion[StableIterable] = StableIterable
 }
 
 
@@ -257,7 +257,7 @@ trait StableIterable[+E]
 object StableIterable extends InterfaceIterableFactory[StableIterable] {
 	override protected[this] type RealType[@specialized(ItemTypes) X] = ArrayPlus[X]
 
-	override protected def default :FitIterableFactory[RealType] = ArrayPlus
+	override protected def default :AptIterableFactory[RealType] = ArrayPlus
 
 	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[StableIterable[_], E, StableIterable[E]])
 			:CanBuildFrom[StableIterable[_], E, StableIterable[E]] =
@@ -272,22 +272,22 @@ object StableIterable extends InterfaceIterableFactory[StableIterable] {
 
 
 /** Base trait for all mutable collection classes. Note that it is not specialized regarding its parameter unlike
-  * the base `FitIterable`. This doesn't impact specialization of actual implementations, as the proper version
-  * of each specialized `FitIterable` method will be executed, providing subclasses extend the specialized version
-  * of `FitIterable` separately. The only consequence for client code is that having this trait as part of method
+  * the base `AptIterable`. This doesn't impact specialization of actual implementations, as the proper version
+  * of each specialized `AptIterable` method will be executed, providing subclasses extend the specialized version
+  * of `AptIterable` separately. The only consequence for client code is that having this trait as part of method
   * signature doesn't make it a candidate for specialization. In order to enforce specialization of such methods, other
   * specialized interfaces must be included either as parameters or the result type.  The limitation for implementing
-  * classes on the other hand is the requirement of having `FitIterable` and its specialized base traits before
+  * classes on the other hand is the requirement of having `AptIterable` and its specialized base traits before
   * this trait in the linearization of each class. In order not to separate a specialized version of any trait from its
   * generic supertype, which would break the wirering of synthetic specialized methods, each extending trait and class
-  * must mix this trait ''after'' `FitIterable` (or some of its derived specialized traits), which will ensure that
+  * must mix this trait ''after'' `AptIterable` (or some of its derived specialized traits), which will ensure that
   * all specialized base traits of this trait precede it in linearization.
   */
 trait MutableIterable[E]
 	extends mutable.Iterable[E] with CloneableIterable[E, MutableIterable[E]]
-		with FitIterable[E] with IterableSpecialization[E, MutableIterable[E]] with SpecializableIterable[E, MutableIterable]
+		with AptIterable[E] with IterableSpecialization[E, MutableIterable[E]] with SpecializableIterable[E, MutableIterable]
 {
-	override def companion :FitCompanion[MutableIterable] = MutableIterable
+	override def companion :AptCompanion[MutableIterable] = MutableIterable
 
 }
 
@@ -296,7 +296,7 @@ trait MutableIterable[E]
 object MutableIterable extends InterfaceIterableFactory[MutableIterable] {
 	override protected[this] type RealType[@specialized(ItemTypes) X] = SharedArray[X]
 
-	override protected def default :FitIterableFactory[RealType] = SharedArray
+	override protected def default :AptIterableFactory[RealType] = SharedArray
 
 	override implicit def canBuildFrom[E](implicit fit :CanFitFrom[MutableIterable[_], E, MutableIterable[E]])
 	:CanBuildFrom[MutableIterable[_], E, MutableIterable[E]] =
