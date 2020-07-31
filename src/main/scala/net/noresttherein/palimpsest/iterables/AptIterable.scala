@@ -15,7 +15,7 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
 
 
-//todo: rename this to AptIterable after cleanup
+//todo: create specialized views from collections of elements functions are not specialized for so they can be iterated
 
 /** Base trait of specialized collections mirroring scala [[Iterable]]. Overrides methods which can benefit
   * from specialization and delegates even more of them directly to their iterator counterparts.

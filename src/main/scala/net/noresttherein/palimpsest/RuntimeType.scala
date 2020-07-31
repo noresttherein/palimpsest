@@ -643,8 +643,8 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 		if (tpe.isPrimitive) tpe match {
 			case j.Integer.TYPE => OfInt
 			case j.Double.TYPE => OfDouble
-			case j.Byte.TYPE => OfByte
 			case j.Long.TYPE => OfLong
+			case j.Byte.TYPE => OfByte
 			case j.Character.TYPE => OfChar
 			case j.Float.TYPE => OfFloat
 			case j.Boolean.TYPE => OfBoolean
@@ -664,7 +664,7 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 
 
 	/** Representation of any type as its autoboxed, erased form without any specialization or upper type bounds.
-	  * @return the same instance, which all type members are defined as AnyRef, and `runType`, `genericType`, `boxType`
+	  * @return a singleton instance, with all type members are defined as `AnyRef`, and `runType`, `genericType`, `boxType`
 	  *         all equal `classOf[AnyRef]`.
 	  */
 	@inline final def erased[E] :Specialized[E] = Erased.asInstanceOf[Specialized[E]]
@@ -677,11 +677,11 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 			case ErasedKey => Erased
 			case IntKey => OfInt
 			case DoubleKey => OfDouble
-			case ByteKey => OfByte
 			case LongKey => OfLong
+			case ByteKey => OfByte
 			case CharKey => OfChar
-			case FloatKey => OfFloat
 			case BooleanKey => OfBoolean
+			case FloatKey => OfFloat
 			case ShortKey => OfShort
 			case UnitKey => OfUnit
 			case _ => Erased
@@ -859,28 +859,28 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 
 
 	/** Specialization for `Byte`. */
-	implicit final val OfByte :SpecializedExact[Byte] = Specialized.SpecializedByte
+	implicit final val OfByte :SpecializedExact[Byte] = Specialized.ForByte
 
 	/** Specialization for `Short`. */
-	implicit final val OfShort :SpecializedExact[Short] = Specialized.SpecializedShort
+	implicit final val OfShort :SpecializedExact[Short] = Specialized.ForShort
 
 	/** Runtime type of `Int` as the java primitive. */
-	implicit final val OfInt :SpecializedExact[Int] = Specialized.SpecializedInt
+	implicit final val OfInt :SpecializedExact[Int] = Specialized.ForInt
 
 	/** Runtime type of `Long` as the java primitive. */
-	implicit final val OfLong :SpecializedExact[Long] = Specialized.SpecializedLong
+	implicit final val OfLong :SpecializedExact[Long] = Specialized.ForLong
 
 	/** Runtime type of `Char` as the java primitive. */
-	implicit final val OfChar :SpecializedExact[Char] = Specialized.SpecializedChar
+	implicit final val OfChar :SpecializedExact[Char] = Specialized.ForChar
 
 	/** Runtime type of `Float` as the java primitive. */
-	implicit final val OfFloat :SpecializedExact[Float] = Specialized.SpecializedFloat
+	implicit final val OfFloat :SpecializedExact[Float] = Specialized.ForFloat
 
 	/** Runtime type of `Double` as the java primitive. */
-	implicit final val OfDouble :SpecializedExact[Double] = Specialized.SpecializedDouble
+	implicit final val OfDouble :SpecializedExact[Double] = Specialized.ForDouble
 
 	/** Runtime type of `Boolean` as the java primitive. */
-	implicit final val OfBoolean :SpecializedExact[Boolean] = Specialized.SpecializedBoolean
+	implicit final val OfBoolean :SpecializedExact[Boolean] = Specialized.ForBoolean
 
 	/** Runtime type of `Unit` as java `void`. This is different from other specialized value types in that
 	  * there is no unboxed value for `void` - the boxed constant `scala.runtime.BoxedUnit` is used instead.
@@ -888,18 +888,23 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 	  * While this is an exception to other primitives, it is of no practical importance for scala code as scala performs
 	  * the exact same promotion when using the `Unit` type directly and runtime autoboxing guarantees compatibility.
 	  */
-	implicit final val OfUnit :SpecializedExact[Unit] = Specialized.SpecializedUnit
+	implicit final val OfUnit :SpecializedExact[Unit] = Specialized.ForUnit
+
 
 	/** Specialization for `AnyRef` (and indirectly also `Any` by promotion). */
-	implicit final val OfAnyRef :SpecializedExact[AnyRef] = Specialized.SpecializedAnyRef
+	implicit final val OfAnyRef :ExactRuntimeType[AnyRef] = new RefRuntimeType[AnyRef] with ExactRuntimeType[AnyRef] {
+		override final val runType :Class[AnyRef] = AnyRefClass
+		override final val emptyArray :Array[AnyRef] = new Array[AnyRef](0)
+
+		protected[palimpsest] override final val discriminator = new Enforce[AnyRef]
+	}
 
 	/** Explicit specialization for `Any` - this is equivalent to `OfAnyRef`. While both these values and
 	  * [[RuntimeType#erased[T]]] describe erased context, the latter does not equal the former. This is because
 	  * for this value (and `OfAnyRef`) the type parameter is well defined, while for the erased instance
 	  * all information is lost.
 	  */
-	implicit val OfAny :Specialized[Any] = Specialized.SpecializedAny
-
+	implicit val OfAny :RuntimeType[Any] = OfAnyRef.asInstanceOf[RuntimeType[Any]]
 
 	/** Runtime type of 'Nothing'. This class declares the `RunType` as `Nothing` and throws an exception
 	  * from its [[net.noresttherein.palimpsest.RuntimeType.default default]] method. The box type - and hence the
@@ -911,36 +916,28 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 	  * only to Java primitive types. While the default `RuntimeType` for a custom value class would be considered
 	  * an illegal argument for such a method, often the `Nothing` case can still be handled sensibly.
 	  */
-	implicit val OfNothing :Specialized[Nothing] = Specialized.SpecializedNothing
+	implicit final val OfNothing :RuntimeType[Nothing] = new RuntimeType[Nothing] {
+		override type RunType = Nothing
+		override type BoxType = scala.runtime.Nothing$
+		override type GenericType = Any
 
-	/** Represents an erased generic type argument referenced to as `java.lang.Object` and downcast in the point of use. */
-	private[this] final val Erased :Specialized[Any] = new Specialized[Any] {
-		override type RunType = Any
-		override type BoxType = AnyRef
+		override def default = throw new NoSuchElementException("Specialized[Nothing].default")
 
-		override val runType = classOf[Any]
-		override val boxType = classOf[AnyRef]
+		override val runType = classOf[Nothing]
+		override val classTag = ClassTag(classOf[Nothing])
+		override val emptyArray :Array[Nothing] = new Array[Nothing](0)
+		override val boxType = classOf[scala.runtime.Nothing$]
+		override val genericType = classOf[Any]
+		protected[palimpsest] override val discriminator = new Enforce[Nothing]
 
-		override val classTag = ClassTag[Any](runType)
-		override val boxClassTag = ClassTag[AnyRef](boxType)
+		private[palimpsest] override def call[R[X]](callback :SpecializeIndividually[R])(implicit force :Enforce[Nothing]) =
+			callback.forNothing
 
-		override def isErased = true
-
-		override def default :Any = null
-
-
-		override val emptyArray :Array[Any] = new Array[Any](0)
-		override val emptyBoxArray :Array[AnyRef] = new Array[AnyRef](0)
-
-
-		override private[palimpsest] def call[R[X]](callback :SpecializeIndividually[R])(implicit force :Enforce[Any]) :R[Any] =
-			callback.forRef(this)
-
-		override protected[palimpsest] val discriminator = new Enforce[Any]
-
-		override def toString = "[_]"
+		override def toString = "[Nothing]"
 	}
 
+	/** Represents an erased generic type argument referenced to as `java.lang.Object` and downcast in the point of use. */
+	private[this] final val Erased :Specialized[Any] = Specialized.Erasure
 
 
 
@@ -967,12 +964,12 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 	  *  as a type class instead of specializing code which doesn't reference values of `T` directly but needs to call
 	  *  specialized code nevertheless (which is possible via [[net.noresttherein.palimpsest.Specialize]]).
 	  *
-	  *  There are only 12 distinct values of this class:
-	  *  one for every inbuilt value type, `Unit`, `Nothing` and one denoting erased usage of a reference type.
-	  *  While it is potentially possible to obtain different ''instances'' of `Specialized[T]`, they will all
-	  *  be equal - do not rely on reference equality for a type query, but use `equals` (`==`).
-	  */
-	sealed trait Specialized[@specialized T] extends RuntimeType[T] { //specialized to enforce specialization of factory method
+	  *  There are only 11 distinct values of this class:
+	  *  one for every inbuilt value type, `Unit`, and one denoting erased usage of a reference type.
+	  *  They are defined as singleton objects in the companion object to this trait and can be used in
+	  *  exhaustive pattern matching.
+	  */ //specialized to enforce specialization of the factory method
+	sealed trait Specialized[@specialized T] extends RuntimeType[T] {
 		override type GenericType = RunType
 
 		override def genericType :Class[GenericType] = runType
@@ -1009,19 +1006,17 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 		implicit final def specializedType[T](implicit tag :TypeTag[T]) :Specialized[T] = {
 			val tpe = tag.tpe
 			(
-				if (tpe <:< implicitly[TypeTag[AnyRef]].tpe) Erased
-				else if (tpe =:= implicitly[TypeTag[Any]].tpe) OfAny
-				else if (tpe =:= implicitly[TypeTag[Int]].tpe) OfInt
-				else if (tpe =:= implicitly[TypeTag[Double]].tpe) OfDouble
-				else if (tpe =:= implicitly[TypeTag[Byte]].tpe) OfByte
-				else if (tpe =:= implicitly[TypeTag[Long]].tpe) OfLong
-				else if (tpe =:= implicitly[TypeTag[Char]].tpe) OfChar
-				else if (tpe =:= implicitly[TypeTag[Float]].tpe) OfFloat
-				else if (tpe =:= implicitly[TypeTag[Boolean]].tpe) OfBoolean
-				else if (tpe =:= implicitly[TypeTag[Short]].tpe) OfShort
-				else if (tpe =:= implicitly[TypeTag[Unit]].tpe) OfUnit
-				else if (tpe =:= implicitly[TypeTag[Nothing]].tpe) OfNothing
-				else Erased
+				if (tpe <:< implicitly[TypeTag[AnyRef]].tpe) Specialized.Erasure
+				else if (tpe =:= implicitly[TypeTag[Int]].tpe) Specialized.ForInt
+				else if (tpe =:= implicitly[TypeTag[Double]].tpe) Specialized.ForDouble
+				else if (tpe =:= implicitly[TypeTag[Long]].tpe) Specialized.ForLong
+				else if (tpe =:= implicitly[TypeTag[Byte]].tpe) Specialized.ForByte
+				else if (tpe =:= implicitly[TypeTag[Char]].tpe) Specialized.ForChar
+				else if (tpe =:= implicitly[TypeTag[Boolean]].tpe) Specialized.ForBoolean
+				else if (tpe =:= implicitly[TypeTag[Float]].tpe) Specialized.ForFloat
+				else if (tpe =:= implicitly[TypeTag[Short]].tpe) Specialized.ForShort
+				else if (tpe =:= implicitly[TypeTag[Unit]].tpe) Specialized.ForUnit
+				else Specialized.Erasure
 			).asInstanceOf[Specialized[T]]
 		}
 	}
@@ -1091,117 +1086,106 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 		/** Default implicit value for all reference types representing erasure. All returned values are equal regardless
 		  * of type parameter `T`.
 		  */
-		@inline implicit final def specializedRef[T <: AnyRef] :Specialized[T] = Erased.asInstanceOf[Specialized[T]]
+		@inline implicit final def specializedRef[T <: AnyRef] :Specialized[T] = Erasure.asInstanceOf[Specialized[T]]
 
 
 
 		/** Specialization for `Byte`. */
-		implicit final val SpecializedByte :SpecializedPrimitive[Byte, j.Byte] =
-			new SpecializedPrimitive[Byte, j.Byte](new Enforce[Byte], 0) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Byte])  =
-					callback.forByte
-			}
+		implicit object ForByte extends SpecializedPrimitive[Byte, j.Byte](new Enforce[Byte], 0) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Byte])  =
+				callback.forByte
+		}
 
 
 		/** Specialization for `Short`. */
-		implicit final val SpecializedShort :SpecializedPrimitive[Short, j.Short]  =
-			new SpecializedPrimitive[Short, j.Short](new Enforce[Short], 0) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Short])  =
-					callback.forShort
-			}
+		implicit object ForShort extends SpecializedPrimitive[Short, j.Short](new Enforce[Short], 0) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Short])  =
+				callback.forShort
+		}
 
 
 		/** Specialization for `Int`. */
-		implicit final val SpecializedInt :SpecializedPrimitive[Int, j.Integer] =
-			new SpecializedPrimitive[Int, j.Integer](new Enforce[Int], 0) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Int])  =
-					callback.forInt
-			}
+		implicit object ForInt extends SpecializedPrimitive[Int, j.Integer](new Enforce[Int], 0) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Int])  =
+				callback.forInt
+		}
 
 
 		/** Specialization for `Long`. */
-		implicit final val SpecializedLong  :SpecializedPrimitive[Long, j.Long] =
-			new SpecializedPrimitive[Long, j.Long](new Enforce[Long], 0) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Long])  =
-					callback.forLong
-			}
+		implicit object ForLong extends SpecializedPrimitive[Long, j.Long](new Enforce[Long], 0) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Long])  =
+				callback.forLong
+		}
 
 
 		/** Specialization for `Char`. */
-		implicit final val SpecializedChar  :SpecializedPrimitive[Char, j.Character] =
-			new SpecializedPrimitive[Char, j.Character](new Enforce[Char], 0) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Char])  =
-					callback.forChar
-			}
+		implicit object ForChar extends SpecializedPrimitive[Char, j.Character](new Enforce[Char], 0) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Char])  =
+				callback.forChar
+		}
 
 
 		/** Specialization for `Float`. */
-		implicit final val SpecializedFloat  :SpecializedPrimitive[Float, j.Float] =
-			new SpecializedPrimitive[Float, j.Float](new Enforce[Float], 0) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Float])  =
-					callback.forFloat
-			}
+		implicit object ForFloat extends SpecializedPrimitive[Float, j.Float](new Enforce[Float], 0) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Float])  =
+				callback.forFloat
+		}
 
 
 		/** Specialization for `Double`. */
-		implicit final val SpecializedDouble  :SpecializedPrimitive[Double, j.Double] =
-			new SpecializedPrimitive[Double, j.Double](new Enforce[Double], 0) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Double])  =
-					callback.forDouble
-			}
+		implicit object ForDouble extends SpecializedPrimitive[Double, j.Double](new Enforce[Double], 0) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Double])  =
+				callback.forDouble
+		}
 
 
 		/** Specialization for `Boolean`. */
-		implicit final val SpecializedBoolean  :SpecializedPrimitive[Boolean, j.Boolean] =
-			new SpecializedPrimitive[Boolean, j.Boolean](new Enforce[Boolean], false) {
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Boolean])  =
-					callback.forBoolean
-			}
+		implicit object ForBoolean extends SpecializedPrimitive[Boolean, j.Boolean](new Enforce[Boolean], false) {
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Boolean])  =
+				callback.forBoolean
+		}
 
 
 		/** Specialization for `Unit` as java `void`. */
-		implicit final val SpecializedUnit  :SpecializedPrimitive[Unit, BoxedUnit] =
-			new SpecializedPrimitive[Unit, BoxedUnit](new Enforce[Unit], ()) { //todo - this is not really a primitive:
-				override private[palimpsest] def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Unit])  =
-					callback.forUnit
-			}
-
-
-		/** Specialization for `AnyRef` (and indirectly also `Any` by promotion). */
-		implicit object SpecializedAnyRef extends RefRuntimeType[AnyRef] with Specialized[AnyRef] with SpecializedExact[AnyRef] {
-
-			override final val runType :Class[AnyRef] = AnyRefClass
-			override final val emptyArray :Array[AnyRef] = new Array[AnyRef](0)
-
-			protected[palimpsest] override final val discriminator = new Enforce[AnyRef]
+		implicit object ForUnit extends SpecializedPrimitive[Unit, BoxedUnit](new Enforce[Unit], ()) { //todo - this is not really a primitive:
+			private[palimpsest] override def call[R[X]](callback: SpecializeIndividually[R])(implicit force: Enforce[Unit])  =
+				callback.forUnit
 		}
 
-		/** Explicit specialization for `Any` - this is equivalent to `OfAnyRef`. While both these values and
-		  * [[RuntimeType#erased[T]]] describe erased context, the latter does not equal the former. This is because
-		  * for this value (and `OfAnyRef`) the type parameter is well defined, while for the erased instance
-		  * all information is lost.
+
+		/** Represents the erased context, in which the nominal type is referenced as `AnyRef` (`java.lang.Object`)
+		  * in the byte code and cast down when leaving the generic context. It is used (after casting)
+		  * as the `Specialized` instance, regardless of the type parameter, in all not specialized code.
+		  * It is public primarily to allow exhaustive pattern matching, and in order to manually obtain
+		  * an erased instance for `T` prefer using [[net.noresttherein.palimpsest.RuntimeType.erased erased]].
 		  */
-		implicit val SpecializedAny :Specialized[Any] = SpecializedAnyRef.asInstanceOf[Specialized[Any]]
+		object Erasure extends Specialized[Any] {
+			override type RunType = Any
+			override type BoxType = AnyRef
 
-		/** Runtime type of 'Nothing'. This class declares the `RunType` as `Nothing` and throws an exception
-		  * from its [[net.noresttherein.palimpsest.RuntimeType.default default]] method. The box type - and hence the
-		  * component type of the boxed array - is however defined as `Nothing$`, which is scala runtime representation
-		  * of the type use in the bytecode whenever the type is required.
-		  */
-		implicit object SpecializedNothing extends Specialized[Nothing] {
-			override type RunType = Nothing
-			override type BoxType = scala.runtime.Nothing$
+			override val runType = classOf[Any]
+			override val boxType = classOf[AnyRef]
 
-			override def default = throw new NoSuchElementException("Specialized[Nothing].default")
+			override val classTag = ClassTag[Any](runType)
+			override val boxClassTag = ClassTag[AnyRef](boxType)
 
-			override val runType = classOf[Nothing]
-			override val classTag = ClassTag(classOf[Nothing])
-			override val emptyArray :Array[Nothing] = new Array[Nothing](0)
-			override val boxType = classOf[scala.runtime.Nothing$]
-			protected[palimpsest] override val discriminator = new Enforce[Nothing]
+			override def isErased = true
+
+			override def default :Any = null
+
+
+			override val emptyArray :Array[Any] = new Array[Any](0)
+			override val emptyBoxArray :Array[AnyRef] = new Array[AnyRef](0)
+
 
 			private[palimpsest] override def call[R[X]](callback :SpecializeIndividually[R])
-			                                           (implicit force :Enforce[Nothing]) = callback.forNothing
+			                                           (implicit force :Enforce[Any]) :R[Any] =
+				callback.forRef(this)
+
+			override protected[palimpsest] val discriminator = new Enforce[Any]
+
+			override def toString = "[_]"
+
 		}
 
 	}
@@ -1244,14 +1228,14 @@ object RuntimeType extends SecondaryRuntimeTypeImplicits {
 	 * Note that this trait is ''not'' specialized itself, so accepting it as a parameter will not result in
 	 * the specialization of the method.
 	 */
-	trait ExactRuntimeType[T] extends RuntimeType[T] {
+	sealed trait ExactRuntimeType[T] extends RuntimeType[T] {
 		type RunType = T
 	}
 
 	/** A trait extended by `Specialized` instances retaining full type information about `T`, i.e.
 	 * representing one of the inbuilt value classes or `AnyRef` itself (but not other reference types).
 	 */
-	trait SpecializedExact[T] extends Specialized[T] with ExactRuntimeType[T]
+	sealed trait SpecializedExact[T] extends Specialized[T] with ExactRuntimeType[T]
 
 
 

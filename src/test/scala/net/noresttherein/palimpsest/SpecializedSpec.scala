@@ -93,7 +93,7 @@ object SpecializedSpec extends Properties("Specialized") {
 		def spec[T :Specialized] = Specialized[T]
 
 		(spec(RuntimeType.OfByte) is classOf[Byte]) &&
-			(spec(RuntimeType.OfAny) is classOf[AnyRef])
+			(spec(RuntimeType.erased[Any]) is classOf[AnyRef])
 	}
 
 

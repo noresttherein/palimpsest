@@ -52,7 +52,7 @@ object Specialize {
 	  * @tparam R type constructor for the returned value, needing code specialized for some parameter type `E` to compute.
 	  * @tparam P type constructor for the parameter given to the callback.
 	  */
-	trait With[R[X], P[X]] {
+	trait With[R[X], P[X]] { //todo: reverse the order of parameters
 		/** Retrieves implicit specialization information available at the calling point and invokes the appropriate
 		  * specialized version of this instance's `specialized` method with the same argument.
 		  * @param param the parameter given to [[With#specialized]].
@@ -75,7 +75,7 @@ object Specialize {
 	  * @tparam P1 type constructor for the first parameter given to the callback.
 	  * @tparam P2 type constructor for the second parameter given to the callback
 	  */
-	trait With2[R[X], P1[X], P2[X]] {
+	trait With2[R[X], P1[X], P2[X]] { //todo: reverse the order of parameters
 		/** Retrieves implicit specialization information available at the calling point and invokes the appropriate
 		  * specialized version of this instance's `specialized` method with the same argument.
 		  * @param param1 the first parameter given to [[With2#specialized]].
@@ -124,7 +124,7 @@ object Specialize {
 		  * @tparam E type specialized for
 		  * @return
 		  */
-		@inline override final def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
+		@inline final override def apply[E]()(implicit specialization :RuntimeType[E]) :R[E] =
 			specialization.call(this)
 
 

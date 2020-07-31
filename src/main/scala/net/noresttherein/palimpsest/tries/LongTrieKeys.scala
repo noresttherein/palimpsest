@@ -380,7 +380,7 @@ object LongTrieKeys {
 		extends TrieLeafFoundation[Long, This] with GenericBinaryTrieLeaf[Long, S, This] with LeafFriend[Long, LongTrie, S]
 		   with LongTrieKeys[S, This]
 	{ this :This with LongTrie =>
-
+		//object memory footprint is 16 bytes on 32 bit and 20(24) bytes on 64 bit
 		@inline final override def key :Long = k
 		@inline final override def prefix :Long = k
 		@inline final override def label :Long = k
@@ -457,7 +457,7 @@ object LongTrieKeys {
 	                                   (private[this] var path :Long, zero :S, one :S)
 		extends GenericBinaryTrieBranch[Long, S, This](zero, one) with LongTrieKeys[S, This]
 	{ self :This with LongTrie =>
-
+		//object memory footprint is 24 bytes on 32 bit, 28(32) bytes on <32G 64 bit and 36(40) bytes on >32G 64 bit
 		/** Create a new trie node with the given children and calculate the common center label. */
 		def this(left :S, right :S) = this(centerLabel(left.label, right.label), left, right)
 

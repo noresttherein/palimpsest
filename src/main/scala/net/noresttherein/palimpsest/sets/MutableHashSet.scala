@@ -140,7 +140,7 @@ class MutableHashSet[@specialized(LargeSetElements) E] private[sets] (
 		while ((hits & 1) != 0) { //find a free slot at bucket or higher
 			slot += 1
 			hits >>>= 1
-			if (slot < capacity)
+			if (slot < capacity) //this check could be avoided by splitting the loop into two
 				hits |= buckets(slot) & FullBitmap
 		}
 		if (slot >= capacity + Neighbourhood - 1) {

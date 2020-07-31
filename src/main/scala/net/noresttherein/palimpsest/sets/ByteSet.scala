@@ -31,7 +31,8 @@ import scala.math.Ordering.ByteOrdering
   * @see [[net.noresttherein.palimpsest.sets.ByteSet.StableByteSet]]
   * @author Marcin Mościcki
   */
-private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, This] with OrderedSet[Byte]] private[ByteSet](bytes :ByteSetBitmap)
+private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, This] with OrderedSet[Byte]] private[ByteSet]
+                                           (bytes :ByteSetBitmap)
 	extends OrderedSet[Byte] with OrderedSetTemplate[Byte, This] /*with SetSpecialization[Byte, This]*/ with OfKnownSize
 {
 	@inline final private[ByteSet] def bitmap :ByteSetBitmap = bytes
@@ -94,7 +95,7 @@ private[sets] sealed abstract class ByteSet[This <: OrderedSetTemplate[Byte, Thi
 			bu.sizeHint(size)
 			var cell = 0
 			do {
-				val base = cell*64; var i = 0; var word = bitmap.bitmap(cell)
+				val base = cell * 64; var i = 0; var word = bitmap.bitmap(cell)
 				while (word != 0L) {
 					if ((word & 1L) != 0) bu += f((base+i).toByte)
 					i += 1; word >>>= 1
@@ -589,7 +590,7 @@ private[sets] object ByteSet {
 
 		@inline def contains(elem: Byte): Boolean = {
 			val i = elem & 0xff
-			((bitmap(i / 64) >> i) & 1L) != 0
+			((bitmap(i >> 6) >> i) & 1L) != 0
 		}
 
 		def keyAt(idx :Int) :Byte =
@@ -804,41 +805,56 @@ private[sets] object ByteSet {
 		}
 
 
-		@inline def foreachInt[@specialized(Unit) U](f: Int => U): Unit = {
+		def foreachInt[@specialized(Unit) U](f: Int => U): Unit = {
 			var cell = 0
 			do {
-				val base = cell*64; var i = 0; var word = bitmap(cell)
+				var base = cell * 64; var word = bitmap(cell)
 				while (word != 0L) {
-					if ((word & 1L) != 0) f((base+i) & 0xff)
-					i += 1; word >>>= 1
+					var byte = word.toInt & 0xFFFFFF00
+					var i = 0
+					while (byte != 0) {
+						if ((byte & 1) != 0) f((base + i).toByte)
+						i += 1; byte >>>= 1
+					}
+					base += 8; word >>>= 8
+				}
+				cell += 1
+			} while(cell < 4)
+		}
+
+		def foreach[@specialized(Unit) U](f: Byte => U): Unit = {
+			var cell = 0
+			do {
+				var base = cell * 64; var word = bitmap(cell)
+				while (word != 0L) {
+					var byte = word.toInt & 0xFF
+					var i = 0
+					while (byte != 0) {
+						if ((byte & 1) != 0) f((base + i).toByte)
+						i += 1; byte >>>= 1
+					}
+					base += 8; word >>>= 8
 				}
 				cell += 1
 			}while(cell < 4)
 		}
 
-		@inline def foreach[@specialized(Unit) U](f: Byte => U): Unit = {
-			var cell = 0
+		def reverseForeach(f :Byte => Unit) :Unit = {
+			var cell = 4
 			do {
-				val base = cell*64; var i = 0; var word = bitmap(cell)
-				while (word != 0L) {
-					if ((word & 1L) != 0) f((base+i).toByte)
-					i += 1; word >>>= 1
-				}
-				cell += 1
-			}while(cell < 4)
-		}
-
-		@inline def reverseForeach(f :Byte=>Unit) :Unit = {
-			var cell = 4; val mask = Long.MaxValue
-			do {
-				val base = cell*64
+				var base = cell * 64
 				cell -= 1
-				var i = 1; var word = bitmap(cell)
+				var word = bitmap(cell)
 				while (word != 0L) {
-					if ((word & mask) != 0) f((base-i).toByte)
-					i += 1; word <<= 1
+					var byte = word.toInt & 0xFFFFFF00
+					var i = 1
+					while (byte != 0) {
+						if ((byte & Int.MaxValue) != 0) f((base - i).toByte)
+						i += 1; byte <<= 1
+					}
+					base -= 8; word <<= 8
 				}
-			}while(cell > 0)
+			} while(cell > 0)
 		}
 
 		@inline final def filterNot(p :Byte=>Boolean) :ByteSetBitmap = filter(p, ourTruth = false)
@@ -847,7 +863,7 @@ private[sets] object ByteSet {
 		def filter(p :Byte=>Boolean, ourTruth :Boolean) :ByteSetBitmap = {
 			val copy = this.copy
 			var cell = 0
-			do {
+			do { //todo: base implementation on foreach
 				val base = cell*64; var i = 0; var word = bitmap(cell)
 				while (word != 0L) {
 					if ((word & 1L) != 0 && p((base+i).toByte)!=ourTruth)

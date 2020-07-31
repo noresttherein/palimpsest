@@ -568,8 +568,6 @@ private[palimpsest] sealed trait RedBlackTreeKeySpecialization[@specialized(RawK
 		}
 	}
 
-
-
 }
 
 
@@ -713,7 +711,7 @@ private[palimpsest] trait RedBlackTree[@specialized(RawKeyTypes) K, @specialized
 				keyCount += 1
 				Blank
 			} else { //zero already present, just swap the value
-				val res = Sure(this.value)
+				val res = this.sure //Sure(this.value)
 				this.value = value
 				res
 			}
@@ -1058,8 +1056,9 @@ private[palimpsest] object RedBlackTree {
 		var color :Color
 
 		/** An alias for the `color` variable for the use by `RedBlackTree` and its descendants, as it uses this
-		  * variable for a different purpose and oveerrides the `color` accessors to fix the color to Black. */
+		  * variable for a different purpose and overrides the `color` accessors to fix the color to Black. */
 		def colorBit :Color = color
+
 		/** An alias for the `color` variable for the use by `RedBlackTree` and its descendants, as it uses this
 		 * variable for a different purpose and oveerrides the `color` accessors to fix the color to Black. */
 		def colorBit_=(sign :Color) :Unit = color = sign
@@ -1088,6 +1087,9 @@ private[palimpsest] object RedBlackTree {
 
 			override def vals :EntryLens[K, Unit, Unit] = SetValues.asInstanceOf[EntryLens[K, Unit, Unit]]
 		}
+
+		//node classes are manually specialized to avoid erased fields for keys and values which would be
+		//introduced by the erased version of the trait.
 
 		trait IntValueNode[K] extends Node[K, Int] {
 			override def vals :EntryLens[K, Int, Int] = IntValues.asInstanceOf[EntryLens[K, Int, Int]]

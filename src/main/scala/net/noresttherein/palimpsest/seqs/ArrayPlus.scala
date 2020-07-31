@@ -59,7 +59,7 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 		offset :Int,
 		len :Int,
 		/** Ownership flag granting this instance the right to write to the backing array past its index range. Single use only.*/
-		private[this] var mutable :Boolean = false
+		private[this] var mutable :Boolean = false //todo: make this volatile and use atomic volatile field ops
 	)
 	extends IterableFoundation[E, ArrayPlus[E]] with CloneableIterable[E, ArrayPlus[E]] //with AptIndexedSeq[E] //enforce the desired linearization
 	   with ArrayView[E] with ArrayViewLike[E, ArrayPlus[E]] with SpecializableIterable[E, ArrayPlus]
@@ -188,12 +188,12 @@ sealed class ArrayPlus[@specialized(ItemTypes) +E] protected[seqs](
 			if (offset > 0) {
 				if (canPassArray) {
 					val newOffset = offset - 1
-					buffer(newOffset) = elem.asInstanceOf[E]
+					buffer(newOffset) = elem.asInstanceOf[E] //fixme: this instance is not specialized!
 					return new ArrayPlus[E](buffer, newOffset, len + 1, true)
 				}
 			} else if (len == 0 & capacity > 0 && canPassArray) {
 				val newOffset = capacity - 1
-				buffer(newOffset) = elem.asInstanceOf[E]
+				buffer(newOffset) = elem.asInstanceOf[E] //fixme: specialization
 				return new ArrayPlus[E](buffer, newOffset, 1, true)
 			}
 		} else

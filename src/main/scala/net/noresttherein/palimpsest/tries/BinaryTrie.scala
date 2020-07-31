@@ -1547,6 +1547,11 @@ object GenericBinaryTrie {
 
 
 
+	trait BinaryTrieTraversal[K, T <: BinaryTrie[K, T], U] {
+		def visitEmpty(empty :T) :U
+		def visit(leaf :T) :U //take & continue; take & end;
+
+	}
 	/** Creates an initial stack for use by a [[BinaryTrieIterator]] iterating over all leaves in the given trie.
 	  * Simply creates the array of the size corresponding to maximal potential depth of the stack given as `depth`,
 	  * with the given trie in its first cell. Resulting array can be passed to the iterator constructor, specifying
